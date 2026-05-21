@@ -75,4 +75,17 @@ This project is collaborated on across multiple AI assistants. `PROGRESS.md` is 
 
 ---
 
+## 6. Verification — The User Drives the Browser
+
+**The user verifies UI/gameplay themselves via IDX preview. AI must NOT run headless browser verification.**
+
+- ❌ Do NOT install Playwright, Puppeteer, Chromium, or any headless browser.
+- ❌ Do NOT take automated screenshots of the running game.
+- ❌ Do NOT loop on "spawn dev server → screenshot → inspect pixels".
+- ✅ DO verify code with `npm run build` (tsc + vite) and unit logic via pure-TS tests if needed.
+- ✅ DO start `npm run dev` only to confirm the server boots (HTTP 200) — then stop, report the port, hand off.
+- The user opens the IDX port preview and plays the game. Trust them to report what they see.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.

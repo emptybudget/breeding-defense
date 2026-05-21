@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21
+> 마지막 갱신: 2026-05-21 (CLAUDE.md 섹션 6 추가: 헤드리스 브라우저 검증 금지)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -111,3 +111,5 @@ node_modules/.bin/tsc --noEmit  # 타입 검사
 2. **Simplicity First** — 요청 이상의 추상화/유연성/에러처리 금지
 3. **Surgical Changes** — 요청 외 코드 손대지 않기, 본인이 만든 orphan만 정리
 4. **Goal-Driven** — 검증 가능한 성공 기준 정의 후 루프
+5. **PROGRESS.md 동기 갱신** — 의미있는 변경은 같은 커밋에서 이 문서도 업데이트
+6. **검증은 사용자가** — Playwright/Puppeteer/Chromium 설치 및 헤드리스 스크린샷 검증 금지. AI는 `npm run build` + 서버 부팅 확인까지만, UI 검증은 사용자가 IDX 미리보기로 직접 함
