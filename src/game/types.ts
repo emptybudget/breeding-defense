@@ -1,12 +1,15 @@
 export type Race = 'Human' | 'Beast' | 'Robot';
+export type UnitRace = Race | 'Hybrid';
 
 export interface UnitData {
   id: number;
-  race: Race;
-  tier: 1;
+  race: UnitRace;
+  tier: 1 | 2;
   x: number;
   y: number;
   lastAttackedAtMs: number;
+  isBreeding: boolean;
+  breedingEndMs: number;
 }
 
 export interface EnemySnapshot {

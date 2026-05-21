@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 3 + CLAUDE.md 섹션 6 추가)
+> 마지막 갱신: 2026-05-21 (미션 4)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -60,6 +60,7 @@ breeding-defense/
 | `UNIT_ATTACK_INTERVAL_MS` | 1000 | 유닛 공격 쿨타임 (1초) |
 | `UNIT_ATTACK_RANGE` | 120 | 유닛 사거리 (반지름 px) |
 | `UNIT_BASE_DAMAGE` | 1 | 1티어 기본 대미지 |
+| `BREEDING_DURATION_MS` | 3000 | 교배 대기시간 (3초) |
 
 ## 트랙 구조
 - 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
@@ -72,10 +73,12 @@ breeding-defense/
 - 게터: `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed`, `formatTimer()`
 
 ## 타입 (src/game/types.ts)
-- `UnitData`: id, race, tier, x, y, `lastAttackedAtMs`
-- `EnemySnapshot`: id, x, y, hp, progressScore (GameScene → GameState 전달용)
-- `AttackEvent`: unitX, unitY, enemyX, enemyY (플래시 선 렌더링용)
-- `CombatResult`: attacks[], killedIds[], hpUpdates[] (processCombat 반환값)
+- `Race`: 'Human' | 'Beast' | 'Robot'
+- `UnitRace`: Race | 'Hybrid'
+- `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs
+- `EnemySnapshot`: id, x, y, hp, progressScore
+- `AttackEvent`: unitX, unitY, enemyX, enemyY
+- `CombatResult`: attacks[], killedIds[], hpUpdates[]
 
 ## 구현 완료
 - [x] 실시간 타이머 + 적 카운터 `N / 50` UI
@@ -94,10 +97,13 @@ breeding-defense/
 - [x] 적 처치 시 Phaser 오브젝트 제거 + Gold +5
 - [x] 사거리 원 시각화 (종족 색, 불투명도 0.2)
 - [x] 공격 플래시 선 (노란색, 100ms)
+- [x] 드래그 앤 드롭: 유닛 드래그, 25px 이내 드롭 판정, 실패 시 원위치 복귀
+- [x] 교배(Breeding): 같은 종족 드롭 → 3초 쿨(isBreeding=true, 공격 중단) → 자식 유닛 추가 (❤ 연출)
+- [x] 합성(Synthesis): 다른 종족 드롭 → 두 유닛 제거 → Hybrid 2티어 즉시 생성
+- [x] 2티어 Hybrid: 큰 원+흰 테두리, 공격력 2배, 교배/합성 불가
+- [x] 유닛 한도(5) 검증: 교배 시 cap 초과면 실패
 
 ## 미구현 (다음 단계 후보)
-- [ ] **교배** (같은 종족 드래그 → 동종 +1)
-- [ ] **합성** (다른 종족 드래그 → 상위 티어 융합)
 - [ ] 적 종류 다양화
 - [ ] Capacitor 패키징 설정
 

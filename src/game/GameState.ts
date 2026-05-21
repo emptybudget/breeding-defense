@@ -1,4 +1,5 @@
 import {
+  BREEDING_DURATION_MS,
   CLEAR_TIME_MS,
   ENEMY_BASE_HP,
   ENEMY_BASE_SPEED,
@@ -69,9 +70,52 @@ export class GameState {
     const race = RACES[Math.floor(Math.random() * RACES.length)];
     const x = UNIT_ZONE.x1 + Math.random() * (UNIT_ZONE.x2 - UNIT_ZONE.x1);
     const y = UNIT_ZONE.y1 + Math.random() * (UNIT_ZONE.y2 - UNIT_ZONE.y1);
-    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y, lastAttackedAtMs: 0 };
+    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
     this.units.push(unit);
     return unit;
+  }
+
+  startBreeding(idA: number, idB: number): boolean {
+    const a = this.units.find(u => u.id === idA);
+    const b = this.units.find(u => u.id === idB);
+    if (!a || !b) return false;
+    if (a.race !== b.race || a.tier === 2 || b.tier === 2) return false;
+    if (a.isBreeding || b.isBreeding) return false;
+    if (this.units.length >= UNIT_CAP) return false; // offspring would exceed cap
+    const endMs = this.elapsedMs + BREEDING_DURATION_MS;
+    a.isBreeding = true; a.breedingEndMs = endMs;
+    b.isBreeding = true; b.breedingEndMs = endMs;
+    return true;
+  }
+
+  completeBreeding(idA: number, idB: number): UnitData | null {
+    const a = this.units.find(u => u.id === idA);
+    const b = this.units.find(u => u.id === idB);
+    if (!a || !b) return null;
+    a.isBreeding = false; a.breedingEndMs = 0;
+    b.isBreeding = false; b.breedingEndMs = 0;
+    const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
+    const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
+    const offspring: UnitData = { id: this._nextUnitId++, race: a.race, tier: 1, x: ox, y: oy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
+    this.units.push(offspring);
+    return offspring;
+  }
+
+  synthesize(idA: number, idB: number): UnitData | null {
+    const aIdx = this.units.findIndex(u => u.id === idA);
+    const bIdx = this.units.findIndex(u => u.id === idB);
+    if (aIdx < 0 || bIdx < 0) return null;
+    const a = this.units[aIdx];
+    const b = this.units[bIdx];
+    if (a.tier === 2 || b.tier === 2) return null;
+    const hx = (a.x + b.x) / 2;
+    const hy = (a.y + b.y) / 2;
+    const [hi, lo] = aIdx > bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
+    this.units.splice(hi, 1);
+    this.units.splice(lo, 1);
+    const hybrid: UnitData = { id: this._nextUnitId++, race: 'Hybrid', tier: 2, x: hx, y: hy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
+    this.units.push(hybrid);
+    return hybrid;
   }
 
   processCombat(snapshots: EnemySnapshot[]): CombatResult {
@@ -81,6 +125,7 @@ export class GameState {
     const liveHp = new Map<number, number>(snapshots.map(e => [e.id, e.hp]));
 
     for (const unit of this.units) {
+      if (unit.isBreeding) continue; // no attack during breeding
       if (now - unit.lastAttackedAtMs < UNIT_ATTACK_INTERVAL_MS) continue;
 
       let target: EnemySnapshot | null = null;
@@ -92,7 +137,8 @@ export class GameState {
       if (!target) continue;
 
       unit.lastAttackedAtMs = now;
-      const newHp = (liveHp.get(target.id) ?? target.hp) - UNIT_BASE_DAMAGE;
+      const damage = UNIT_BASE_DAMAGE * unit.tier;
+      const newHp = (liveHp.get(target.id) ?? target.hp) - damage;
       liveHp.set(target.id, newHp);
       attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y });
 

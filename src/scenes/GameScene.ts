@@ -1,15 +1,16 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, TRACK_WAYPOINTS, UNIT_ATTACK_RANGE, UNIT_CAP } from '../game/config';
+import { BREEDING_DURATION_MS, GAME_HEIGHT, GAME_WIDTH, TRACK_WAYPOINTS, UNIT_ATTACK_RANGE, UNIT_CAP } from '../game/config';
 import { GameState } from '../game/GameState';
-import { Race, UnitData } from '../game/types';
+import { UnitData, UnitRace } from '../game/types';
 
 const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
 
-const RACE_COLORS: Record<Race, number> = {
+const RACE_COLORS: Record<UnitRace, number> = {
   Human: 0x4488ff,
   Beast: 0x44cc44,
   Robot: 0xaa44cc,
+  Hybrid: 0xffaa00,
 };
 
 type Enemy = Phaser.GameObjects.Rectangle & {
@@ -31,7 +32,8 @@ export class GameScene extends Phaser.Scene {
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
   private spawnAccumulatorMs = 0;
-  private unitCircles = new Map<number, Phaser.GameObjects.Arc>();
+  private unitObjects = new Map<number, Phaser.GameObjects.Arc>();
+  private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private _nextEnemyId = 0;
 
   constructor() {
@@ -81,6 +83,22 @@ export class GameScene extends Phaser.Scene {
     this.summonBtn.on('pointerdown', () => {
       const unit = this.state.summon();
       if (unit) this.addUnitCircle(unit);
+    });
+
+    // Scene-level drag events for unit circles
+    this.input.on('dragstart', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
+      (go as Phaser.GameObjects.Arc).setDepth(4);
+    });
+    this.input.on('drag', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
+      const arc = go as Phaser.GameObjects.Arc;
+      arc.x = dragX;
+      arc.y = dragY;
+    });
+    this.input.on('dragend', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, _dropped: boolean) => {
+      const arc = go as Phaser.GameObjects.Arc;
+      arc.setDepth(0);
+      const unitId = arc.getData('unitId') as number;
+      this.handleDrop(unitId, arc);
     });
   }
 
@@ -201,14 +219,99 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private handleDrop(droppedId: number, go: Phaser.GameObjects.Arc): void {
+    const droppedUnit = this.state.units.find(u => u.id === droppedId);
+    if (!droppedUnit) return;
+
+    // Tier-2 and breeding units can't interact
+    if (droppedUnit.tier === 2 || droppedUnit.isBreeding) {
+      go.setPosition(droppedUnit.x, droppedUnit.y);
+      return;
+    }
+
+    // Find nearest unit within 25px
+    let targetId: number | null = null;
+    for (const [id, other] of this.unitObjects) {
+      if (id === droppedId) continue;
+      if (Math.hypot(go.x - other.x, go.y - other.y) <= 25) {
+        targetId = id;
+        break;
+      }
+    }
+
+    if (targetId === null) {
+      go.setPosition(droppedUnit.x, droppedUnit.y);
+      return;
+    }
+
+    const targetUnit = this.state.units.find(u => u.id === targetId);
+    if (!targetUnit || targetUnit.tier === 2 || targetUnit.isBreeding) {
+      go.setPosition(droppedUnit.x, droppedUnit.y);
+      return;
+    }
+
+    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back regardless
+
+    if (droppedUnit.race === targetUnit.race) {
+      // Breeding: same race
+      const started = this.state.startBreeding(droppedId, targetId);
+      if (started) this.startBreedingEffect(droppedId, targetId);
+    } else {
+      // Synthesis: different race
+      const hybrid = this.state.synthesize(droppedId, targetId);
+      if (hybrid) {
+        this.removeUnitObject(droppedId);
+        this.removeUnitObject(targetId);
+        this.addUnitCircle(hybrid);
+      }
+    }
+  }
+
+  private startBreedingEffect(idA: number, idB: number): void {
+    const goA = this.unitObjects.get(idA);
+    const goB = this.unitObjects.get(idB);
+    if (!goA || !goB) return;
+
+    const heartA = this.add.text(goA.x, goA.y - 18, '❤', {
+      fontSize: '16px', color: '#ff4444',
+    }).setOrigin(0.5).setDepth(2);
+    const heartB = this.add.text(goB.x, goB.y - 18, '❤', {
+      fontSize: '16px', color: '#ff4444',
+    }).setOrigin(0.5).setDepth(2);
+    this.heartTexts.set(idA, heartA);
+    this.heartTexts.set(idB, heartB);
+
+    this.time.delayedCall(BREEDING_DURATION_MS, () => {
+      heartA.destroy();
+      heartB.destroy();
+      this.heartTexts.delete(idA);
+      this.heartTexts.delete(idB);
+      const offspring = this.state.completeBreeding(idA, idB);
+      if (offspring) this.addUnitCircle(offspring);
+    });
+  }
+
+  private removeUnitObject(id: number): void {
+    this.unitObjects.get(id)?.destroy();
+    this.unitObjects.delete(id);
+    this.heartTexts.get(id)?.destroy();
+    this.heartTexts.delete(id);
+  }
+
   private addUnitCircle(unit: UnitData): void {
     // Range indicator (faint outline)
     this.add.graphics()
       .lineStyle(1, RACE_COLORS[unit.race], 0.2)
       .strokeCircle(unit.x, unit.y, UNIT_ATTACK_RANGE);
 
-    const circle = this.add.circle(unit.x, unit.y, 10, RACE_COLORS[unit.race]);
-    this.unitCircles.set(unit.id, circle);
+    const radius = unit.tier === 2 ? 16 : 10;
+    const circle = this.add.circle(unit.x, unit.y, radius, RACE_COLORS[unit.race]);
+    if (unit.tier === 2) circle.setStrokeStyle(3, 0xffffff);
+
+    circle.setInteractive({ useHandCursor: true });
+    this.input.setDraggable(circle);
+    circle.setData('unitId', unit.id);
+    this.unitObjects.set(unit.id, circle);
   }
 
   private showBanner(text: string, color: string): void {
