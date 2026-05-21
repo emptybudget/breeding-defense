@@ -19,12 +19,21 @@ const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
 
 const RACE_COLORS: Record<UnitRace, number> = {
-  Human:      0x4488ff,
-  Beast:      0x44cc44,
-  Robot:      0xaa44cc,
-  Human_Robot: 0x00eeff, // teal  — extreme range
-  Human_Beast: 0xff44aa, // pink  — fast attack
-  Beast_Robot: 0xff7700, // orange — burst damage
+  Human:       0x4488ff,
+  Beast:       0x44cc44,
+  Robot:       0xaa44cc,
+  Human_Robot: 0x00eeff,
+  Human_Beast: 0xff44aa,
+  Beast_Robot: 0xff7700,
+};
+
+const RACE_EMOJI: Record<UnitRace, string> = {
+  Human:       '👦',
+  Beast:       '🐶',
+  Robot:       '🤖',
+  Human_Robot: '🦾',
+  Human_Beast: '🐺',
+  Beast_Robot: '🦖',
 };
 
 type Enemy = Phaser.GameObjects.Rectangle & {
@@ -55,7 +64,8 @@ export class GameScene extends Phaser.Scene {
   private minuteWarning?: Phaser.GameObjects.Text;
   private gameOverContainer?: Phaser.GameObjects.Container;
   private spawnAccumulatorMs = 0;
-  private unitObjects = new Map<number, Phaser.GameObjects.Arc>();
+  // Emoji text objects — also the interactive drag handle
+  private unitObjects = new Map<number, Phaser.GameObjects.Text>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
@@ -117,20 +127,20 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0, 0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.popBtn.on('pointerdown', () => { this.state.upgradePopulation(); });
 
-    // Scene-level drag
+    // Scene-level drag events
     this.input.on('dragstart', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
-      (go as Phaser.GameObjects.Arc).setDepth(4);
+      (go as Phaser.GameObjects.Text).setDepth(4);
     });
     this.input.on('drag', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
-      const arc = go as Phaser.GameObjects.Arc;
-      arc.x = dragX;
-      arc.y = dragY;
+      const label = go as Phaser.GameObjects.Text;
+      label.x = dragX;
+      label.y = dragY;
     });
     this.input.on('dragend', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, _dropped: boolean) => {
-      const arc = go as Phaser.GameObjects.Arc;
-      arc.setDepth(0);
-      const unitId = arc.getData('unitId') as number;
-      this.handleDrop(unitId, arc);
+      const label = go as Phaser.GameObjects.Text;
+      label.setDepth(1);
+      const unitId = label.getData('unitId') as number;
+      this.handleDrop(unitId, label);
     });
   }
 
@@ -214,7 +224,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnBoss(): void {
-    const wp = TRACK_WAYPOINTS[0]; // fixed at top-left corner
+    const wp = TRACK_WAYPOINTS[0];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
     const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * BOSS_HP_MULT);
     const boss = this.add.rectangle(wp.x, wp.y, 32, 32, 0x0055ff) as Enemy;
@@ -328,16 +338,17 @@ export class GameScene extends Phaser.Scene {
     );
   }
 
-  private handleDrop(droppedId: number, go: Phaser.GameObjects.Arc): void {
+  private handleDrop(droppedId: number, go: Phaser.GameObjects.Text): void {
     const droppedUnit = this.state.units.find(u => u.id === droppedId);
     if (!droppedUnit) return;
 
-    if (droppedUnit.tier === 2 || droppedUnit.isBreeding || droppedUnit.isExhausted) {
+    // Breeding units can't do anything — snap back immediately
+    if (droppedUnit.isBreeding) {
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
 
-    // Find nearest unit within 35px
+    // Find nearest other unit within 35px
     let targetId: number | null = null;
     for (const [id, other] of this.unitObjects) {
       if (id === droppedId) continue;
@@ -348,13 +359,20 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (targetId === null) {
-      // Empty space — move if position is valid
+      // Empty space — all tiers can move freely
       if (this.isValidUnitPosition(go.x, go.y)) {
         this.state.moveUnit(droppedId, go.x, go.y);
         this.rangeCircles.get(droppedId)?.setPosition(go.x, go.y);
-        // go already sits at go.x, go.y from dragging — no snap needed
+        // go already sits at drop position — no snap needed
         return;
       }
+      go.setPosition(droppedUnit.x, droppedUnit.y);
+      return;
+    }
+
+    // Interaction with another unit:
+    // Only tier-1, non-exhausted units can breed or synthesize
+    if (droppedUnit.tier === 2 || droppedUnit.isExhausted) {
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
@@ -385,11 +403,11 @@ export class GameScene extends Phaser.Scene {
     const goB = this.unitObjects.get(idB);
     if (!goA || !goB) return;
 
-    const heartA = this.add.text(goA.x, goA.y - 18, '❤', {
-      fontSize: '16px', color: '#ff4444',
+    const heartA = this.add.text(goA.x, goA.y - 22, '❤', {
+      fontSize: '14px', color: '#ff4444',
     }).setOrigin(0.5).setDepth(2);
-    const heartB = this.add.text(goB.x, goB.y - 18, '❤', {
-      fontSize: '16px', color: '#ff4444',
+    const heartB = this.add.text(goB.x, goB.y - 22, '❤', {
+      fontSize: '14px', color: '#ff4444',
     }).setOrigin(0.5).setDepth(2);
     this.heartTexts.set(idA, heartA);
     this.heartTexts.set(idB, heartB);
@@ -409,11 +427,15 @@ export class GameScene extends Phaser.Scene {
       const go = this.unitObjects.get(unit.id);
       if (!go) continue;
       if (unit.isExhausted) {
-        if (!this.zzzTexts.has(unit.id)) {
-          const t = this.add.text(go.x, go.y - 18, 'zzz', {
+        const existing = this.zzzTexts.get(unit.id);
+        if (!existing) {
+          const t = this.add.text(go.x, go.y - 22, 'zzz', {
             fontSize: '12px', color: '#aaaaff',
           }).setOrigin(0.5).setDepth(2);
           this.zzzTexts.set(unit.id, t);
+        } else {
+          // Keep zzz anchored above the unit even if it moved
+          existing.setPosition(go.x, go.y - 22);
         }
       } else {
         const t = this.zzzTexts.get(unit.id);
@@ -442,20 +464,23 @@ export class GameScene extends Phaser.Scene {
     const range = this.getUnitRange(unit.race);
     const color = RACE_COLORS[unit.race];
 
-    const rangeGfx = this.add.graphics();
+    // Range indicator — drawn at local (0,0) so setPosition works
+    const rangeGfx = this.add.graphics().setDepth(0);
     rangeGfx.lineStyle(1, color, 0.2);
     rangeGfx.strokeCircle(0, 0, range);
     rangeGfx.setPosition(unit.x, unit.y);
     this.rangeCircles.set(unit.id, rangeGfx);
 
-    const radius = unit.tier === 2 ? 16 : 10;
-    const circle = this.add.circle(unit.x, unit.y, radius, color);
-    if (unit.tier === 2) circle.setStrokeStyle(3, 0xffffff);
+    // Emoji label as the interactive drag handle
+    const fontSize = unit.tier === 2 ? '26px' : '20px';
+    const label = this.add.text(unit.x, unit.y, RACE_EMOJI[unit.race], {
+      fontSize,
+    }).setOrigin(0.5).setDepth(1);
 
-    circle.setInteractive({ useHandCursor: true });
-    this.input.setDraggable(circle);
-    circle.setData('unitId', unit.id);
-    this.unitObjects.set(unit.id, circle);
+    label.setInteractive({ useHandCursor: true });
+    this.input.setDraggable(label);
+    label.setData('unitId', unit.id);
+    this.unitObjects.set(unit.id, label);
   }
 
   private showGameOverPopup(): void {
@@ -493,17 +518,14 @@ export class GameScene extends Phaser.Scene {
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
 
-    // Destroy all enemies
     for (const e of [...this.enemyMap.values()]) e.destroy();
     this.enemyMap.clear();
     this.enemies.clear(false, false);
     this.spawnAccumulatorMs = 0;
 
-    // Clear GAME OVER banner if shown
     this.banner?.destroy();
     this.banner = undefined;
 
-    // Close popup
     this.gameOverContainer?.destroy();
     this.gameOverContainer = undefined;
   }
