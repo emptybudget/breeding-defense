@@ -63,4 +63,16 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 ---
 
+## 5. AI Handoff — Keep `PROGRESS.md` Current
+
+This project is collaborated on across multiple AI assistants. `PROGRESS.md` is the shared context file.
+
+- **Read `PROGRESS.md` first** at the start of every session — it carries state the chat history doesn't.
+- **Update `PROGRESS.md` in the same commit** as any meaningful change: new files, API changes, completed/added checklist items, constant tweaks, architecture shifts.
+- Keep it dense and skimmable. Tables/checklists over prose. No fluff.
+- Update the "마지막 갱신" date.
+- At the end of each user-facing update, also leave a copy-pasteable handoff summary in chat.
+
+---
+
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
