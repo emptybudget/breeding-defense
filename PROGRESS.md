@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 5)
+> 마지막 갱신: 2026-05-21 (미션 6)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -66,6 +66,14 @@ breeding-defense/
 | `ENEMY_TYPES.FAST` | hp:2, speed:75 | 빠른 적 (노란, 10×10) |
 | `POPULATION_UPGRADE_BASE_COST` | 100 | 사회성 첫 업그레이드 비용 |
 | `POPULATION_UPGRADE_COST_INCREASE` | 50 | 업그레이드마다 누적 증가 |
+| `ENEMY_SPAWN_INTERVAL_MS` | 2500 | 기본 스폰 주기 (↑ 난이도) |
+| `MINUTE_HP_MULT` | 1.5 | 1분마다 적 HP ×1.5 누적 |
+| `MINUTE_SPEED_MULT` | 1.2 | 1분마다 적 속도 ×1.2 누적 |
+| `STARTING_GEMS` | 3 | 시작 보석 수 |
+| `BOSS_HP_MULT` | 15 | 보스 HP = NORMAL×15 |
+| `BOSS_KILL_REWARD` | 50 | 보스 처치 골드 |
+| `RACE_STATS` | Human/Beast/Robot 각 range/damage/attackIntervalMs | 종족별 전투 스탯 |
+| `HYBRID_STATS` | Human_Robot/Human_Beast/Beast_Robot | 하이브리드별 전투 스탯 |
 
 ## 트랙 구조
 - 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
@@ -73,44 +81,48 @@ breeding-defense/
 - 적은 스폰 시 랜덤 웨이포인트에서 시작 → 다음 웨이포인트 순환
 
 ## GameState API (src/game/GameState.ts)
-- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`
-- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`, `upgradePopulation(): boolean`, `startBreeding(idA,idB): boolean`, `completeBreeding(idA,idB): UnitData|null`, `synthesize(idA,idB): UnitData|null`, `processCombat(snapshots): CombatResult`
-- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`(오버클록 배율, 기준=1), `currentEnemySpeed`(절대값 px/sec), `formatTimer()`
+- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`
+- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward)`, `summon()`, `upgradePopulation()`, `moveUnit(id,x,y)`, `useGemContinue(): boolean`, `startBreeding()`, `completeBreeding()`, `synthesize()`, `processCombat(snapshots)`
+- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`(전체 배율 = minuteHpMult × overclock), `currentEnemySpeed`(절대값), `formatTimer()`
 
 ## 타입 (src/game/types.ts)
 - `Race`: 'Human' | 'Beast' | 'Robot'
-- `UnitRace`: Race | 'Hybrid'
+- `HybridRace`: 'Human_Robot' | 'Human_Beast' | 'Beast_Robot'
+- `UnitRace`: Race | HybridRace
 - `EnemyType`: 'NORMAL' | 'FAST'
 - `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs
-- `EnemySnapshot`: id, x, y, hp, progressScore
+- `EnemySnapshot`: id, x, y, hp, progressScore, killReward
 - `AttackEvent`: unitX, unitY, enemyX, enemyY
 - `CombatResult`: attacks[], killedIds[], hpUpdates[]
 
 ## 구현 완료
-- [x] 실시간 타이머 + 적 카운터 `N / 50` UI
-- [x] 5초 간격 적 스폰 (ㅁ자 트랙 웨이포인트 랜덤 시작 → 순환 이동)
-- [x] 50마리 초과 → `GAME OVER` 배너, 게임 정지
+- [x] 실시간 타이머 + 적 카운터 `N / 50` UI + 보석(Gem) HUD
+- [x] 2.5초 간격 적 스폰 (ㅁ자 트랙 웨이포인트 랜덤 시작 → 순환 이동)
+- [x] 50마리 초과 → 게임오버 팝업 (다시하기 / 보석 이어하기)
+- [x] 보석(Gem) 3개 시작: 이어하기 시 1개 차감 + 모든 적 전멸 + 게임 재개
 - [x] 10:00 도달 → `Game Clear! 오버클록 모드 진입!` 배너 1.5초 → 오버클록 페이즈
 - [x] 오버클록: 매초 적 HP/속도/스폰주기 스케일링
-- [x] 시작 골드 100 / 적 처치 골드 5 경제 시스템
+- [x] **1분 주기 영구 버프:** HP×1.5, 속도×1.2 누적; 경고 문구 2.5초 표시
+- [x] **1분 주기 보스 스폰:** 파란 32×32, HP=NORMAL×15, 처치 골드 50
+- [x] 시작 골드 100 / 적 처치 골드 5 (보스 50) 경제 시스템
 - [x] 소환 비용 가중치: 10G → 12G → 14G... (+2씩 누적)
 - [x] 유닛 소환 버튼 (하단 좌측) — 골드/한도 조건 체크
-- [x] HUD 2행: 타이머/적수 + Gold/Units (maxUnits 동적 표시)
-- [x] 유닛 종족별 동그라미 렌더: Human=파랑, Beast=초록, Robot=보라
-- [x] 전투/즉시 타격: 사거리 120px, 쿨타임 1초, 데미지 1
-- [x] 타겟팅: progressScore 기반 전진 우선 (waypointIndex * 1000 - 거리)
-- [x] 적 처치 시 Phaser 오브젝트 제거 + Gold +5
-- [x] 사거리 원 시각화 (종족 색, 불투명도 0.2)
+- [x] HUD: 타이머/Gem/적수 + Gold/Units (maxUnits 동적 표시)
+- [x] **종족별 사거리 차별화:** Human=60px, Beast=120px, Robot=200px
+- [x] **하이브리드 3종 세분화:** Human_Robot(250px/dmg2), Human_Beast(100px/dmg2/500ms), Beast_Robot(160px/dmg5)
+- [x] 유닛 종족별 색상: Human=파랑, Beast=초록, Robot=보라, H+R=청록, H+B=핑크, B+R=주황
+- [x] 사거리 원 시각화 (종족별 크기, 색상, 불투명도 0.2) — 이동 시 원도 같이 이동
+- [x] 타겟팅: progressScore 기반 전진 우선
 - [x] 공격 플래시 선 (노란색, 100ms)
-- [x] 드래그 앤 드롭: 유닛 드래그, 35px 이내 드롭 판정, 실패 시 원위치 복귀
-- [x] 교배(Breeding): 같은 종족 드롭 → 3초 쿨(isBreeding=true, 공격 중단) → 자식 유닛 추가 (❤ 연출)
-- [x] 교배 후 탈진(Exhaustion): 부모 유닛 3초 zzz 상태 → 교배/합성 불가
-- [x] 합성(Synthesis): 다른 종족 드롭 → 두 유닛 제거 → Hybrid 2티어 즉시 생성
-- [x] 2티어 Hybrid: 큰 원+흰 테두리, 공격력 2배, 교배/합성 불가
+- [x] **드래그 이동:** 빈 공간 드롭 시 유닛 이동 (UNIT_ZONE 외부/UI 위 드롭은 원위치 복귀)**
+- [x] 드래그 교배/합성: 35px 이내 타 유닛 드롭 시 종족 판정
+- [x] 교배(Breeding): 같은 종족 → 3초 쿨 → 자식 추가 (❤ 연출)
+- [x] 교배 후 탈진(Exhaustion): 부모 유닛 3초 zzz 상태
+- [x] 합성(Synthesis): 다른 종족 → 두 유닛 제거 → Hybrid 2티어 즉시 생성
 - [x] 유닛 한도 검증: 교배/소환 시 maxUnits 초과면 실패
-- [x] 사회성 업그레이드 버튼 (하단 우측): 100G → maxUnits+1, 이후 +50G씩 누적
+- [x] 사회성 업그레이드 버튼 (하단 우측): 100G → maxUnits+1, +50G씩 누적
 - [x] 적 종류 다양화: NORMAL(빨강 16×16, HP5) / FAST(노랑 10×10, HP2 속도75)
-- [x] 적 HP 바: 각 적 상단에 20px 너비 바 (녹/황/적 색상 전환)
+- [x] 적 HP 바: 각 적 상단에 너비 바 (녹/황/적 색상 전환), 보스는 더 넓게
 
 ## 미구현 (다음 단계 후보)
 - [ ] Capacitor 패키징 설정

@@ -1,5 +1,6 @@
 export type Race = 'Human' | 'Beast' | 'Robot';
-export type UnitRace = Race | 'Hybrid';
+export type HybridRace = 'Human_Robot' | 'Human_Beast' | 'Beast_Robot';
+export type UnitRace = Race | HybridRace;
 
 export type EnemyType = 'NORMAL' | 'FAST';
 
@@ -22,6 +23,7 @@ export interface EnemySnapshot {
   y: number;
   hp: number;
   progressScore: number;
+  killReward: number;
 }
 
 export interface AttackEvent {
