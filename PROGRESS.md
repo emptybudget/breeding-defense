@@ -30,10 +30,11 @@ breeding-defense/
 └── src/
     ├── main.ts              # Phaser.Game 부트 (Scale.FIT, CENTER_BOTH)
     ├── game/                # 🧠 순수 데이터 레이어
-    │   ├── config.ts        # 상수
-    │   └── GameState.ts     # phase / 타이머 / 카운트 / 오버클록 게터
+    │   ├── config.ts        # 상수 (경제 + 트랙 포함)
+    │   ├── types.ts         # Race, UnitData 타입 정의
+    │   └── GameState.ts     # phase / 타이머 / 경제 / 유닛 배열 / summon()
     └── scenes/              # 🎨 Phaser 레이어
-        └── GameScene.ts     # HUD, 스폰, 이동, 배너
+        └── GameScene.ts     # HUD, 트랙, 적 스폰/이동, 유닛 렌더링, 소환 버튼
 ```
 
 ## 상수 (src/game/config.ts)
@@ -49,24 +50,46 @@ breeding-defense/
 | `OVERCLOCK_SPEED_GROWTH` | 1.03 | 매초 +3% |
 | `OVERCLOCK_SPAWN_DECAY` | 0.97 | 매초 -3% |
 | `OVERCLOCK_MIN_SPAWN_MS` | 200 | 스폰 주기 하한 |
+| `STARTING_GOLD` | 100 | 시작 골드 |
+| `KILL_REWARD` | 5 | 적 처치 골드 |
+| `UNIT_CAP` | 5 | 최대 배치 유닛 수 |
+| `SUMMON_BASE_COST` | 10 | 첫 소환 비용 |
+| `SUMMON_COST_INCREMENT` | 2 | 소환마다 누적 증가 |
+| `TRACK_WAYPOINTS` | 4개 좌표 | ㅁ자 트랙 모서리 (TL→TR→BR→BL) |
+| `UNIT_ZONE` | x1:68 y1:124 x2:292 y2:582 | 유닛 배치 가능 영역 (트랙 안쪽) |
+
+## 트랙 구조
+- 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
+- Phaser Graphics로 36px 두께 회색 사각형 선으로 시각화
+- 적은 스폰 시 랜덤 웨이포인트에서 시작 → 다음 웨이포인트 순환
 
 ## GameState API (src/game/GameState.ts)
-- 상태: `phase` ('playing' | 'clear' | 'overclock' | 'gameover'), `elapsedMs`, `enemyCount`, `gold`
-- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=1)`
-- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed` (오버클록 스케일 자동 계산), `formatTimer()` (MM:SS)
+- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `units: UnitData[]`, `summonCost`
+- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`
+- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed`, `formatTimer()`
+
+## UnitData 타입 (src/game/types.ts)
+- `id`: number (고유값)
+- `race`: 'Human' | 'Beast' | 'Robot' (랜덤)
+- `tier`: 1
+- `x`, `y`: 트랙 안쪽 랜덤 좌표
 
 ## 구현 완료
 - [x] 실시간 타이머 + 적 카운터 `N / 50` UI
-- [x] 5초 간격 적 스폰 (네 변 랜덤 → 중앙 직진하는 빨간 네모)
+- [x] 5초 간격 적 스폰 (ㅁ자 트랙 웨이포인트 랜덤 시작 → 순환 이동)
 - [x] 50마리 초과 → `GAME OVER` 배너, 게임 정지
 - [x] 10:00 도달 → `Game Clear! 오버클록 모드 진입!` 배너 1.5초 → 오버클록 페이즈
 - [x] 오버클록: 매초 적 HP/속도/스폰주기 스케일링
+- [x] 시작 골드 100 / 적 처치 골드 5 경제 시스템
+- [x] 소환 비용 가중치: 10G → 12G → 14G... (+2씩 누적)
+- [x] 유닛 소환 버튼 (하단 중앙) — 골드/한도 조건 체크
+- [x] 최대 유닛 5개 제한
+- [x] HUD 2행: 타이머/적수 + Gold/Units
+- [x] 유닛 종족별 동그라미 렌더: Human=파랑, Beast=초록, Robot=보라
 
 ## 미구현 (다음 단계 후보)
-- [ ] 플레이어 유닛 시스템 (Race, Tier 데이터 모델)
-- [ ] 유닛 소환 UI (골드 소비 + 1티어 랜덤)
-- [ ] 전투/공격 로직 (현재 적은 중앙 도달 후 idle)
-- [ ] 골드 UI 표시
+- [ ] 전투/공격 로직 (유닛이 트랙 위 적을 공격)
+- [ ] 골드 획득 연동 (registerKill은 구현됨, 적이 죽는 이벤트 미구현)
 - [ ] **교배** (같은 종족 드래그 → 동종 +1)
 - [ ] **합성** (다른 종족 드래그 → 상위 티어 융합)
 - [ ] 적 종류 다양화
@@ -76,7 +99,7 @@ breeding-defense/
 ```bash
 npm install
 npm run dev      # http://localhost:5173
-npm run build    # tsc + vite (통과 확인됨)
+node_modules/.bin/tsc --noEmit  # 타입 검사
 ```
 
 ## Git

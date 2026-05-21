@@ -1,13 +1,21 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, TRACK_WAYPOINTS, UNIT_CAP } from '../game/config';
 import { GameState } from '../game/GameState';
+import { Race, UnitData } from '../game/types';
 
 const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
 
+const RACE_COLORS: Record<Race, number> = {
+  Human: 0x4488ff,
+  Beast: 0x44cc44,
+  Robot: 0xaa44cc,
+};
+
 type Enemy = Phaser.GameObjects.Rectangle & {
   hp: number;
   speed: number;
+  waypointIndex: number;
 };
 
 export class GameScene extends Phaser.Scene {
@@ -15,8 +23,12 @@ export class GameScene extends Phaser.Scene {
   private enemies!: Phaser.GameObjects.Group;
   private timerText!: Phaser.GameObjects.Text;
   private countText!: Phaser.GameObjects.Text;
+  private goldText!: Phaser.GameObjects.Text;
+  private unitText!: Phaser.GameObjects.Text;
+  private summonBtn!: Phaser.GameObjects.Text;
   private banner?: Phaser.GameObjects.Text;
   private spawnAccumulatorMs = 0;
+  private unitCircles = new Map<number, Phaser.GameObjects.Arc>();
 
   constructor() {
     super('GameScene');
@@ -26,17 +38,43 @@ export class GameScene extends Phaser.Scene {
     this.state = new GameState();
     this.enemies = this.add.group();
 
-    // HUD
-    this.add.rectangle(0, 0, GAME_WIDTH, 48, 0x111111).setOrigin(0, 0);
-    this.timerText = this.add.text(12, 12, '00:00', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#ffffff',
-    });
-    this.countText = this.add.text(GAME_WIDTH - 12, 12, '0 / 50', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffaaaa',
-    }).setOrigin(1, 0);
+    // Track (ㅁ자 path)
+    const g = this.add.graphics();
+    g.lineStyle(36, 0x333333, 1);
+    g.strokeRect(
+      TRACK_WAYPOINTS[0].x,
+      TRACK_WAYPOINTS[0].y,
+      TRACK_WAYPOINTS[1].x - TRACK_WAYPOINTS[0].x,
+      TRACK_WAYPOINTS[3].y - TRACK_WAYPOINTS[0].y,
+    );
 
-    // Center marker (temporary)
-    this.add.circle(CENTER_X, CENTER_Y, 16, 0x2244aa).setStrokeStyle(2, 0x88aaff);
+    // HUD background (76px for two rows)
+    this.add.rectangle(0, 0, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
+    this.timerText = this.add.text(12, 8, '00:00', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
+    }).setDepth(6);
+    this.countText = this.add.text(GAME_WIDTH - 12, 8, '0 / 50', {
+      fontFamily: 'monospace', fontSize: '18px', color: '#ffaaaa',
+    }).setOrigin(1, 0).setDepth(6);
+    this.goldText = this.add.text(12, 42, 'Gold: 100', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#ffd700',
+    }).setDepth(6);
+    this.unitText = this.add.text(GAME_WIDTH - 12, 42, `Units: 0/${UNIT_CAP}`, {
+      fontFamily: 'monospace', fontSize: '16px', color: '#aaffaa',
+    }).setOrigin(1, 0).setDepth(6);
+
+    // Summon button
+    this.summonBtn = this.add.text(CENTER_X, GAME_HEIGHT - 36, '', {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      color: '#ffffff',
+      backgroundColor: '#335533',
+      padding: { x: 16, y: 10 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
+    this.summonBtn.on('pointerdown', () => {
+      const unit = this.state.summon();
+      if (unit) this.addUnitCircle(unit);
+    });
   }
 
   update(_time: number, deltaMs: number): void {
@@ -45,6 +83,9 @@ export class GameScene extends Phaser.Scene {
     this.state.tick(deltaMs);
     this.timerText.setText(this.state.formatTimer());
     this.countText.setText(`${this.state.enemyCount} / 50`);
+    this.goldText.setText(`Gold: ${this.state.gold}`);
+    this.unitText.setText(`Units: ${this.state.units.length}/${UNIT_CAP}`);
+    this.summonBtn.setText(`유닛 소환 (${this.state.summonCost}G)`);
 
     this.handleSpawning(deltaMs);
     this.moveEnemies(deltaMs);
@@ -79,16 +120,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private spawnEnemy(): void {
-    const edge = Phaser.Math.Between(0, 3);
-    let x = 0, y = 0;
-    if (edge === 0) { x = Phaser.Math.Between(0, GAME_WIDTH); y = 56; }
-    else if (edge === 1) { x = Phaser.Math.Between(0, GAME_WIDTH); y = GAME_HEIGHT - 8; }
-    else if (edge === 2) { x = 8; y = Phaser.Math.Between(56, GAME_HEIGHT - 8); }
-    else { x = GAME_WIDTH - 8; y = Phaser.Math.Between(56, GAME_HEIGHT - 8); }
-
-    const enemy = this.add.rectangle(x, y, 16, 16, 0xff3344) as Enemy;
+    const wpIdx = Phaser.Math.Between(0, TRACK_WAYPOINTS.length - 1);
+    const wp = TRACK_WAYPOINTS[wpIdx];
+    const enemy = this.add.rectangle(wp.x, wp.y, 16, 16, 0xff3344) as Enemy;
     enemy.hp = this.state.currentEnemyHp;
     enemy.speed = this.state.currentEnemySpeed;
+    enemy.waypointIndex = (wpIdx + 1) % TRACK_WAYPOINTS.length;
     this.enemies.add(enemy);
     this.state.registerSpawn();
   }
@@ -97,14 +134,23 @@ export class GameScene extends Phaser.Scene {
     const dtSec = deltaMs / 1000;
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;
-      const dx = CENTER_X - e.x;
-      const dy = CENTER_Y - e.y;
+      const wp = TRACK_WAYPOINTS[e.waypointIndex];
+      const dx = wp.x - e.x;
+      const dy = wp.y - e.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 18) return; // reached center; idle (combat not implemented yet)
+      if (dist < 8) {
+        e.waypointIndex = (e.waypointIndex + 1) % TRACK_WAYPOINTS.length;
+        return;
+      }
       const step = e.speed * dtSec;
       e.x += (dx / dist) * step;
       e.y += (dy / dist) * step;
     });
+  }
+
+  private addUnitCircle(unit: UnitData): void {
+    const circle = this.add.circle(unit.x, unit.y, 10, RACE_COLORS[unit.race]);
+    this.unitCircles.set(unit.id, circle);
   }
 
   private showBanner(text: string, color: string): void {
