@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 7)
+> 마지막 갱신: 2026-05-21 (리팩토링 계획 + 출시 로드맵 추가)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -151,8 +151,70 @@ breeding-defense/
 - [x] **승리 팝업 3버튼 분기:** [다시하기] / [무한 모드](isInfiniteMode=true, 게임 재개) / [메인메뉴](비활성화)
 - [x] **무한 모드 플래그:** isInfiniteMode=true 시 2분 승리 조건 패스, 무한 난이도 가속 지속
 
-## 미구현 (다음 단계 후보)
-- [ ] Capacitor 패키징 설정
+## ⚠️ DEV 단축값 (출시 전 원복 필요)
+빠른 반복 플레이 테스트를 위해 임시로 당겨놓은 값들. **출시 전 반드시 원복.**
+
+| 상수 | 현재 (DEV) | 출시 목표 | 비고 |
+|---|---|---|---|
+| `VICTORY_TIME_MS` | 120000 (2분) | **600000 (10분)** | 원본 스펙 |
+| `ENEMY_SPAWN_INTERVAL_MS` | 2500 | **5000** | 원본 스펙 |
+
+원본 게임플레이 의도: **10분 생존 시 1차 클리어 → 무한 오버클록 모드 무제한 지속.** 현재 2분 승리는 다음 해금/기능 검증 속도를 위한 디버그값.
+
+## 🏗️ 리팩토링 계획 (다음 작업 최우선)
+
+**현황:** `GameScene.ts` 747줄, 단일 파일에서 HUD/스폰/이동/유닛렌더/드래그/팝업/알림 전부 처리 → 다음 큰 기능 들어가기 전 분리 필요.
+
+**목표:** GameScene을 ~150줄 오케스트레이터로 축소, 책임별 매니저 파일 분리.
+
+**원칙:**
+- 각 단계 후 게임 동작 동일 (회귀 0). 단계별 커밋으로 롤백 가능.
+- 매니저는 `Phaser.Scene` + `GameState` 참조 받음. **GameState 직접 변이 금지** (GameState 메서드만 호출).
+- `src/game/*` 의 Phaser 의존 0 원칙 유지.
+
+**제안 구조:**
+```
+src/scenes/
+├── GameScene.ts                  # ~150줄: lifecycle + update 오케스트레이션
+├── constants.ts                  # RACE_COLORS, RACE_EMOJI, SELL_ZONE 좌표
+├── render/
+│   ├── HudRenderer.ts            # 상하단 바, 타이머/골드/유닛/보석/소환·사회성 버튼
+│   ├── EnemyRenderer.ts          # 스폰, 이동, HP바
+│   ├── UnitRenderer.ts           # 이모지, 사거리원, ❤/zzz/🔒 오버레이
+│   ├── PopupRenderer.ts          # gameOver / victory / reward shop / dim
+│   └── NotificationRenderer.ts   # 하단 좌측 4줄 로그 스택
+└── input/
+    └── DragController.ts         # dragstart/drag/dragend + handleDrop 분기
+```
+
+**단계 (각 단계 = 1 커밋, 사용자 IDX 확인 후 다음 진행):**
+1. `scenes/constants.ts` 분리 (위험도 0)
+2. `NotificationRenderer` 추출 (가장 독립적)
+3. `HudRenderer` 추출
+4. `PopupRenderer` 추출 (gameOver/victory/reward — pause 협조 필요)
+5. `EnemyRenderer` 추출
+6. `UnitRenderer` 추출 (가장 복잡 — 오버레이 다수)
+7. `DragController` 추출
+8. `GameScene.ts` 슬림화 마무리
+
+## 🎯 출시 로드맵 (10항목, 우선순위 순)
+
+> 게임 자체가 "출시 퀄리티"가 되어야 Capacitor 연결. 기술적 의존성 + 임팩트 순.
+
+| # | 항목 | 의도 |
+|---|---|---|
+| 1 | 🔧 **리팩토링** (위 계획) | 확장 기반 마련. 다음 기능 추가 비용 절감 |
+| 2 | 🎯 **밸런싱 패스** | DEV 값 원복 + 실제 10분 풀 플레이 곡선 검증, 골드/스폰/보스 빈도/스탯 튜닝 |
+| 3 | 💾 **세이브 / 메타프로그레션** | localStorage 기반 최고기록, 누적 보석, 영구 업그레이드 (모바일 리텐션 핵심) |
+| 4 | 🔊 **사운드 / 음악** | BGM + SFX (소환·공격·처치·보스·승리·UI 클릭), 음량 설정 |
+| 5 | 🏠 **메인 메뉴 + 설정 화면** | 시작/설정/기록/크레딧, 음량·언어·햅틱 토글 |
+| 6 | 🎓 **튜토리얼 / 온보딩** | 첫 플레이어 가이드 (교배/합성/소환/보스 보상 메커니즘) |
+| 7 | ✨ **시각 폴리시** | 파티클(공격/처치/소환), 데미지 숫자 팝업, 카메라 셰이크, 트랜지션 |
+| 8 | 📱 **반응형 + SafeArea** | 19.5:9, 20:9 등 다양한 모바일 비율, iOS notch / 안드로이드 navbar 대응 |
+| 9 | ⚡ **퍼포먼스 최적화** | 오브젝트 풀링 (Enemy/Unit/Particle), 컬링, 저사양 안드로이드도 60fps |
+| 10 | 📦 **Capacitor 패키징 + 스토어 메타** | Android/iOS 빌드, 아이콘/스플래시, 권한, IAP/광고 통합 |
+
+**규칙:** 한 항목 끝나면 사용자가 플레이 후 다음 항목 결정. 항목 내 작업은 한 AI가 끝까지 책임지고 PROGRESS.md 갱신.
 
 ## 실행 / 검증
 ```bash
