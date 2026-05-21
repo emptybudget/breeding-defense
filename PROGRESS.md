@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 6-2)
+> 마지막 갱신: 2026-05-21 (미션 6-3)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -64,14 +64,16 @@ breeding-defense/
 | `BREEDING_EXHAUST_DURATION_MS` | 3000 | 교배 후 탈진 지속시간 |
 | `ENEMY_TYPES.NORMAL` | hp:5, speed:40 | 일반 적 (빨간, 16×16) |
 | `ENEMY_TYPES.FAST` | hp:2, speed:75 | 빠른 적 (노란, 10×10) |
-| `POPULATION_UPGRADE_BASE_COST` | 100 | 사회성 첫 업그레이드 비용 |
-| `POPULATION_UPGRADE_COST_INCREASE` | 50 | 업그레이드마다 누적 증가 |
+| `POPULATION_UPGRADE_BASE_COST` | 50 | 사회성 첫 업그레이드 비용 |
+| `POPULATION_UPGRADE_COST_INCREASE` | 10 | 업그레이드마다 누적 증가 |
 | `ENEMY_SPAWN_INTERVAL_MS` | 2500 | 기본 스폰 주기 (↑ 난이도) |
 | `MINUTE_HP_MULT` | 1.5 | 1분마다 적 HP ×1.5 누적 |
 | `MINUTE_SPEED_MULT` | 1.2 | 1분마다 적 속도 ×1.2 누적 |
 | `STARTING_GEMS` | 3 | 시작 보석 수 |
 | `BOSS_HP_MULT` | 15 | 보스 HP = NORMAL×15 |
 | `BOSS_KILL_REWARD` | 50 | 보스 처치 골드 |
+| `VICTORY_TIME_MS` | 120000 (2분) | 승리 조건 시간 |
+| `CRIT_DAMAGE_MULT` | 1.5 | 치명타 대미지 배율 |
 | `RACE_STATS` | Human/Beast/Robot 각 range/damage/attackIntervalMs | 종족별 전투 스탯 |
 | `HYBRID_STATS` | Human_Robot/Human_Beast/Beast_Robot | 하이브리드별 전투 스탯 |
 
@@ -81,15 +83,17 @@ breeding-defense/
 - 적은 스폰 시 랜덤 웨이포인트에서 시작 → 다음 웨이포인트 순환
 
 ## GameState API (src/game/GameState.ts)
-- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`
+- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`
 - 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward)`, `summon()`, `upgradePopulation()`, `moveUnit(id,x,y)`, `useGemContinue(): boolean`, `startBreeding()`, `completeBreeding()`, `synthesize()`, `processCombat(snapshots)`
 - 게터: `currentSpawnIntervalMs`, `currentEnemyHp`(전체 배율 = minuteHpMult × overclock), `currentEnemySpeed`(절대값), `formatTimer()`
 
 ## 타입 (src/game/types.ts)
+- `Phase`: 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory'
 - `Race`: 'Human' | 'Beast' | 'Robot'
 - `HybridRace`: 'Human_Robot' | 'Human_Beast' | 'Beast_Robot'
 - `UnitRace`: Race | HybridRace
 - `EnemyType`: 'NORMAL' | 'FAST'
+- `RewardType`: 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk' | 'crit'
 - `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs
 - `EnemySnapshot`: id, x, y, hp, progressScore, killReward
 - `AttackEvent`: unitX, unitY, enemyX, enemyY
@@ -135,6 +139,10 @@ breeding-defense/
 - [x] **교배 밀착 연출:** 교배 성립 시 드래그 유닛이 대상 오른쪽 18px으로 즉시 이동
 - [x] **30초 스폰 가속:** 매 30초마다 스폰 주기 ×0.85 영구 누적 (최저 200ms)
 - [x] **일시정지 시스템:** 보상 팝업 중 tick/스폰/이동/전투 전부 중단
+- [x] **사회성 업그레이드 비용 조정:** 50G 시작, +10G씩 누적 (구: 100G/+50G)
+- [x] **보스 스폰 주기 30초로 단축:** (구: 60초 주기)
+- [x] **치명타(Critical) 시스템:** 전역 criticalProbability (기본 0%), 보스 보상 [🎯 치명타 50%], 최초 보스 보상에 치명타 확정 포함; ×1.5 대미지(ceil) → doubleAtk와 중첩; CRIT! 붉은 텍스트 상승 연출
+- [x] **2분 승리:** phase='victory', gems+1, isPaused=true → 🏆 VICTORY 🏆 팝업 (다시하기 버튼)
 
 ## 미구현 (다음 단계 후보)
 - [ ] Capacitor 패키징 설정

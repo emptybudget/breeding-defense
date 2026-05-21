@@ -12,7 +12,7 @@ import {
   TRACK_WAYPOINTS,
   UNIT_ZONE,
 } from '../game/config';
-import { GameState } from '../game/GameState';
+import { GameState, Phase } from '../game/GameState';
 import { EnemyType, HybridRace, Race, Reward, UnitData, UnitRace } from '../game/types';
 
 const CENTER_X = GAME_WIDTH / 2;
@@ -67,6 +67,7 @@ export class GameScene extends Phaser.Scene {
   private banner?: Phaser.GameObjects.Text;
   private minuteWarning?: Phaser.GameObjects.Text;
   private gameOverContainer?: Phaser.GameObjects.Container;
+  private victoryContainer?: Phaser.GameObjects.Container;
   private dimOverlay?: Phaser.GameObjects.Rectangle;
   private rewardContainer?: Phaser.GameObjects.Container;
   private spawnAccumulatorMs = 0;
@@ -178,6 +179,12 @@ export class GameScene extends Phaser.Scene {
       this.showMinuteWarning();
     }
 
+    // Victory check
+    if (this.isPhase('victory')) {
+      if (!this.victoryContainer) this.showVictoryPopup();
+      return;
+    }
+
     // Pause guard — skip all gameplay when reward popup is active
     if (this.state.isPaused) return;
 
@@ -203,7 +210,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private isPhase(p: 'playing' | 'clear' | 'overclock' | 'gameover'): boolean {
+  private isPhase(p: Phase): boolean {
     return this.state.phase === p;
   }
 
@@ -329,6 +336,18 @@ export class GameScene extends Phaser.Scene {
         this.flashGraphics.moveTo(atk.unitX, atk.unitY);
         this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
         this.flashGraphics.strokePath();
+        if (atk.isCrit) {
+          const critText = this.add.text(atk.enemyX, atk.enemyY - 10, 'CRIT!', {
+            fontFamily: 'monospace', fontSize: '13px', color: '#ff2222',
+          }).setOrigin(0.5).setDepth(4);
+          this.tweens.add({
+            targets: critText,
+            y: atk.enemyY - 40,
+            alpha: 0,
+            duration: 700,
+            onComplete: () => critText.destroy(),
+          });
+        }
       }
       this.time.delayedCall(100, () => this.flashGraphics.clear());
     }
@@ -644,5 +663,23 @@ export class GameScene extends Phaser.Scene {
     this.banner = this.add.text(CENTER_X, CENTER_Y, text, {
       fontFamily: 'monospace', fontSize: '24px', color, align: 'center',
     }).setOrigin(0.5);
+  }
+
+  private showVictoryPopup(): void {
+    const container = this.add.container(CENTER_X, CENTER_Y).setDepth(20);
+    const bg = this.add.rectangle(0, 0, 300, 210, 0x000000, 0.90);
+    const title = this.add.text(0, -75, '🏆 VICTORY 🏆', {
+      fontFamily: 'monospace', fontSize: '22px', color: '#ffd700', align: 'center',
+    }).setOrigin(0.5);
+    const gemInfo = this.add.text(0, -15, `보석 +1 획득!\n현재 💎 ${this.state.gems}개`, {
+      fontFamily: 'monospace', fontSize: '15px', color: '#aaddff', align: 'center',
+    }).setOrigin(0.5);
+    const restartBtn = this.add.text(0, 55, '  다시하기  ', {
+      fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
+      backgroundColor: '#334433', padding: { x: 14, y: 9 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    restartBtn.on('pointerdown', () => { this.scene.restart(); });
+    container.add([bg, title, gemInfo, restartBtn]);
+    this.victoryContainer = container;
   }
 }

@@ -66,8 +66,8 @@ export const BOSS_HP_MULT = 15;
 export const BOSS_KILL_REWARD = 50;
 
 // Population upgrade
-export const POPULATION_UPGRADE_BASE_COST = 100;
-export const POPULATION_UPGRADE_COST_INCREASE = 50;
+export const POPULATION_UPGRADE_BASE_COST = 50;
+export const POPULATION_UPGRADE_COST_INCREASE = 10;
 
 // Unit sell reward
 export const SELL_GOLD_TIER1 = 10;
@@ -85,3 +85,9 @@ export const SPAWN_ACCEL_DECAY = 0.85; // -15% per 30s
 
 // Boss reward economy
 export const REWARD_GOLD_AMOUNT = 150;
+
+// Victory condition
+export const VICTORY_TIME_MS = 2 * 60 * 1000; // 2:00
+
+// Critical hit
+export const CRIT_DAMAGE_MULT = 1.5;

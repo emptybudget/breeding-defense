@@ -2,6 +2,7 @@ import {
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
+  CRIT_DAMAGE_MULT,
   DOUBLE_ATK_INIT_PROB,
   DOUBLE_ATK_PROB_INC,
   ENEMY_BASE_HP,
@@ -32,6 +33,7 @@ import {
   TWIN_PROB_INC,
   UNIT_CAP,
   UNIT_ZONE,
+  VICTORY_TIME_MS,
 } from './config';
 import {
   AttackEvent,
@@ -45,7 +47,7 @@ import {
   UnitRace,
 } from './types';
 
-export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover';
+export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory';
 
 const RACES: Race[] = ['Human', 'Beast', 'Robot'];
 
@@ -82,6 +84,7 @@ export class GameState {
   pendingBossSpawn = false;
   twinProbability = 0;
   doubleAttackProbability = 0;
+  criticalProbability = 0;
   globalDamageBonus = 0;
 
   private overclockSeconds = 0;
@@ -92,11 +95,18 @@ export class GameState {
   private lastThirtySecCrossed = 0;
   private phaseBeforeGameOver: Phase = 'playing';
   private _nextUnitId = 0;
+  private bossRewardCallCount = 0;
 
   tick(deltaMs: number): void {
     if (this.phase === 'gameover' || this.isPaused) return;
     this.elapsedMs += deltaMs;
 
+    if (this.phase === 'playing' && this.elapsedMs >= VICTORY_TIME_MS) {
+      this.phase = 'victory';
+      this.gems += 1;
+      this.isPaused = true;
+      return;
+    }
     if (this.phase === 'playing' && this.elapsedMs >= CLEAR_TIME_MS) {
       this.phase = 'clear';
     }
@@ -104,20 +114,20 @@ export class GameState {
       this.overclockSeconds = (this.elapsedMs - CLEAR_TIME_MS) / 1000;
     }
 
-    // Per-minute permanent buff + boss
+    // Per-minute permanent buff
     const currentMinute = Math.floor(this.elapsedMs / 60000);
     if (currentMinute > this.lastMinuteCrossed) {
       this.lastMinuteCrossed = currentMinute;
       this.minuteHpMult *= MINUTE_HP_MULT;
       this.minuteSpeedMult *= MINUTE_SPEED_MULT;
-      this.pendingBossSpawn = true;
     }
 
-    // 30-second spawn acceleration
+    // 30-second spawn acceleration + boss spawn
     const currentThirtySec = Math.floor(this.elapsedMs / SPAWN_ACCEL_INTERVAL_MS);
     if (currentThirtySec > this.lastThirtySecCrossed) {
       this.lastThirtySecCrossed = currentThirtySec;
       this.spawnAccelMult *= SPAWN_ACCEL_DECAY;
+      this.pendingBossSpawn = true;
     }
 
     // Auto-clear exhaustion
@@ -188,11 +198,18 @@ export class GameState {
       { type: 'maxUnits', label: '🏠 유닛 한도 +1' },
       { type: 'twinProb', label: this.twinProbability === 0 ? '👶 쌍둥이 10%' : `👶 쌍둥이 +2% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
       { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? '⚡ 더블어택 10%' : `⚡ 더블어택 +2% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
+      { type: 'crit', label: this.criticalProbability === 0 ? '🎯 치명타 50%' : `🎯 치명타 +50% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
     ];
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [pool[i], pool[j]] = [pool[j], pool[i]];
     }
+    // Guarantee crit appears in first 2-card display on the very first boss kill
+    if (this.bossRewardCallCount === 0) {
+      const critIdx = pool.findIndex(r => r.type === 'crit');
+      if (critIdx > 0) [pool[0], pool[critIdx]] = [pool[critIdx], pool[0]];
+    }
+    this.bossRewardCallCount += 1;
     return pool.slice(0, Math.min(count, pool.length));
   }
 
@@ -211,6 +228,9 @@ export class GameState {
         this.doubleAttackProbability = this.doubleAttackProbability === 0
           ? DOUBLE_ATK_INIT_PROB
           : Math.min(1, this.doubleAttackProbability + DOUBLE_ATK_PROB_INC);
+        break;
+      case 'crit':
+        this.criticalProbability = Math.min(1, this.criticalProbability + 0.5);
         break;
     }
     this.isPaused = false;
@@ -313,10 +333,16 @@ export class GameState {
 
       unit.lastAttackedAtMs = now;
       const baseDmg = stats.damage + this.globalDamageBonus;
-      const finalDmg = Math.random() < this.doubleAttackProbability ? baseDmg * 2 : baseDmg;
+      let finalDmg = baseDmg;
+      let isCrit = false;
+      if (this.criticalProbability > 0 && Math.random() < this.criticalProbability) {
+        finalDmg = Math.ceil(finalDmg * CRIT_DAMAGE_MULT);
+        isCrit = true;
+      }
+      if (Math.random() < this.doubleAttackProbability) finalDmg *= 2;
       const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
       liveHp.set(target.id, newHp);
-      attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y });
+      attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit });
 
       if (newHp <= 0) {
         killedSet.add(target.id);

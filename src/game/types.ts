@@ -4,7 +4,7 @@ export type UnitRace = Race | HybridRace;
 
 export type EnemyType = 'NORMAL' | 'FAST';
 
-export type RewardType = 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk';
+export type RewardType = 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk' | 'crit';
 
 export interface Reward {
   type: RewardType;
@@ -39,6 +39,7 @@ export interface AttackEvent {
   unitY: number;
   enemyX: number;
   enemyY: number;
+  isCrit: boolean;
 }
 
 export interface CombatResult {
