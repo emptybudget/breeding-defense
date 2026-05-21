@@ -4,6 +4,13 @@ export type UnitRace = Race | HybridRace;
 
 export type EnemyType = 'NORMAL' | 'FAST';
 
+export type RewardType = 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk';
+
+export interface Reward {
+  type: RewardType;
+  label: string;
+}
+
 export interface UnitData {
   id: number;
   race: UnitRace;
@@ -15,6 +22,7 @@ export interface UnitData {
   breedingEndMs: number;
   isExhausted: boolean;
   exhaustEndMs: number;
+  isLocked: boolean;
 }
 
 export interface EnemySnapshot {

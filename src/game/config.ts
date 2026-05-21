@@ -68,3 +68,20 @@ export const BOSS_KILL_REWARD = 50;
 // Population upgrade
 export const POPULATION_UPGRADE_BASE_COST = 100;
 export const POPULATION_UPGRADE_COST_INCREASE = 50;
+
+// Unit sell reward
+export const SELL_GOLD_TIER1 = 10;
+export const SELL_GOLD_TIER2 = 30;
+
+// Probabilistic upgrades (boss rewards)
+export const TWIN_INIT_PROB = 0.10;
+export const TWIN_PROB_INC = 0.02;
+export const DOUBLE_ATK_INIT_PROB = 0.10;
+export const DOUBLE_ATK_PROB_INC = 0.02;
+
+// 30-second spawn acceleration
+export const SPAWN_ACCEL_INTERVAL_MS = 30000;
+export const SPAWN_ACCEL_DECAY = 0.85; // -15% per 30s
+
+// Boss reward economy
+export const REWARD_GOLD_AMOUNT = 150;

@@ -13,10 +13,14 @@ import {
   UNIT_ZONE,
 } from '../game/config';
 import { GameState } from '../game/GameState';
-import { EnemyType, HybridRace, Race, UnitData, UnitRace } from '../game/types';
+import { EnemyType, HybridRace, Race, Reward, UnitData, UnitRace } from '../game/types';
 
 const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
+
+// Sell zone: right-most section of the bottom bar
+const SELL_ZONE_X = GAME_WIDTH - 38;
+const SELL_ZONE_Y = GAME_HEIGHT - 52;
 
 const RACE_COLORS: Record<UnitRace, number> = {
   Human:       0x4488ff,
@@ -63,13 +67,17 @@ export class GameScene extends Phaser.Scene {
   private banner?: Phaser.GameObjects.Text;
   private minuteWarning?: Phaser.GameObjects.Text;
   private gameOverContainer?: Phaser.GameObjects.Container;
+  private dimOverlay?: Phaser.GameObjects.Rectangle;
+  private rewardContainer?: Phaser.GameObjects.Container;
   private spawnAccumulatorMs = 0;
-  // Emoji text objects — also the interactive drag handle
   private unitObjects = new Map<number, Phaser.GameObjects.Text>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
+  private lockTexts = new Map<number, Phaser.GameObjects.Text>();
   private _nextEnemyId = 0;
+  // Boss reward state
+  private allRewards: Reward[] = [];
 
   constructor() {
     super('GameScene');
@@ -79,12 +87,11 @@ export class GameScene extends Phaser.Scene {
     this.state = new GameState();
     this.enemies = this.add.group();
 
-    // Track (ㅁ자 path)
+    // Track
     const g = this.add.graphics();
     g.lineStyle(36, 0x333333, 1);
     g.strokeRect(
-      TRACK_WAYPOINTS[0].x,
-      TRACK_WAYPOINTS[0].y,
+      TRACK_WAYPOINTS[0].x, TRACK_WAYPOINTS[0].y,
       TRACK_WAYPOINTS[1].x - TRACK_WAYPOINTS[0].x,
       TRACK_WAYPOINTS[3].y - TRACK_WAYPOINTS[0].y,
     );
@@ -92,7 +99,7 @@ export class GameScene extends Phaser.Scene {
     this.hpBarGraphics = this.add.graphics().setDepth(2);
     this.flashGraphics = this.add.graphics().setDepth(3);
 
-    // Top HUD (76px)
+    // Top HUD
     this.add.rectangle(0, 0, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
     this.timerText = this.add.text(12, 8, '00:00', {
       fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
@@ -110,24 +117,30 @@ export class GameScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '16px', color: '#aaffaa',
     }).setOrigin(1, 0).setDepth(6);
 
-    // Bottom button bar (76px)
+    // Bottom bar
     this.add.rectangle(0, GAME_HEIGHT - 76, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
-    this.summonBtn = this.add.text(CENTER_X - 4, GAME_HEIGHT - 52, '', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
-      backgroundColor: '#335533', padding: { x: 12, y: 8 },
-    }).setOrigin(1, 0.5).setDepth(6).setInteractive({ useHandCursor: true });
+
+    this.summonBtn = this.add.text(80, GAME_HEIGHT - 52, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
+      backgroundColor: '#335533', padding: { x: 10, y: 8 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.summonBtn.on('pointerdown', () => {
       const unit = this.state.summon();
       if (unit) this.addUnitCircle(unit);
     });
 
-    this.popBtn = this.add.text(CENTER_X + 4, GAME_HEIGHT - 52, '', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffffff',
-      backgroundColor: '#553322', padding: { x: 12, y: 8 },
-    }).setOrigin(0, 0.5).setDepth(6).setInteractive({ useHandCursor: true });
+    this.popBtn = this.add.text(210, GAME_HEIGHT - 52, '', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
+      backgroundColor: '#553322', padding: { x: 10, y: 8 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.popBtn.on('pointerdown', () => { this.state.upgradePopulation(); });
 
-    // Scene-level drag events
+    // Sell zone (bottom-right)
+    this.add.text(SELL_ZONE_X, SELL_ZONE_Y, '🗑️', {
+      fontSize: '20px', backgroundColor: '#551111', padding: { x: 6, y: 4 },
+    }).setOrigin(0.5).setDepth(6);
+
+    // Drag events
     this.input.on('dragstart', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
       (go as Phaser.GameObjects.Text).setDepth(4);
     });
@@ -148,6 +161,8 @@ export class GameScene extends Phaser.Scene {
     if (this.isPhase('gameover')) return;
 
     this.state.tick(deltaMs);
+
+    // HUD always updates
     this.timerText.setText(this.state.formatTimer());
     this.countText.setText(`${this.state.enemyCount} / 50`);
     this.goldText.setText(`Gold: ${this.state.gold}`);
@@ -156,14 +171,18 @@ export class GameScene extends Phaser.Scene {
     this.summonBtn.setText(`소환 (${this.state.summonCost}G)`);
     this.popBtn.setText(`사회성 (${this.state.populationUpgradeCost}G)`);
 
-    // Boss spawn on minute boundary
+    // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
       this.spawnBoss();
       this.showMinuteWarning();
     }
 
+    // Pause guard — skip all gameplay when reward popup is active
+    if (this.state.isPaused) return;
+
     this.syncZzzTexts();
+    this.syncLockTexts();
     this.handleSpawning(deltaMs);
     this.moveEnemies(deltaMs);
     this.drawHpBars();
@@ -206,18 +225,13 @@ export class GameScene extends Phaser.Scene {
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
     const hp = Math.ceil(def.hp * this.state.currentEnemyHp);
     const speed = def.speed * overclockSpeedMult;
-
     const color = type === 'FAST' ? 0xffcc00 : 0xff3344;
     const size = type === 'FAST' ? 10 : 16;
     const enemy = this.add.rectangle(wp.x, wp.y, size, size, color) as Enemy;
     enemy.id = this._nextEnemyId++;
-    enemy.hp = hp;
-    enemy.maxHp = hp;
-    enemy.speed = speed;
+    enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
     enemy.waypointIndex = (wpIdx + 1) % TRACK_WAYPOINTS.length;
-    enemy.enemyType = type;
-    enemy.isBoss = false;
-    enemy.killReward = KILL_REWARD;
+    enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = KILL_REWARD;
     this.enemies.add(enemy);
     this.enemyMap.set(enemy.id, enemy);
     this.state.registerSpawn();
@@ -229,12 +243,9 @@ export class GameScene extends Phaser.Scene {
     const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * BOSS_HP_MULT);
     const boss = this.add.rectangle(wp.x, wp.y, 32, 32, 0x0055ff) as Enemy;
     boss.id = this._nextEnemyId++;
-    boss.hp = bossHp;
-    boss.maxHp = bossHp;
+    boss.hp = bossHp; boss.maxHp = bossHp;
     boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult;
-    boss.waypointIndex = 1;
-    boss.enemyType = 'NORMAL';
-    boss.isBoss = true;
+    boss.waypointIndex = 1; boss.enemyType = 'NORMAL'; boss.isBoss = true;
     boss.killReward = BOSS_KILL_REWARD;
     this.enemies.add(boss);
     this.enemyMap.set(boss.id, boss);
@@ -246,10 +257,7 @@ export class GameScene extends Phaser.Scene {
     this.minuteWarning = this.add.text(CENTER_X, CENTER_Y - 80, '[시간 경과: 적들이 더 흉포해집니다!]', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ff6666', align: 'center',
     }).setOrigin(0.5).setDepth(8);
-    this.time.delayedCall(2500, () => {
-      this.minuteWarning?.destroy();
-      this.minuteWarning = undefined;
-    });
+    this.time.delayedCall(2500, () => { this.minuteWarning?.destroy(); this.minuteWarning = undefined; });
   }
 
   private moveEnemies(deltaMs: number): void {
@@ -257,13 +265,9 @@ export class GameScene extends Phaser.Scene {
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;
       const wp = TRACK_WAYPOINTS[e.waypointIndex];
-      const dx = wp.x - e.x;
-      const dy = wp.y - e.y;
+      const dx = wp.x - e.x; const dy = wp.y - e.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 8) {
-        e.waypointIndex = (e.waypointIndex + 1) % TRACK_WAYPOINTS.length;
-        return;
-      }
+      if (dist < 8) { e.waypointIndex = (e.waypointIndex + 1) % TRACK_WAYPOINTS.length; return; }
       const step = e.speed * dtSec;
       e.x += (dx / dist) * step;
       e.y += (dy / dist) * step;
@@ -281,8 +285,7 @@ export class GameScene extends Phaser.Scene {
       this.hpBarGraphics.fillStyle(0x333333);
       this.hpBarGraphics.fillRect(bx, by, barW, barH);
       const pct = Math.max(0, e.hp / e.maxHp);
-      const fillColor = pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xffcc00 : 0xff4444;
-      this.hpBarGraphics.fillStyle(fillColor);
+      this.hpBarGraphics.fillStyle(pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xffcc00 : 0xff4444);
       this.hpBarGraphics.fillRect(bx, by, barW * pct, barH);
     });
   }
@@ -294,10 +297,7 @@ export class GameScene extends Phaser.Scene {
       const e = obj as Enemy;
       const wp = TRACK_WAYPOINTS[e.waypointIndex];
       return {
-        id: e.id,
-        x: e.x,
-        y: e.y,
-        hp: e.hp,
+        id: e.id, x: e.x, y: e.y, hp: e.hp,
         progressScore: e.waypointIndex * 1000 - Math.hypot(wp.x - e.x, wp.y - e.y),
         killReward: e.killReward,
       };
@@ -310,13 +310,16 @@ export class GameScene extends Phaser.Scene {
       if (enemy) enemy.hp = hp;
     }
 
+    let bossKilled = false;
     for (const id of result.killedIds) {
       const enemy = this.enemyMap.get(id);
       if (enemy) {
+        if (enemy.isBoss) bossKilled = true;
         enemy.destroy();
         this.enemyMap.delete(id);
       }
     }
+    if (bossKilled && !this.state.isPaused) this.onBossKilled();
 
     if (result.attacks.length > 0) {
       this.flashGraphics.clear();
@@ -331,6 +334,80 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  // ─── Boss reward popup ──────────────────────────────────────────────
+
+  private onBossKilled(): void {
+    this.state.isPaused = true;
+    this.allRewards = this.state.generateRewards(3); // pre-generate 3, show 2
+    this.showRewardPopup(2);
+  }
+
+  private showRewardPopup(count: 2 | 3): void {
+    this.rewardContainer?.destroy();
+    this.dimOverlay?.destroy();
+
+    this.dimOverlay = this.add
+      .rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72)
+      .setDepth(15);
+
+    const container = this.add.container(CENTER_X, CENTER_Y).setDepth(16);
+    const bg = this.add.rectangle(0, 0, 326, 230, 0x111122, 0.96);
+
+    const title = this.add.text(0, -95, '⚔️ 보스 처치!\n보상을 선택하세요', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffd700', align: 'center',
+    }).setOrigin(0.5);
+
+    const rewards = this.allRewards.slice(0, count);
+    const xPositions = count === 2 ? [-82, 82] : [-115, 0, 115];
+
+    const cards = rewards.map((reward, i) => {
+      const card = this.add.text(xPositions[i], 10, reward.label, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#ffffff',
+        backgroundColor: '#1a3355', padding: { x: 10, y: 16 },
+        align: 'center',
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      card.on('pointerover', () => card.setStyle({ backgroundColor: '#2a5588' }));
+      card.on('pointerout', () => card.setStyle({ backgroundColor: '#1a3355' }));
+      card.on('pointerdown', () => {
+        this.state.applyReward(reward.type);
+        this.closeRewardPopup();
+      });
+      return card;
+    });
+
+    const items: Phaser.GameObjects.GameObject[] = [bg, title, ...cards];
+
+    if (count === 2 && this.state.gems > 0) {
+      const expandBtn = this.add.text(0, 100, `💎 선택지 추가 (보석 ${this.state.gems}개)`, {
+        fontFamily: 'monospace', fontSize: '12px', color: '#aaddff',
+        backgroundColor: '#113344', padding: { x: 12, y: 8 },
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+      expandBtn.on('pointerdown', () => {
+        if (this.state.gems <= 0) return;
+        this.state.gems -= 1;
+        this.showRewardPopup(3);
+      });
+      items.push(expandBtn);
+    }
+
+    container.add(items);
+    this.rewardContainer = container;
+  }
+
+  private closeRewardPopup(): void {
+    this.rewardContainer?.destroy();
+    this.rewardContainer = undefined;
+    this.dimOverlay?.destroy();
+    this.dimOverlay = undefined;
+    this.allRewards = [];
+  }
+
+  // ─── Unit drag & drop ───────────────────────────────────────────────
+
+  private isOnSellZone(x: number, y: number): boolean {
+    return x >= GAME_WIDTH - 70 && y >= GAME_HEIGHT - 76;
+  }
+
   private isValidUnitPosition(x: number, y: number): boolean {
     return (
       x >= UNIT_ZONE.x1 && x <= UNIT_ZONE.x2 &&
@@ -342,13 +419,20 @@ export class GameScene extends Phaser.Scene {
     const droppedUnit = this.state.units.find(u => u.id === droppedId);
     if (!droppedUnit) return;
 
-    // Breeding units can't do anything — snap back immediately
+    // Sell zone (highest priority)
+    if (this.isOnSellZone(go.x, go.y)) {
+      this.state.sellUnit(droppedId);
+      this.removeUnitObject(droppedId);
+      return;
+    }
+
+    // Breeding units can't act
     if (droppedUnit.isBreeding) {
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
 
-    // Find nearest other unit within 35px
+    // Find nearest unit within 35px
     let targetId: number | null = null;
     for (const [id, other] of this.unitObjects) {
       if (id === droppedId) continue;
@@ -359,35 +443,41 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (targetId === null) {
-      // Empty space — all tiers can move freely
+      // Empty space — all tiers can move
       if (this.isValidUnitPosition(go.x, go.y)) {
         this.state.moveUnit(droppedId, go.x, go.y);
         this.rangeCircles.get(droppedId)?.setPosition(go.x, go.y);
-        // go already sits at drop position — no snap needed
         return;
       }
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
 
-    // Interaction with another unit:
-    // Only tier-1, non-exhausted units can breed or synthesize
-    if (droppedUnit.tier === 2 || droppedUnit.isExhausted) {
+    // Interaction — only tier-1, non-exhausted, non-locked can breed/synthesize
+    if (droppedUnit.tier === 2 || droppedUnit.isExhausted || droppedUnit.isLocked) {
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
 
     const targetUnit = this.state.units.find(u => u.id === targetId);
-    if (!targetUnit || targetUnit.tier === 2 || targetUnit.isBreeding || targetUnit.isExhausted) {
+    if (!targetUnit || targetUnit.tier === 2 || targetUnit.isBreeding || targetUnit.isExhausted || targetUnit.isLocked) {
       go.setPosition(droppedUnit.x, droppedUnit.y);
       return;
     }
 
-    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back regardless
+    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back
 
     if (droppedUnit.race === targetUnit.race) {
       const started = this.state.startBreeding(droppedId, targetId);
-      if (started) this.startBreedingEffect(droppedId, targetId);
+      if (started) {
+        // Snap droppedUnit next to target (밀착 연출)
+        const snapX = Math.min(UNIT_ZONE.x2, targetUnit.x + 18);
+        const snapY = targetUnit.y;
+        this.state.moveUnit(droppedId, snapX, snapY);
+        go.setPosition(snapX, snapY);
+        this.rangeCircles.get(droppedId)?.setPosition(snapX, snapY);
+        this.startBreedingEffect(droppedId, targetId);
+      }
     } else {
       const hybrid = this.state.synthesize(droppedId, targetId);
       if (hybrid) {
@@ -413,12 +503,10 @@ export class GameScene extends Phaser.Scene {
     this.heartTexts.set(idB, heartB);
 
     this.time.delayedCall(BREEDING_DURATION_MS, () => {
-      heartA.destroy();
-      heartB.destroy();
-      this.heartTexts.delete(idA);
-      this.heartTexts.delete(idB);
-      const offspring = this.state.completeBreeding(idA, idB);
-      if (offspring) this.addUnitCircle(offspring);
+      heartA.destroy(); heartB.destroy();
+      this.heartTexts.delete(idA); this.heartTexts.delete(idB);
+      const born = this.state.completeBreeding(idA, idB);
+      for (const u of born) this.addUnitCircle(u);
     });
   }
 
@@ -429,13 +517,12 @@ export class GameScene extends Phaser.Scene {
       if (unit.isExhausted) {
         const existing = this.zzzTexts.get(unit.id);
         if (!existing) {
-          const t = this.add.text(go.x, go.y - 22, 'zzz', {
-            fontSize: '12px', color: '#aaaaff',
+          const t = this.add.text(go.x, go.y - 16, 'zzz', {
+            fontSize: '11px', color: '#aaaaff',
           }).setOrigin(0.5).setDepth(2);
           this.zzzTexts.set(unit.id, t);
         } else {
-          // Keep zzz anchored above the unit even if it moved
-          existing.setPosition(go.x, go.y - 22);
+          existing.setPosition(go.x, go.y - 16);
         }
       } else {
         const t = this.zzzTexts.get(unit.id);
@@ -444,15 +531,33 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
+  private syncLockTexts(): void {
+    for (const unit of this.state.units) {
+      const go = this.unitObjects.get(unit.id);
+      if (!go) continue;
+      if (unit.isLocked) {
+        const existing = this.lockTexts.get(unit.id);
+        if (!existing) {
+          const t = this.add.text(go.x, go.y - 28, '🔒', {
+            fontSize: '11px',
+          }).setOrigin(0.5).setDepth(2);
+          this.lockTexts.set(unit.id, t);
+        } else {
+          existing.setPosition(go.x, go.y - 28);
+        }
+      } else {
+        const t = this.lockTexts.get(unit.id);
+        if (t) { t.destroy(); this.lockTexts.delete(unit.id); }
+      }
+    }
+  }
+
   private removeUnitObject(id: number): void {
-    this.unitObjects.get(id)?.destroy();
-    this.unitObjects.delete(id);
-    this.rangeCircles.get(id)?.destroy();
-    this.rangeCircles.delete(id);
-    this.heartTexts.get(id)?.destroy();
-    this.heartTexts.delete(id);
-    this.zzzTexts.get(id)?.destroy();
-    this.zzzTexts.delete(id);
+    this.unitObjects.get(id)?.destroy();    this.unitObjects.delete(id);
+    this.rangeCircles.get(id)?.destroy();   this.rangeCircles.delete(id);
+    this.heartTexts.get(id)?.destroy();     this.heartTexts.delete(id);
+    this.zzzTexts.get(id)?.destroy();       this.zzzTexts.delete(id);
+    this.lockTexts.get(id)?.destroy();      this.lockTexts.delete(id);
   }
 
   private getUnitRange(race: UnitRace): number {
@@ -464,14 +569,12 @@ export class GameScene extends Phaser.Scene {
     const range = this.getUnitRange(unit.race);
     const color = RACE_COLORS[unit.race];
 
-    // Range indicator — drawn at local (0,0) so setPosition works
     const rangeGfx = this.add.graphics().setDepth(0);
     rangeGfx.lineStyle(1, color, 0.2);
     rangeGfx.strokeCircle(0, 0, range);
     rangeGfx.setPosition(unit.x, unit.y);
     this.rangeCircles.set(unit.id, rangeGfx);
 
-    // Emoji label as the interactive drag handle
     const fontSize = unit.tier === 2 ? '26px' : '20px';
     const label = this.add.text(unit.x, unit.y, RACE_EMOJI[unit.race], {
       fontSize,
@@ -480,16 +583,29 @@ export class GameScene extends Phaser.Scene {
     label.setInteractive({ useHandCursor: true });
     this.input.setDraggable(label);
     label.setData('unitId', unit.id);
+
+    // Double-click to toggle lock
+    const clickState = { time: 0, x: 0, y: 0 };
+    label.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      const now = Date.now();
+      if (now - clickState.time < 300 && Math.hypot(ptr.x - clickState.x, ptr.y - clickState.y) < 10) {
+        this.state.toggleLock(unit.id);
+      }
+      clickState.time = now;
+      clickState.x = ptr.x;
+      clickState.y = ptr.y;
+    });
+
     this.unitObjects.set(unit.id, label);
   }
+
+  // ─── Game over popup ────────────────────────────────────────────────
 
   private showGameOverPopup(): void {
     if (this.gameOverContainer) return;
 
     const container = this.add.container(CENTER_X, CENTER_Y).setDepth(20);
-
     const bg = this.add.rectangle(0, 0, 290, 210, 0x000000, 0.88);
-
     const title = this.add.text(0, -78, 'GAME OVER', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ff5555',
     }).setOrigin(0.5);
@@ -507,9 +623,7 @@ export class GameScene extends Phaser.Scene {
       backgroundColor: hasGems ? '#334455' : '#222222',
       padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
-    if (hasGems) {
-      gemBtn.on('pointerdown', () => { this.gemContinue(); });
-    }
+    if (hasGems) gemBtn.on('pointerdown', () => { this.gemContinue(); });
 
     container.add([bg, title, restartBtn, gemBtn]);
     this.gameOverContainer = container;
@@ -517,17 +631,12 @@ export class GameScene extends Phaser.Scene {
 
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
-
     for (const e of [...this.enemyMap.values()]) e.destroy();
     this.enemyMap.clear();
     this.enemies.clear(false, false);
     this.spawnAccumulatorMs = 0;
-
-    this.banner?.destroy();
-    this.banner = undefined;
-
-    this.gameOverContainer?.destroy();
-    this.gameOverContainer = undefined;
+    this.banner?.destroy(); this.banner = undefined;
+    this.gameOverContainer?.destroy(); this.gameOverContainer = undefined;
   }
 
   private showBanner(text: string, color: string): void {

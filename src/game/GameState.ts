@@ -2,6 +2,8 @@ import {
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
+  DOUBLE_ATK_INIT_PROB,
+  DOUBLE_ATK_PROB_INC,
   ENEMY_BASE_HP,
   ENEMY_BASE_SPEED,
   ENEMY_SPAWN_INTERVAL_MS,
@@ -17,14 +19,31 @@ import {
   POPULATION_UPGRADE_BASE_COST,
   POPULATION_UPGRADE_COST_INCREASE,
   RACE_STATS,
+  REWARD_GOLD_AMOUNT,
+  SELL_GOLD_TIER1,
+  SELL_GOLD_TIER2,
+  SPAWN_ACCEL_DECAY,
+  SPAWN_ACCEL_INTERVAL_MS,
   STARTING_GEMS,
   STARTING_GOLD,
   SUMMON_BASE_COST,
   SUMMON_COST_INCREMENT,
+  TWIN_INIT_PROB,
+  TWIN_PROB_INC,
   UNIT_CAP,
   UNIT_ZONE,
 } from './config';
-import { AttackEvent, CombatResult, EnemySnapshot, HybridRace, Race, UnitData, UnitRace } from './types';
+import {
+  AttackEvent,
+  CombatResult,
+  EnemySnapshot,
+  HybridRace,
+  Race,
+  Reward,
+  RewardType,
+  UnitData,
+  UnitRace,
+} from './types';
 
 export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover';
 
@@ -45,6 +64,10 @@ function resolveHybridRace(a: Race, b: Race): HybridRace {
   return map[sorted] ?? 'Human_Beast';
 }
 
+function makeUnit(id: number, race: UnitRace, tier: 1 | 2, x: number, y: number): UnitData {
+  return { id, race, tier, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0, isLocked: false };
+}
+
 export class GameState {
   elapsedMs = 0;
   enemyCount = 0;
@@ -55,35 +78,46 @@ export class GameState {
   summonCost = SUMMON_BASE_COST;
   maxUnits = UNIT_CAP;
   populationUpgradeCost = POPULATION_UPGRADE_BASE_COST;
-
+  isPaused = false;
   pendingBossSpawn = false;
+  twinProbability = 0;
+  doubleAttackProbability = 0;
+  globalDamageBonus = 0;
 
   private overclockSeconds = 0;
   private minuteHpMult = 1;
   private minuteSpeedMult = 1;
   private lastMinuteCrossed = 0;
+  private spawnAccelMult = 1;
+  private lastThirtySecCrossed = 0;
   private phaseBeforeGameOver: Phase = 'playing';
   private _nextUnitId = 0;
 
   tick(deltaMs: number): void {
-    if (this.phase === 'gameover') return;
+    if (this.phase === 'gameover' || this.isPaused) return;
     this.elapsedMs += deltaMs;
 
     if (this.phase === 'playing' && this.elapsedMs >= CLEAR_TIME_MS) {
       this.phase = 'clear';
     }
-
     if (this.elapsedMs > CLEAR_TIME_MS) {
       this.overclockSeconds = (this.elapsedMs - CLEAR_TIME_MS) / 1000;
     }
 
-    // Per-minute permanent buff
+    // Per-minute permanent buff + boss
     const currentMinute = Math.floor(this.elapsedMs / 60000);
     if (currentMinute > this.lastMinuteCrossed) {
       this.lastMinuteCrossed = currentMinute;
       this.minuteHpMult *= MINUTE_HP_MULT;
       this.minuteSpeedMult *= MINUTE_SPEED_MULT;
       this.pendingBossSpawn = true;
+    }
+
+    // 30-second spawn acceleration
+    const currentThirtySec = Math.floor(this.elapsedMs / SPAWN_ACCEL_INTERVAL_MS);
+    if (currentThirtySec > this.lastThirtySecCrossed) {
+      this.lastThirtySecCrossed = currentThirtySec;
+      this.spawnAccelMult *= SPAWN_ACCEL_DECAY;
     }
 
     // Auto-clear exhaustion
@@ -125,12 +159,61 @@ export class GameState {
     if (unit) { unit.x = x; unit.y = y; }
   }
 
+  sellUnit(id: number): void {
+    const idx = this.units.findIndex(u => u.id === id);
+    if (idx < 0) return;
+    const unit = this.units[idx];
+    this.gold += unit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
+    this.units.splice(idx, 1);
+  }
+
+  toggleLock(id: number): void {
+    const unit = this.units.find(u => u.id === id);
+    if (unit) unit.isLocked = !unit.isLocked;
+  }
+
   useGemContinue(): boolean {
     if (this.gems <= 0) return false;
     this.gems -= 1;
     this.enemyCount = 0;
     this.phase = this.phaseBeforeGameOver;
     return true;
+  }
+
+  generateRewards(count: number): Reward[] {
+    const pool: Reward[] = [
+      { type: 'gem',      label: '💎 보석 +1' },
+      { type: 'gold',     label: `💰 골드 +${REWARD_GOLD_AMOUNT}` },
+      { type: 'damage',   label: '⚔️ 공격력 +1' },
+      { type: 'maxUnits', label: '🏠 유닛 한도 +1' },
+      { type: 'twinProb', label: this.twinProbability === 0 ? '👶 쌍둥이 10%' : `👶 쌍둥이 +2% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
+      { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? '⚡ 더블어택 10%' : `⚡ 더블어택 +2% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
+    ];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, Math.min(count, pool.length));
+  }
+
+  applyReward(type: RewardType): void {
+    switch (type) {
+      case 'gem':      this.gems += 1; break;
+      case 'gold':     this.gold += REWARD_GOLD_AMOUNT; break;
+      case 'damage':   this.globalDamageBonus += 1; break;
+      case 'maxUnits': this.maxUnits += 1; break;
+      case 'twinProb':
+        this.twinProbability = this.twinProbability === 0
+          ? TWIN_INIT_PROB
+          : Math.min(1, this.twinProbability + TWIN_PROB_INC);
+        break;
+      case 'doubleAtk':
+        this.doubleAttackProbability = this.doubleAttackProbability === 0
+          ? DOUBLE_ATK_INIT_PROB
+          : Math.min(1, this.doubleAttackProbability + DOUBLE_ATK_PROB_INC);
+        break;
+    }
+    this.isPaused = false;
   }
 
   summon(): UnitData | null {
@@ -140,11 +223,7 @@ export class GameState {
     const race = RACES[Math.floor(Math.random() * RACES.length)];
     const x = UNIT_ZONE.x1 + Math.random() * (UNIT_ZONE.x2 - UNIT_ZONE.x1);
     const y = UNIT_ZONE.y1 + Math.random() * (UNIT_ZONE.y2 - UNIT_ZONE.y1);
-    const unit: UnitData = {
-      id: this._nextUnitId++, race, tier: 1, x, y,
-      lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0,
-      isExhausted: false, exhaustEndMs: 0,
-    };
+    const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
     this.units.push(unit);
     return unit;
   }
@@ -156,6 +235,7 @@ export class GameState {
     if (a.race !== b.race || a.tier === 2 || b.tier === 2) return false;
     if (a.isBreeding || b.isBreeding) return false;
     if (a.isExhausted || b.isExhausted) return false;
+    if (a.isLocked || b.isLocked) return false;
     if (this.units.length >= this.maxUnits) return false;
     const endMs = this.elapsedMs + BREEDING_DURATION_MS;
     a.isBreeding = true; a.breedingEndMs = endMs;
@@ -163,10 +243,11 @@ export class GameState {
     return true;
   }
 
-  completeBreeding(idA: number, idB: number): UnitData | null {
+  // Returns newly born units: [offspring] normally, [offspring, twin] on twin proc, [] on failure
+  completeBreeding(idA: number, idB: number): UnitData[] {
     const a = this.units.find(u => u.id === idA);
     const b = this.units.find(u => u.id === idB);
-    if (!a || !b) return null;
+    if (!a || !b) return [];
     a.isBreeding = false; a.breedingEndMs = 0;
     b.isBreeding = false; b.breedingEndMs = 0;
     const exhaustEnd = this.elapsedMs + BREEDING_EXHAUST_DURATION_MS;
@@ -174,13 +255,20 @@ export class GameState {
     b.isExhausted = true; b.exhaustEndMs = exhaustEnd;
     const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
     const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
-    const offspring: UnitData = {
-      id: this._nextUnitId++, race: a.race, tier: 1, x: ox, y: oy,
-      lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0,
-      isExhausted: false, exhaustEndMs: 0,
-    };
+    const offspring = makeUnit(this._nextUnitId++, a.race, 1, ox, oy);
     this.units.push(offspring);
-    return offspring;
+    const born: UnitData[] = [offspring];
+
+    // Twin check
+    if (this.twinProbability > 0 && Math.random() < this.twinProbability && this.units.length < this.maxUnits) {
+      const tx = ox + (Math.random() - 0.5) * 24;
+      const ty = oy + (Math.random() - 0.5) * 24;
+      const twin = makeUnit(this._nextUnitId++, a.race, 1, tx, ty);
+      this.units.push(twin);
+      born.push(twin);
+    }
+
+    return born;
   }
 
   synthesize(idA: number, idB: number): UnitData | null {
@@ -190,7 +278,7 @@ export class GameState {
     const a = this.units[aIdx];
     const b = this.units[bIdx];
     if (a.tier === 2 || b.tier === 2) return null;
-    // Both must be base Race (not hybrid) for synthesis
+    if (a.isLocked || b.isLocked) return null;
     const baseRaces: UnitRace[] = ['Human', 'Beast', 'Robot'];
     if (!baseRaces.includes(a.race) || !baseRaces.includes(b.race)) return null;
     const hybridRace = resolveHybridRace(a.race as Race, b.race as Race);
@@ -199,11 +287,7 @@ export class GameState {
     const [hi, lo] = aIdx > bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
     this.units.splice(hi, 1);
     this.units.splice(lo, 1);
-    const hybrid: UnitData = {
-      id: this._nextUnitId++, race: hybridRace, tier: 2, x: hx, y: hy,
-      lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0,
-      isExhausted: false, exhaustEndMs: 0,
-    };
+    const hybrid = makeUnit(this._nextUnitId++, hybridRace, 2, hx, hy);
     this.units.push(hybrid);
     return hybrid;
   }
@@ -228,7 +312,9 @@ export class GameState {
       if (!target) continue;
 
       unit.lastAttackedAtMs = now;
-      const newHp = (liveHp.get(target.id) ?? target.hp) - stats.damage;
+      const baseDmg = stats.damage + this.globalDamageBonus;
+      const finalDmg = Math.random() < this.doubleAttackProbability ? baseDmg * 2 : baseDmg;
+      const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
       liveHp.set(target.id, newHp);
       attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y });
 
@@ -247,24 +333,20 @@ export class GameState {
   }
 
   get currentSpawnIntervalMs(): number {
-    if (this.overclockSeconds <= 0) return ENEMY_SPAWN_INTERVAL_MS;
-    const scaled = ENEMY_SPAWN_INTERVAL_MS * Math.pow(OVERCLOCK_SPAWN_DECAY, this.overclockSeconds);
-    return Math.max(OVERCLOCK_MIN_SPAWN_MS, scaled);
+    const base = ENEMY_SPAWN_INTERVAL_MS * this.spawnAccelMult;
+    if (this.overclockSeconds <= 0) return Math.max(OVERCLOCK_MIN_SPAWN_MS, base);
+    return Math.max(OVERCLOCK_MIN_SPAWN_MS, base * Math.pow(OVERCLOCK_SPAWN_DECAY, this.overclockSeconds));
   }
 
-  // Returns overall HP multiplier (base 1 × minute buffs × overclock)
   get currentEnemyHp(): number {
     const overclockMult = this.overclockSeconds > 0
-      ? Math.pow(OVERCLOCK_HP_GROWTH, this.overclockSeconds)
-      : 1;
+      ? Math.pow(OVERCLOCK_HP_GROWTH, this.overclockSeconds) : 1;
     return ENEMY_BASE_HP * this.minuteHpMult * overclockMult;
   }
 
-  // Returns absolute speed (px/sec) with minute buffs and overclock applied
   get currentEnemySpeed(): number {
     const overclockMult = this.overclockSeconds > 0
-      ? Math.pow(OVERCLOCK_SPEED_GROWTH, this.overclockSeconds)
-      : 1;
+      ? Math.pow(OVERCLOCK_SPEED_GROWTH, this.overclockSeconds) : 1;
     return ENEMY_BASE_SPEED * this.minuteSpeedMult * overclockMult;
   }
 
