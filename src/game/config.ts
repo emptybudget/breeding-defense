@@ -31,3 +31,8 @@ export const TRACK_WAYPOINTS: { x: number; y: number }[] = [
 
 // Inner zone for unit spawning (inside the track lane)
 export const UNIT_ZONE = { x1: 68, y1: 124, x2: 292, y2: 582 };
+
+// --- Unit combat ---
+export const UNIT_ATTACK_INTERVAL_MS = 1000;
+export const UNIT_ATTACK_RANGE = 120;
+export const UNIT_BASE_DAMAGE = 1;

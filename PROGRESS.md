@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (CLAUDE.md 섹션 6 추가: 헤드리스 브라우저 검증 금지)
+> 마지막 갱신: 2026-05-21 (미션 3 + CLAUDE.md 섹션 6 추가)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -57,6 +57,9 @@ breeding-defense/
 | `SUMMON_COST_INCREMENT` | 2 | 소환마다 누적 증가 |
 | `TRACK_WAYPOINTS` | 4개 좌표 | ㅁ자 트랙 모서리 (TL→TR→BR→BL) |
 | `UNIT_ZONE` | x1:68 y1:124 x2:292 y2:582 | 유닛 배치 가능 영역 (트랙 안쪽) |
+| `UNIT_ATTACK_INTERVAL_MS` | 1000 | 유닛 공격 쿨타임 (1초) |
+| `UNIT_ATTACK_RANGE` | 120 | 유닛 사거리 (반지름 px) |
+| `UNIT_BASE_DAMAGE` | 1 | 1티어 기본 대미지 |
 
 ## 트랙 구조
 - 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
@@ -65,14 +68,14 @@ breeding-defense/
 
 ## GameState API (src/game/GameState.ts)
 - 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `units: UnitData[]`, `summonCost`
-- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`
+- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`, `processCombat(snapshots): CombatResult`
 - 게터: `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed`, `formatTimer()`
 
-## UnitData 타입 (src/game/types.ts)
-- `id`: number (고유값)
-- `race`: 'Human' | 'Beast' | 'Robot' (랜덤)
-- `tier`: 1
-- `x`, `y`: 트랙 안쪽 랜덤 좌표
+## 타입 (src/game/types.ts)
+- `UnitData`: id, race, tier, x, y, `lastAttackedAtMs`
+- `EnemySnapshot`: id, x, y, hp, progressScore (GameScene → GameState 전달용)
+- `AttackEvent`: unitX, unitY, enemyX, enemyY (플래시 선 렌더링용)
+- `CombatResult`: attacks[], killedIds[], hpUpdates[] (processCombat 반환값)
 
 ## 구현 완료
 - [x] 실시간 타이머 + 적 카운터 `N / 50` UI
@@ -86,10 +89,13 @@ breeding-defense/
 - [x] 최대 유닛 5개 제한
 - [x] HUD 2행: 타이머/적수 + Gold/Units
 - [x] 유닛 종족별 동그라미 렌더: Human=파랑, Beast=초록, Robot=보라
+- [x] 전투/즉시 타격: 사거리 120px, 쿨타임 1초, 데미지 1
+- [x] 타겟팅: progressScore 기반 전진 우선 (waypointIndex * 1000 - 거리)
+- [x] 적 처치 시 Phaser 오브젝트 제거 + Gold +5
+- [x] 사거리 원 시각화 (종족 색, 불투명도 0.2)
+- [x] 공격 플래시 선 (노란색, 100ms)
 
 ## 미구현 (다음 단계 후보)
-- [ ] 전투/공격 로직 (유닛이 트랙 위 적을 공격)
-- [ ] 골드 획득 연동 (registerKill은 구현됨, 적이 죽는 이벤트 미구현)
 - [ ] **교배** (같은 종족 드래그 → 동종 +1)
 - [ ] **합성** (다른 종족 드래그 → 상위 티어 융합)
 - [ ] 적 종류 다양화

@@ -12,10 +12,13 @@ import {
   STARTING_GOLD,
   SUMMON_BASE_COST,
   SUMMON_COST_INCREMENT,
+  UNIT_ATTACK_INTERVAL_MS,
+  UNIT_ATTACK_RANGE,
+  UNIT_BASE_DAMAGE,
   UNIT_CAP,
   UNIT_ZONE,
 } from './config';
-import { Race, UnitData } from './types';
+import { AttackEvent, CombatResult, EnemySnapshot, Race, UnitData } from './types';
 
 export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover';
 
@@ -66,9 +69,45 @@ export class GameState {
     const race = RACES[Math.floor(Math.random() * RACES.length)];
     const x = UNIT_ZONE.x1 + Math.random() * (UNIT_ZONE.x2 - UNIT_ZONE.x1);
     const y = UNIT_ZONE.y1 + Math.random() * (UNIT_ZONE.y2 - UNIT_ZONE.y1);
-    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y };
+    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y, lastAttackedAtMs: 0 };
     this.units.push(unit);
     return unit;
+  }
+
+  processCombat(snapshots: EnemySnapshot[]): CombatResult {
+    const now = this.elapsedMs;
+    const attacks: AttackEvent[] = [];
+    const killedSet = new Set<number>();
+    const liveHp = new Map<number, number>(snapshots.map(e => [e.id, e.hp]));
+
+    for (const unit of this.units) {
+      if (now - unit.lastAttackedAtMs < UNIT_ATTACK_INTERVAL_MS) continue;
+
+      let target: EnemySnapshot | null = null;
+      for (const e of snapshots) {
+        if (killedSet.has(e.id)) continue;
+        if (Math.hypot(e.x - unit.x, e.y - unit.y) > UNIT_ATTACK_RANGE) continue;
+        if (!target || e.progressScore > target.progressScore) target = e;
+      }
+      if (!target) continue;
+
+      unit.lastAttackedAtMs = now;
+      const newHp = (liveHp.get(target.id) ?? target.hp) - UNIT_BASE_DAMAGE;
+      liveHp.set(target.id, newHp);
+      attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y });
+
+      if (newHp <= 0) {
+        killedSet.add(target.id);
+        this.registerKill();
+      }
+    }
+
+    const killedIds = [...killedSet];
+    const hpUpdates = snapshots
+      .filter(e => !killedSet.has(e.id) && liveHp.get(e.id) !== e.hp)
+      .map(e => ({ id: e.id, hp: liveHp.get(e.id)! }));
+
+    return { attacks, killedIds, hpUpdates };
   }
 
   get currentSpawnIntervalMs(): number {
