@@ -1,6 +1,8 @@
 export type Race = 'Human' | 'Beast' | 'Robot';
 export type UnitRace = Race | 'Hybrid';
 
+export type EnemyType = 'NORMAL' | 'FAST';
+
 export interface UnitData {
   id: number;
   race: UnitRace;
@@ -10,6 +12,8 @@ export interface UnitData {
   lastAttackedAtMs: number;
   isBreeding: boolean;
   breedingEndMs: number;
+  isExhausted: boolean;
+  exhaustEndMs: number;
 }
 
 export interface EnemySnapshot {

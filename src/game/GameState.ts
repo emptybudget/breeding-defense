@@ -1,5 +1,6 @@
 import {
   BREEDING_DURATION_MS,
+  BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
   ENEMY_BASE_HP,
   ENEMY_BASE_SPEED,
@@ -10,6 +11,8 @@ import {
   OVERCLOCK_MIN_SPAWN_MS,
   OVERCLOCK_SPAWN_DECAY,
   OVERCLOCK_SPEED_GROWTH,
+  POPULATION_UPGRADE_BASE_COST,
+  POPULATION_UPGRADE_COST_INCREASE,
   STARTING_GOLD,
   SUMMON_BASE_COST,
   SUMMON_COST_INCREMENT,
@@ -32,6 +35,8 @@ export class GameState {
   phase: Phase = 'playing';
   units: UnitData[] = [];
   summonCost = SUMMON_BASE_COST;
+  maxUnits = UNIT_CAP;
+  populationUpgradeCost = POPULATION_UPGRADE_BASE_COST;
 
   private overclockSeconds = 0;
   private _nextUnitId = 0;
@@ -47,6 +52,21 @@ export class GameState {
     if (this.elapsedMs > CLEAR_TIME_MS) {
       this.overclockSeconds = (this.elapsedMs - CLEAR_TIME_MS) / 1000;
     }
+
+    for (const unit of this.units) {
+      if (unit.isExhausted && this.elapsedMs >= unit.exhaustEndMs) {
+        unit.isExhausted = false;
+        unit.exhaustEndMs = 0;
+      }
+    }
+  }
+
+  upgradePopulation(): boolean {
+    if (this.gold < this.populationUpgradeCost) return false;
+    this.gold -= this.populationUpgradeCost;
+    this.populationUpgradeCost += POPULATION_UPGRADE_COST_INCREASE;
+    this.maxUnits += 1;
+    return true;
   }
 
   enterOverclock(): void {
@@ -64,13 +84,13 @@ export class GameState {
   }
 
   summon(): UnitData | null {
-    if (this.gold < this.summonCost || this.units.length >= UNIT_CAP) return null;
+    if (this.gold < this.summonCost || this.units.length >= this.maxUnits) return null;
     this.gold -= this.summonCost;
     this.summonCost += SUMMON_COST_INCREMENT;
     const race = RACES[Math.floor(Math.random() * RACES.length)];
     const x = UNIT_ZONE.x1 + Math.random() * (UNIT_ZONE.x2 - UNIT_ZONE.x1);
     const y = UNIT_ZONE.y1 + Math.random() * (UNIT_ZONE.y2 - UNIT_ZONE.y1);
-    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
+    const unit: UnitData = { id: this._nextUnitId++, race, tier: 1, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0 };
     this.units.push(unit);
     return unit;
   }
@@ -81,7 +101,8 @@ export class GameState {
     if (!a || !b) return false;
     if (a.race !== b.race || a.tier === 2 || b.tier === 2) return false;
     if (a.isBreeding || b.isBreeding) return false;
-    if (this.units.length >= UNIT_CAP) return false; // offspring would exceed cap
+    if (a.isExhausted || b.isExhausted) return false;
+    if (this.units.length >= this.maxUnits) return false;
     const endMs = this.elapsedMs + BREEDING_DURATION_MS;
     a.isBreeding = true; a.breedingEndMs = endMs;
     b.isBreeding = true; b.breedingEndMs = endMs;
@@ -94,9 +115,12 @@ export class GameState {
     if (!a || !b) return null;
     a.isBreeding = false; a.breedingEndMs = 0;
     b.isBreeding = false; b.breedingEndMs = 0;
+    const exhaustEnd = this.elapsedMs + BREEDING_EXHAUST_DURATION_MS;
+    a.isExhausted = true; a.exhaustEndMs = exhaustEnd;
+    b.isExhausted = true; b.exhaustEndMs = exhaustEnd;
     const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
     const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
-    const offspring: UnitData = { id: this._nextUnitId++, race: a.race, tier: 1, x: ox, y: oy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
+    const offspring: UnitData = { id: this._nextUnitId++, race: a.race, tier: 1, x: ox, y: oy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0 };
     this.units.push(offspring);
     return offspring;
   }
@@ -113,7 +137,7 @@ export class GameState {
     const [hi, lo] = aIdx > bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
     this.units.splice(hi, 1);
     this.units.splice(lo, 1);
-    const hybrid: UnitData = { id: this._nextUnitId++, race: 'Hybrid', tier: 2, x: hx, y: hy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0 };
+    const hybrid: UnitData = { id: this._nextUnitId++, race: 'Hybrid', tier: 2, x: hx, y: hy, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0 };
     this.units.push(hybrid);
     return hybrid;
   }

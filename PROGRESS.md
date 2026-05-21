@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 4)
+> 마지막 갱신: 2026-05-21 (미션 5)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -44,15 +44,15 @@ breeding-defense/
 | `MAX_ENEMIES` | 50 | 초과 시 게임 오버 |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 기준 |
 | `ENEMY_SPAWN_INTERVAL_MS` | 5000 | 기본 스폰 주기 |
-| `ENEMY_BASE_SPEED` | 40 px/sec | |
-| `ENEMY_BASE_HP` | 1 | |
+| `ENEMY_BASE_SPEED` | 40 px/sec | 오버클록 기준속도 |
+| `ENEMY_BASE_HP` | 1 | 오버클록 기준 HP 배율 |
 | `OVERCLOCK_HP_GROWTH` | 1.05 | 매초 +5% |
 | `OVERCLOCK_SPEED_GROWTH` | 1.03 | 매초 +3% |
 | `OVERCLOCK_SPAWN_DECAY` | 0.97 | 매초 -3% |
 | `OVERCLOCK_MIN_SPAWN_MS` | 200 | 스폰 주기 하한 |
 | `STARTING_GOLD` | 100 | 시작 골드 |
 | `KILL_REWARD` | 5 | 적 처치 골드 |
-| `UNIT_CAP` | 5 | 최대 배치 유닛 수 |
+| `UNIT_CAP` | 5 | 초기 유닛 한도 |
 | `SUMMON_BASE_COST` | 10 | 첫 소환 비용 |
 | `SUMMON_COST_INCREMENT` | 2 | 소환마다 누적 증가 |
 | `TRACK_WAYPOINTS` | 4개 좌표 | ㅁ자 트랙 모서리 (TL→TR→BR→BL) |
@@ -61,6 +61,11 @@ breeding-defense/
 | `UNIT_ATTACK_RANGE` | 120 | 유닛 사거리 (반지름 px) |
 | `UNIT_BASE_DAMAGE` | 1 | 1티어 기본 대미지 |
 | `BREEDING_DURATION_MS` | 3000 | 교배 대기시간 (3초) |
+| `BREEDING_EXHAUST_DURATION_MS` | 3000 | 교배 후 탈진 지속시간 |
+| `ENEMY_TYPES.NORMAL` | hp:5, speed:40 | 일반 적 (빨간, 16×16) |
+| `ENEMY_TYPES.FAST` | hp:2, speed:75 | 빠른 적 (노란, 10×10) |
+| `POPULATION_UPGRADE_BASE_COST` | 100 | 사회성 첫 업그레이드 비용 |
+| `POPULATION_UPGRADE_COST_INCREASE` | 50 | 업그레이드마다 누적 증가 |
 
 ## 트랙 구조
 - 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
@@ -68,14 +73,15 @@ breeding-defense/
 - 적은 스폰 시 랜덤 웨이포인트에서 시작 → 다음 웨이포인트 순환
 
 ## GameState API (src/game/GameState.ts)
-- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `units: UnitData[]`, `summonCost`
-- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`, `processCombat(snapshots): CombatResult`
-- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed`, `formatTimer()`
+- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`
+- 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward=5)`, `summon(): UnitData | null`, `upgradePopulation(): boolean`, `startBreeding(idA,idB): boolean`, `completeBreeding(idA,idB): UnitData|null`, `synthesize(idA,idB): UnitData|null`, `processCombat(snapshots): CombatResult`
+- 게터: `currentSpawnIntervalMs`, `currentEnemyHp`(오버클록 배율, 기준=1), `currentEnemySpeed`(절대값 px/sec), `formatTimer()`
 
 ## 타입 (src/game/types.ts)
 - `Race`: 'Human' | 'Beast' | 'Robot'
 - `UnitRace`: Race | 'Hybrid'
-- `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs
+- `EnemyType`: 'NORMAL' | 'FAST'
+- `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs
 - `EnemySnapshot`: id, x, y, hp, progressScore
 - `AttackEvent`: unitX, unitY, enemyX, enemyY
 - `CombatResult`: attacks[], killedIds[], hpUpdates[]
@@ -88,23 +94,25 @@ breeding-defense/
 - [x] 오버클록: 매초 적 HP/속도/스폰주기 스케일링
 - [x] 시작 골드 100 / 적 처치 골드 5 경제 시스템
 - [x] 소환 비용 가중치: 10G → 12G → 14G... (+2씩 누적)
-- [x] 유닛 소환 버튼 (하단 중앙) — 골드/한도 조건 체크
-- [x] 최대 유닛 5개 제한
-- [x] HUD 2행: 타이머/적수 + Gold/Units
+- [x] 유닛 소환 버튼 (하단 좌측) — 골드/한도 조건 체크
+- [x] HUD 2행: 타이머/적수 + Gold/Units (maxUnits 동적 표시)
 - [x] 유닛 종족별 동그라미 렌더: Human=파랑, Beast=초록, Robot=보라
 - [x] 전투/즉시 타격: 사거리 120px, 쿨타임 1초, 데미지 1
 - [x] 타겟팅: progressScore 기반 전진 우선 (waypointIndex * 1000 - 거리)
 - [x] 적 처치 시 Phaser 오브젝트 제거 + Gold +5
 - [x] 사거리 원 시각화 (종족 색, 불투명도 0.2)
 - [x] 공격 플래시 선 (노란색, 100ms)
-- [x] 드래그 앤 드롭: 유닛 드래그, 25px 이내 드롭 판정, 실패 시 원위치 복귀
+- [x] 드래그 앤 드롭: 유닛 드래그, 35px 이내 드롭 판정, 실패 시 원위치 복귀
 - [x] 교배(Breeding): 같은 종족 드롭 → 3초 쿨(isBreeding=true, 공격 중단) → 자식 유닛 추가 (❤ 연출)
+- [x] 교배 후 탈진(Exhaustion): 부모 유닛 3초 zzz 상태 → 교배/합성 불가
 - [x] 합성(Synthesis): 다른 종족 드롭 → 두 유닛 제거 → Hybrid 2티어 즉시 생성
 - [x] 2티어 Hybrid: 큰 원+흰 테두리, 공격력 2배, 교배/합성 불가
-- [x] 유닛 한도(5) 검증: 교배 시 cap 초과면 실패
+- [x] 유닛 한도 검증: 교배/소환 시 maxUnits 초과면 실패
+- [x] 사회성 업그레이드 버튼 (하단 우측): 100G → maxUnits+1, 이후 +50G씩 누적
+- [x] 적 종류 다양화: NORMAL(빨강 16×16, HP5) / FAST(노랑 10×10, HP2 속도75)
+- [x] 적 HP 바: 각 적 상단에 20px 너비 바 (녹/황/적 색상 전환)
 
 ## 미구현 (다음 단계 후보)
-- [ ] 적 종류 다양화
 - [ ] Capacitor 패키징 설정
 
 ## 실행 / 검증

@@ -37,3 +37,12 @@ export const UNIT_ATTACK_INTERVAL_MS = 1000;
 export const UNIT_ATTACK_RANGE = 120;
 export const UNIT_BASE_DAMAGE = 1;
 export const BREEDING_DURATION_MS = 3000;
+export const BREEDING_EXHAUST_DURATION_MS = 3000;
+
+export const ENEMY_TYPES = {
+  NORMAL: { hp: 5, speed: 40 },
+  FAST:   { hp: 2, speed: 75 },
+} as const;
+
+export const POPULATION_UPGRADE_BASE_COST = 100;
+export const POPULATION_UPGRADE_COST_INCREASE = 50;
