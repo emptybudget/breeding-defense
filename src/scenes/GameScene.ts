@@ -18,37 +18,7 @@ import {
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { EnemyType, HybridRace, Race, Reward, Tier3Race, UnitData, UnitRace } from '../game/types';
-
-const CENTER_X = GAME_WIDTH / 2;
-const CENTER_Y = GAME_HEIGHT / 2;
-
-// Sell zone: right-most section of the bottom bar
-const SELL_ZONE_X = GAME_WIDTH - 38;
-const SELL_ZONE_Y = GAME_HEIGHT - 52;
-
-const RACE_COLORS: Record<UnitRace, number> = {
-  Human:         0x4488ff,
-  Beast:         0x44cc44,
-  Robot:         0xaa44cc,
-  Human_Robot:   0x00eeff,
-  Human_Beast:   0xff44aa,
-  Beast_Robot:   0xff7700,
-  Cyborg_Wizard: 0xffcc00,
-  Dino_Mecha:    0xff4400,
-  Griffin:       0x00ffaa,
-};
-
-const RACE_EMOJI: Record<UnitRace, string> = {
-  Human:         '👦',
-  Beast:         '🐶',
-  Robot:         '🤖',
-  Human_Robot:   '🦾',
-  Human_Beast:   '🐺',
-  Beast_Robot:   '🦖',
-  Cyborg_Wizard: '🧙',
-  Dino_Mecha:    '🌋',
-  Griffin:       '🦅',
-};
+import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI, SELL_ZONE_X, SELL_ZONE_Y } from './constants';
 
 type Enemy = Phaser.GameObjects.Rectangle & {
   id: number;

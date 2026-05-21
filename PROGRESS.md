@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (게임 디자인 결정 섹션 신설)
+> 마지막 갱신: 2026-05-21 (리팩토링 1/8단계 완료: constants.ts 분리)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -233,7 +233,7 @@ src/scenes/
 ```
 
 **단계 (각 단계 = 1 커밋, 사용자 IDX 확인 후 다음 진행):**
-1. `scenes/constants.ts` 분리 (위험도 0)
+1. ✅ `scenes/constants.ts` 분리 (CENTER_X/Y, SELL_ZONE_X/Y, RACE_COLORS, RACE_EMOJI)
 2. `NotificationRenderer` 추출 (가장 독립적)
 3. `HudRenderer` 추출
 4. `PopupRenderer` 추출 (gameOver/victory/reward — pause 협조 필요)
