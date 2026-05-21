@@ -72,6 +72,14 @@ export const POPULATION_UPGRADE_COST_INCREASE = 10;
 // Unit sell reward
 export const SELL_GOLD_TIER1 = 10;
 export const SELL_GOLD_TIER2 = 30;
+export const SELL_GOLD_TIER3 = 60;
+
+// Tier-3 combat stats (range, damage, attackIntervalMs, maxTargets)
+export const TIER3_STATS = {
+  Cyborg_Wizard: { range: 180, damage: 3,  attackIntervalMs: 1000, maxTargets: 3 },
+  Dino_Mecha:    { range: 150, damage: 15, attackIntervalMs: 1500, maxTargets: 1 },
+  Griffin:       { range: 220, damage: 1,  attackIntervalMs: 200,  maxTargets: 1 },
+} as const;
 
 // Probabilistic upgrades (boss rewards)
 export const TWIN_INIT_PROB = 0.10;

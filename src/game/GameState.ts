@@ -32,6 +32,7 @@ import {
   TWIN_INIT_PROB,
   TWIN_PROB_INC,
   UNIT_CAP,
+  TIER3_STATS,
   UNIT_ZONE,
   VICTORY_TIME_MS,
 } from './config';
@@ -43,6 +44,7 @@ import {
   Race,
   Reward,
   RewardType,
+  Tier3Race,
   UnitData,
   UnitRace,
 } from './types';
@@ -51,9 +53,20 @@ export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory';
 
 const RACES: Race[] = ['Human', 'Beast', 'Robot'];
 
-function getUnitCombatStats(race: UnitRace) {
-  if (race in RACE_STATS) return RACE_STATS[race as Race];
-  return HYBRID_STATS[race as HybridRace];
+function getUnitCombatStats(race: UnitRace): { range: number; damage: number; attackIntervalMs: number; maxTargets: number } {
+  if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race];
+  if (race in RACE_STATS) return { ...RACE_STATS[race as Race], maxTargets: 1 };
+  return { ...HYBRID_STATS[race as HybridRace], maxTargets: 1 };
+}
+
+const TIER3_RECIPES: Record<string, Tier3Race> = {
+  'Human_Beast+Human_Robot': 'Cyborg_Wizard',
+  'Beast_Robot+Human_Robot': 'Dino_Mecha',
+  'Beast_Robot+Human_Beast': 'Griffin',
+};
+
+function resolveTier3Race(a: HybridRace, b: HybridRace): Tier3Race | null {
+  return TIER3_RECIPES[[a, b].sort().join('+')] ?? null;
 }
 
 function resolveHybridRace(a: Race, b: Race): HybridRace {
@@ -66,7 +79,7 @@ function resolveHybridRace(a: Race, b: Race): HybridRace {
   return map[sorted] ?? 'Human_Beast';
 }
 
-function makeUnit(id: number, race: UnitRace, tier: 1 | 2, x: number, y: number): UnitData {
+function makeUnit(id: number, race: UnitRace, tier: 1 | 2 | 3, x: number, y: number): UnitData {
   return { id, race, tier, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0, isLocked: false };
 }
 
@@ -81,7 +94,9 @@ export class GameState {
   maxUnits = UNIT_CAP;
   populationUpgradeCost = POPULATION_UPGRADE_BASE_COST;
   isPaused = false;
+  isInfiniteMode = false;
   pendingBossSpawn = false;
+  pendingNotification: string | null = null;
   twinProbability = 0;
   doubleAttackProbability = 0;
   criticalProbability = 0;
@@ -101,7 +116,7 @@ export class GameState {
     if (this.phase === 'gameover' || this.isPaused) return;
     this.elapsedMs += deltaMs;
 
-    if (this.phase === 'playing' && this.elapsedMs >= VICTORY_TIME_MS) {
+    if (!this.isInfiniteMode && this.phase === 'playing' && this.elapsedMs >= VICTORY_TIME_MS) {
       this.phase = 'victory';
       this.gems += 1;
       this.isPaused = true;
@@ -252,7 +267,7 @@ export class GameState {
     const a = this.units.find(u => u.id === idA);
     const b = this.units.find(u => u.id === idB);
     if (!a || !b) return false;
-    if (a.race !== b.race || a.tier === 2 || b.tier === 2) return false;
+    if (a.race !== b.race || a.tier !== 1 || b.tier !== 1) return false;
     if (a.isBreeding || b.isBreeding) return false;
     if (a.isExhausted || b.isExhausted) return false;
     if (a.isLocked || b.isLocked) return false;
@@ -297,19 +312,34 @@ export class GameState {
     if (aIdx < 0 || bIdx < 0) return null;
     const a = this.units[aIdx];
     const b = this.units[bIdx];
-    if (a.tier === 2 || b.tier === 2) return null;
     if (a.isLocked || b.isLocked) return null;
-    const baseRaces: UnitRace[] = ['Human', 'Beast', 'Robot'];
-    if (!baseRaces.includes(a.race) || !baseRaces.includes(b.race)) return null;
-    const hybridRace = resolveHybridRace(a.race as Race, b.race as Race);
     const hx = (a.x + b.x) / 2;
     const hy = (a.y + b.y) / 2;
     const [hi, lo] = aIdx > bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
-    this.units.splice(hi, 1);
-    this.units.splice(lo, 1);
-    const hybrid = makeUnit(this._nextUnitId++, hybridRace, 2, hx, hy);
-    this.units.push(hybrid);
-    return hybrid;
+
+    if (a.tier === 1 && b.tier === 1) {
+      const baseRaces: UnitRace[] = ['Human', 'Beast', 'Robot'];
+      if (!baseRaces.includes(a.race) || !baseRaces.includes(b.race)) return null;
+      const hybridRace = resolveHybridRace(a.race as Race, b.race as Race);
+      this.units.splice(hi, 1); this.units.splice(lo, 1);
+      const hybrid = makeUnit(this._nextUnitId++, hybridRace, 2, hx, hy);
+      this.units.push(hybrid);
+      return hybrid;
+    }
+
+    if (a.tier === 2 && b.tier === 2) {
+      const tier3Race = resolveTier3Race(a.race as HybridRace, b.race as HybridRace);
+      if (!tier3Race) {
+        this.pendingNotification = '⚠️ 조합법이 존재하지 않습니다.';
+        return null;
+      }
+      this.units.splice(hi, 1); this.units.splice(lo, 1);
+      const ultimate = makeUnit(this._nextUnitId++, tier3Race, 3, hx, hy);
+      this.units.push(ultimate);
+      return ultimate;
+    }
+
+    return null;
   }
 
   processCombat(snapshots: EnemySnapshot[]): CombatResult {
@@ -323,30 +353,29 @@ export class GameState {
       const stats = getUnitCombatStats(unit.race);
       if (now - unit.lastAttackedAtMs < stats.attackIntervalMs) continue;
 
-      let target: EnemySnapshot | null = null;
-      for (const e of snapshots) {
-        if (killedSet.has(e.id)) continue;
-        if (Math.hypot(e.x - unit.x, e.y - unit.y) > stats.range) continue;
-        if (!target || e.progressScore > target.progressScore) target = e;
-      }
-      if (!target) continue;
+      const inRange = snapshots
+        .filter(e => !killedSet.has(e.id) && Math.hypot(e.x - unit.x, e.y - unit.y) <= stats.range)
+        .sort((a, b) => b.progressScore - a.progressScore)
+        .slice(0, stats.maxTargets);
+      if (inRange.length === 0) continue;
 
       unit.lastAttackedAtMs = now;
-      const baseDmg = stats.damage + this.globalDamageBonus;
-      let finalDmg = baseDmg;
-      let isCrit = false;
-      if (this.criticalProbability > 0 && Math.random() < this.criticalProbability) {
-        finalDmg = Math.ceil(finalDmg * CRIT_DAMAGE_MULT);
-        isCrit = true;
-      }
-      if (Math.random() < this.doubleAttackProbability) finalDmg *= 2;
-      const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
-      liveHp.set(target.id, newHp);
-      attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit });
-
-      if (newHp <= 0) {
-        killedSet.add(target.id);
-        this.registerKill(target.killReward);
+      for (const target of inRange) {
+        const baseDmg = stats.damage + this.globalDamageBonus;
+        let finalDmg = baseDmg;
+        let isCrit = false;
+        if (this.criticalProbability > 0 && Math.random() < this.criticalProbability) {
+          finalDmg = Math.ceil(finalDmg * CRIT_DAMAGE_MULT);
+          isCrit = true;
+        }
+        if (Math.random() < this.doubleAttackProbability) finalDmg *= 2;
+        const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
+        liveHp.set(target.id, newHp);
+        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit });
+        if (newHp <= 0) {
+          killedSet.add(target.id);
+          this.registerKill(target.killReward);
+        }
       }
     }
 

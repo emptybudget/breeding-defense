@@ -9,11 +9,15 @@ import {
   HYBRID_STATS,
   KILL_REWARD,
   RACE_STATS,
+  SELL_GOLD_TIER1,
+  SELL_GOLD_TIER2,
+  SELL_GOLD_TIER3,
+  TIER3_STATS,
   TRACK_WAYPOINTS,
   UNIT_ZONE,
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
-import { EnemyType, HybridRace, Race, Reward, UnitData, UnitRace } from '../game/types';
+import { EnemyType, HybridRace, Race, Reward, Tier3Race, UnitData, UnitRace } from '../game/types';
 
 const CENTER_X = GAME_WIDTH / 2;
 const CENTER_Y = GAME_HEIGHT / 2;
@@ -23,21 +27,27 @@ const SELL_ZONE_X = GAME_WIDTH - 38;
 const SELL_ZONE_Y = GAME_HEIGHT - 52;
 
 const RACE_COLORS: Record<UnitRace, number> = {
-  Human:       0x4488ff,
-  Beast:       0x44cc44,
-  Robot:       0xaa44cc,
-  Human_Robot: 0x00eeff,
-  Human_Beast: 0xff44aa,
-  Beast_Robot: 0xff7700,
+  Human:         0x4488ff,
+  Beast:         0x44cc44,
+  Robot:         0xaa44cc,
+  Human_Robot:   0x00eeff,
+  Human_Beast:   0xff44aa,
+  Beast_Robot:   0xff7700,
+  Cyborg_Wizard: 0xffcc00,
+  Dino_Mecha:    0xff4400,
+  Griffin:       0x00ffaa,
 };
 
 const RACE_EMOJI: Record<UnitRace, string> = {
-  Human:       '👦',
-  Beast:       '🐶',
-  Robot:       '🤖',
-  Human_Robot: '🦾',
-  Human_Beast: '🐺',
-  Beast_Robot: '🦖',
+  Human:         '👦',
+  Beast:         '🐶',
+  Robot:         '🤖',
+  Human_Robot:   '🦾',
+  Human_Beast:   '🐺',
+  Beast_Robot:   '🦖',
+  Cyborg_Wizard: '🧙',
+  Dino_Mecha:    '🌋',
+  Griffin:       '🦅',
 };
 
 type Enemy = Phaser.GameObjects.Rectangle & {
@@ -65,7 +75,7 @@ export class GameScene extends Phaser.Scene {
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
-  private minuteWarning?: Phaser.GameObjects.Text;
+  private notificationTexts: Phaser.GameObjects.Text[] = [];
   private gameOverContainer?: Phaser.GameObjects.Container;
   private victoryContainer?: Phaser.GameObjects.Container;
   private dimOverlay?: Phaser.GameObjects.Rectangle;
@@ -176,7 +186,7 @@ export class GameScene extends Phaser.Scene {
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
       this.spawnBoss();
-      this.showMinuteWarning();
+      this.addNotification('👹 보스가 등장했습니다!', '#ff6666');
     }
 
     // Victory check
@@ -259,12 +269,24 @@ export class GameScene extends Phaser.Scene {
     this.state.registerSpawn();
   }
 
-  private showMinuteWarning(): void {
-    this.minuteWarning?.destroy();
-    this.minuteWarning = this.add.text(CENTER_X, CENTER_Y - 80, '[시간 경과: 적들이 더 흉포해집니다!]', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ff6666', align: 'center',
-    }).setOrigin(0.5).setDepth(8);
-    this.time.delayedCall(2500, () => { this.minuteWarning?.destroy(); this.minuteWarning = undefined; });
+  private addNotification(message: string, color = '#ffffff'): void {
+    for (const t of this.notificationTexts) t.y -= 20;
+    if (this.notificationTexts.length >= 4) this.notificationTexts.shift()?.destroy();
+    const t = this.add.text(8, GAME_HEIGHT - 82, message, {
+      fontFamily: 'monospace', fontSize: '11px', color,
+      stroke: '#000000', strokeThickness: 2,
+    }).setDepth(7);
+    this.notificationTexts.push(t);
+    this.time.delayedCall(3000, () => {
+      this.tweens.add({
+        targets: t, alpha: 0, duration: 600,
+        onComplete: () => {
+          t.destroy();
+          const idx = this.notificationTexts.indexOf(t);
+          if (idx >= 0) this.notificationTexts.splice(idx, 1);
+        },
+      });
+    });
   }
 
   private moveEnemies(deltaMs: number): void {
@@ -440,8 +462,10 @@ export class GameScene extends Phaser.Scene {
 
     // Sell zone (highest priority)
     if (this.isOnSellZone(go.x, go.y)) {
+      const sellGold = droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
       this.state.sellUnit(droppedId);
       this.removeUnitObject(droppedId);
+      this.addNotification(`💰 유닛 판매 +${sellGold}G`, '#ffd700');
       return;
     }
 
@@ -472,19 +496,36 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Interaction — only tier-1, non-exhausted, non-locked can breed/synthesize
-    if (droppedUnit.tier === 2 || droppedUnit.isExhausted || droppedUnit.isLocked) {
-      go.setPosition(droppedUnit.x, droppedUnit.y);
-      return;
-    }
+    // Interaction
+    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back as default
 
     const targetUnit = this.state.units.find(u => u.id === targetId);
-    if (!targetUnit || targetUnit.tier === 2 || targetUnit.isBreeding || targetUnit.isExhausted || targetUnit.isLocked) {
-      go.setPosition(droppedUnit.x, droppedUnit.y);
+    if (!targetUnit || targetUnit.isBreeding) return;
+
+    // Tier-3 units cannot interact
+    if (droppedUnit.tier === 3 || targetUnit.tier === 3) return;
+
+    // Tier-2 + Tier-2 → tier-3 synthesis
+    if (droppedUnit.tier === 2 && targetUnit.tier === 2) {
+      if (droppedUnit.isLocked || targetUnit.isLocked) return;
+      const result = this.state.synthesize(droppedId, targetId);
+      if (result) {
+        this.removeUnitObject(droppedId);
+        this.removeUnitObject(targetId);
+        this.addUnitCircle(result);
+      } else if (this.state.pendingNotification) {
+        this.addNotification(this.state.pendingNotification, '#ffaa44');
+        this.state.pendingNotification = null;
+      }
       return;
     }
 
-    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back
+    // Mismatched tiers → snap back already done
+    if (droppedUnit.tier !== 1 || targetUnit.tier !== 1) return;
+
+    // Tier-1 + Tier-1: check constraints
+    if (droppedUnit.isExhausted || droppedUnit.isLocked) return;
+    if (targetUnit.isExhausted || targetUnit.isLocked) return;
 
     if (droppedUnit.race === targetUnit.race) {
       const started = this.state.startBreeding(droppedId, targetId);
@@ -498,11 +539,11 @@ export class GameScene extends Phaser.Scene {
         this.startBreedingEffect(droppedId, targetId);
       }
     } else {
-      const hybrid = this.state.synthesize(droppedId, targetId);
-      if (hybrid) {
+      const result = this.state.synthesize(droppedId, targetId);
+      if (result) {
         this.removeUnitObject(droppedId);
         this.removeUnitObject(targetId);
-        this.addUnitCircle(hybrid);
+        this.addUnitCircle(result);
       }
     }
   }
@@ -580,6 +621,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private getUnitRange(race: UnitRace): number {
+    if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race].range;
     if (race in RACE_STATS) return RACE_STATS[race as Race].range;
     return HYBRID_STATS[race as HybridRace].range;
   }
@@ -594,7 +636,7 @@ export class GameScene extends Phaser.Scene {
     rangeGfx.setPosition(unit.x, unit.y);
     this.rangeCircles.set(unit.id, rangeGfx);
 
-    const fontSize = unit.tier === 2 ? '26px' : '20px';
+    const fontSize = unit.tier === 3 ? '30px' : unit.tier === 2 ? '26px' : '20px';
     const label = this.add.text(unit.x, unit.y, RACE_EMOJI[unit.race], {
       fontSize,
     }).setOrigin(0.5).setDepth(1);
@@ -667,19 +709,39 @@ export class GameScene extends Phaser.Scene {
 
   private showVictoryPopup(): void {
     const container = this.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.add.rectangle(0, 0, 300, 210, 0x000000, 0.90);
-    const title = this.add.text(0, -75, '🏆 VICTORY 🏆', {
+    const bg = this.add.rectangle(0, 0, 310, 240, 0x000000, 0.92);
+    const title = this.add.text(0, -95, '🏆 VICTORY 🏆', {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffd700', align: 'center',
     }).setOrigin(0.5);
-    const gemInfo = this.add.text(0, -15, `보석 +1 획득!\n현재 💎 ${this.state.gems}개`, {
-      fontFamily: 'monospace', fontSize: '15px', color: '#aaddff', align: 'center',
+    const gemInfo = this.add.text(0, -48, `보석 +1 획득! 현재 💎 ${this.state.gems}개`, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#aaddff', align: 'center',
     }).setOrigin(0.5);
-    const restartBtn = this.add.text(0, 55, '  다시하기  ', {
-      fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 14, y: 9 },
+
+    const restartBtn = this.add.text(-95, 30, ' 다시하기 ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      backgroundColor: '#334433', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.scene.restart(); });
-    container.add([bg, title, gemInfo, restartBtn]);
+
+    const infiniteBtn = this.add.text(0, 30, ' 무한 모드 ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      backgroundColor: '#334455', padding: { x: 8, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    infiniteBtn.on('pointerdown', () => {
+      this.state.phase = 'playing';
+      this.state.isInfiniteMode = true;
+      this.state.isPaused = false;
+      container.destroy();
+      this.victoryContainer = undefined;
+    });
+
+    const menuBtn = this.add.text(95, 30, ' 메인메뉴 ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#888888',
+      backgroundColor: '#222222', padding: { x: 8, y: 8 },
+    }).setOrigin(0.5).setAlpha(0.4);
+    menuBtn.disableInteractive();
+
+    container.add([bg, title, gemInfo, restartBtn, infiniteBtn, menuBtn]);
     this.victoryContainer = container;
   }
 }

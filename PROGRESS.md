@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-21 (미션 6-3)
+> 마지막 갱신: 2026-05-21 (미션 7)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -76,6 +76,8 @@ breeding-defense/
 | `CRIT_DAMAGE_MULT` | 1.5 | 치명타 대미지 배율 |
 | `RACE_STATS` | Human/Beast/Robot 각 range/damage/attackIntervalMs | 종족별 전투 스탯 |
 | `HYBRID_STATS` | Human_Robot/Human_Beast/Beast_Robot | 하이브리드별 전투 스탯 |
+| `TIER3_STATS` | Cyborg_Wizard(range180/dmg3/1000ms/타겟3) Dino_Mecha(range150/dmg15/1500ms) Griffin(range220/dmg1/200ms) | 3티어 전투 스탯 |
+| `SELL_GOLD_TIER3` | 60 | 3티어 판매 보상 |
 
 ## 트랙 구조
 - 웨이포인트 (시계 방향): TL(30,86) → TR(330,86) → BR(330,620) → BL(30,620)
@@ -83,7 +85,7 @@ breeding-defense/
 - 적은 스폰 시 랜덤 웨이포인트에서 시작 → 다음 웨이포인트 순환
 
 ## GameState API (src/game/GameState.ts)
-- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`
+- 상태: `phase`, `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`, `isInfiniteMode`, `pendingNotification`
 - 메서드: `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward)`, `summon()`, `upgradePopulation()`, `moveUnit(id,x,y)`, `useGemContinue(): boolean`, `startBreeding()`, `completeBreeding()`, `synthesize()`, `processCombat(snapshots)`
 - 게터: `currentSpawnIntervalMs`, `currentEnemyHp`(전체 배율 = minuteHpMult × overclock), `currentEnemySpeed`(절대값), `formatTimer()`
 
@@ -91,10 +93,11 @@ breeding-defense/
 - `Phase`: 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory'
 - `Race`: 'Human' | 'Beast' | 'Robot'
 - `HybridRace`: 'Human_Robot' | 'Human_Beast' | 'Beast_Robot'
-- `UnitRace`: Race | HybridRace
+- `Tier3Race`: 'Cyborg_Wizard' | 'Dino_Mecha' | 'Griffin'
+- `UnitRace`: Race | HybridRace | Tier3Race
 - `EnemyType`: 'NORMAL' | 'FAST'
 - `RewardType`: 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk' | 'crit'
-- `UnitData`: id, race(UnitRace), tier(1|2), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs
+- `UnitData`: id, race(UnitRace), tier(1|2|3), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs
 - `EnemySnapshot`: id, x, y, hp, progressScore, killReward
 - `AttackEvent`: unitX, unitY, enemyX, enemyY
 - `CombatResult`: attacks[], killedIds[], hpUpdates[]
@@ -143,6 +146,10 @@ breeding-defense/
 - [x] **보스 스폰 주기 30초로 단축:** (구: 60초 주기)
 - [x] **치명타(Critical) 시스템:** 전역 criticalProbability (기본 0%), 보스 보상 [🎯 치명타 50%], 최초 보스 보상에 치명타 확정 포함; ×1.5 대미지(ceil) → doubleAtk와 중첩; CRIT! 붉은 텍스트 상승 연출
 - [x] **2분 승리:** phase='victory', gems+1, isPaused=true → 🏆 VICTORY 🏆 팝업 (다시하기 버튼)
+- [x] **3티어 유닛:** Cyborg_Wizard🧙(멀티3타겟/dmg3) Dino_Mecha🌋(단일/dmg15) Griffin🦅(초고속200ms/dmg1); 합성 레시피: Human_Beast+Human_Robot=Cyborg_Wizard, Human_Robot+Beast_Robot=Dino_Mecha, Human_Beast+Beast_Robot=Griffin; 레시피 없는 조합 → 알림 차단
+- [x] **통합 알림 시스템:** `addNotification(msg, color)` — 하단 좌측 최대 4줄, 위로 밀려올라감, 3초 후 fade out; 보스 스폰·판매·잘못된 조합 연동
+- [x] **승리 팝업 3버튼 분기:** [다시하기] / [무한 모드](isInfiniteMode=true, 게임 재개) / [메인메뉴](비활성화)
+- [x] **무한 모드 플래그:** isInfiniteMode=true 시 2분 승리 조건 패스, 무한 난이도 가속 지속
 
 ## 미구현 (다음 단계 후보)
 - [ ] Capacitor 패키징 설정

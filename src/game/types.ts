@@ -1,6 +1,7 @@
 export type Race = 'Human' | 'Beast' | 'Robot';
 export type HybridRace = 'Human_Robot' | 'Human_Beast' | 'Beast_Robot';
-export type UnitRace = Race | HybridRace;
+export type Tier3Race = 'Cyborg_Wizard' | 'Dino_Mecha' | 'Griffin';
+export type UnitRace = Race | HybridRace | Tier3Race;
 
 export type EnemyType = 'NORMAL' | 'FAST';
 
@@ -14,7 +15,7 @@ export interface Reward {
 export interface UnitData {
   id: number;
   race: UnitRace;
-  tier: 1 | 2;
+  tier: 1 | 2 | 3;
   x: number;
   y: number;
   lastAttackedAtMs: number;
