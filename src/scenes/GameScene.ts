@@ -18,7 +18,8 @@ import {
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { EnemyType, HybridRace, Race, Reward, Tier3Race, UnitData, UnitRace } from '../game/types';
-import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI, SELL_ZONE_X, SELL_ZONE_Y } from './constants';
+import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI } from './constants';
+import { HudRenderer } from './render/HudRenderer';
 import { NotificationRenderer } from './render/NotificationRenderer';
 
 type Enemy = Phaser.GameObjects.Rectangle & {
@@ -36,13 +37,7 @@ export class GameScene extends Phaser.Scene {
   private state!: GameState;
   private enemies!: Phaser.GameObjects.Group;
   private enemyMap = new Map<number, Enemy>();
-  private timerText!: Phaser.GameObjects.Text;
-  private countText!: Phaser.GameObjects.Text;
-  private goldText!: Phaser.GameObjects.Text;
-  private unitText!: Phaser.GameObjects.Text;
-  private gemsText!: Phaser.GameObjects.Text;
-  private summonBtn!: Phaser.GameObjects.Text;
-  private popBtn!: Phaser.GameObjects.Text;
+  private hudRenderer!: HudRenderer;
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
@@ -68,6 +63,11 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.state = new GameState();
     this.notificationRenderer = new NotificationRenderer(this);
+    this.hudRenderer = new HudRenderer(
+      this,
+      () => { const unit = this.state.summon(); if (unit) this.addUnitCircle(unit); },
+      () => { this.state.upgradePopulation(); },
+    );
     this.enemies = this.add.group();
 
     // Track
@@ -82,46 +82,7 @@ export class GameScene extends Phaser.Scene {
     this.hpBarGraphics = this.add.graphics().setDepth(2);
     this.flashGraphics = this.add.graphics().setDepth(3);
 
-    // Top HUD
-    this.add.rectangle(0, 0, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
-    this.timerText = this.add.text(12, 8, '00:00', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
-    }).setDepth(6);
-    this.gemsText = this.add.text(CENTER_X, 8, 'Gem: 3', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#aaddff',
-    }).setOrigin(0.5, 0).setDepth(6);
-    this.countText = this.add.text(GAME_WIDTH - 12, 8, '0 / 50', {
-      fontFamily: 'monospace', fontSize: '18px', color: '#ffaaaa',
-    }).setOrigin(1, 0).setDepth(6);
-    this.goldText = this.add.text(12, 42, 'Gold: 100', {
-      fontFamily: 'monospace', fontSize: '16px', color: '#ffd700',
-    }).setDepth(6);
-    this.unitText = this.add.text(GAME_WIDTH - 12, 42, `Units: 0/${this.state.maxUnits}`, {
-      fontFamily: 'monospace', fontSize: '16px', color: '#aaffaa',
-    }).setOrigin(1, 0).setDepth(6);
-
-    // Bottom bar
-    this.add.rectangle(0, GAME_HEIGHT - 76, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
-
-    this.summonBtn = this.add.text(80, GAME_HEIGHT - 52, '', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
-      backgroundColor: '#335533', padding: { x: 10, y: 8 },
-    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
-    this.summonBtn.on('pointerdown', () => {
-      const unit = this.state.summon();
-      if (unit) this.addUnitCircle(unit);
-    });
-
-    this.popBtn = this.add.text(210, GAME_HEIGHT - 52, '', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
-      backgroundColor: '#553322', padding: { x: 10, y: 8 },
-    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
-    this.popBtn.on('pointerdown', () => { this.state.upgradePopulation(); });
-
-    // Sell zone (bottom-right)
-    this.add.text(SELL_ZONE_X, SELL_ZONE_Y, '🗑️', {
-      fontSize: '20px', backgroundColor: '#551111', padding: { x: 6, y: 4 },
-    }).setOrigin(0.5).setDepth(6);
+    this.hudRenderer.create(this.state);
 
     // Drag events
     this.input.on('dragstart', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
@@ -146,13 +107,7 @@ export class GameScene extends Phaser.Scene {
     this.state.tick(deltaMs);
 
     // HUD always updates
-    this.timerText.setText(this.state.formatTimer());
-    this.countText.setText(`${this.state.enemyCount} / 50`);
-    this.goldText.setText(`Gold: ${this.state.gold}`);
-    this.unitText.setText(`Units: ${this.state.units.length}/${this.state.maxUnits}`);
-    this.gemsText.setText(`Gem: ${this.state.gems}`);
-    this.summonBtn.setText(`소환 (${this.state.summonCost}G)`);
-    this.popBtn.setText(`사회성 (${this.state.populationUpgradeCost}G)`);
+    this.hudRenderer.update(this.state);
 
     // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
