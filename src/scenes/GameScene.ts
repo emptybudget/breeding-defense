@@ -1,13 +1,9 @@
 import Phaser from 'phaser';
 import {
-  BOSS_HP_MULT,
-  BOSS_KILL_REWARD,
   BREEDING_DURATION_MS,
-  ENEMY_TYPES,
   GAME_HEIGHT,
   GAME_WIDTH,
   HYBRID_STATS,
-  KILL_REWARD,
   RACE_STATS,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
@@ -17,40 +13,25 @@ import {
   UNIT_ZONE,
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
-import { EnemyType, HybridRace, Race, Tier3Race, UnitData, UnitRace } from '../game/types';
+import { HybridRace, Race, Tier3Race, UnitData, UnitRace } from '../game/types';
 import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI } from './constants';
+import { EnemyRenderer } from './render/EnemyRenderer';
 import { HudRenderer } from './render/HudRenderer';
 import { NotificationRenderer } from './render/NotificationRenderer';
 import { PopupRenderer } from './render/PopupRenderer';
 
-type Enemy = Phaser.GameObjects.Rectangle & {
-  id: number;
-  hp: number;
-  maxHp: number;
-  speed: number;
-  waypointIndex: number;
-  enemyType: EnemyType;
-  isBoss: boolean;
-  killReward: number;
-};
-
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
-  private enemies!: Phaser.GameObjects.Group;
-  private enemyMap = new Map<number, Enemy>();
+  private enemyRenderer!: EnemyRenderer;
   private hudRenderer!: HudRenderer;
   private popupRenderer!: PopupRenderer;
-  private flashGraphics!: Phaser.GameObjects.Graphics;
-  private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
   private notificationRenderer!: NotificationRenderer;
-  private spawnAccumulatorMs = 0;
   private unitObjects = new Map<number, Phaser.GameObjects.Text>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
-  private _nextEnemyId = 0;
 
   constructor() {
     super('GameScene');
@@ -75,7 +56,11 @@ export class GameScene extends Phaser.Scene {
         this.state.isPaused = false;
       },
     );
-    this.enemies = this.add.group();
+    this.enemyRenderer = new EnemyRenderer(
+      this,
+      this.state,
+      () => { this.onBossKilled(); },
+    );
 
     // Track
     const g = this.add.graphics();
@@ -86,9 +71,7 @@ export class GameScene extends Phaser.Scene {
       TRACK_WAYPOINTS[3].y - TRACK_WAYPOINTS[0].y,
     );
 
-    this.hpBarGraphics = this.add.graphics().setDepth(2);
-    this.flashGraphics = this.add.graphics().setDepth(3);
-
+    this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
     // Drag events
@@ -119,7 +102,7 @@ export class GameScene extends Phaser.Scene {
     // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
-      this.spawnBoss();
+      this.enemyRenderer.spawnBoss();
       this.notificationRenderer.add('👹 보스가 등장했습니다!', '#ff6666');
     }
 
@@ -134,10 +117,7 @@ export class GameScene extends Phaser.Scene {
 
     this.syncZzzTexts();
     this.syncLockTexts();
-    this.handleSpawning(deltaMs);
-    this.moveEnemies(deltaMs);
-    this.drawHpBars();
-    this.handleCombat();
+    this.enemyRenderer.update(deltaMs);
 
     if (this.isPhase('gameover')) {
       this.popupRenderer.showGameOver();
@@ -156,137 +136,6 @@ export class GameScene extends Phaser.Scene {
 
   private isPhase(p: Phase): boolean {
     return this.state.phase === p;
-  }
-
-  private handleSpawning(deltaMs: number): void {
-    this.spawnAccumulatorMs += deltaMs;
-    const interval = this.state.currentSpawnIntervalMs;
-    while (this.spawnAccumulatorMs >= interval && !this.isPhase('gameover')) {
-      this.spawnAccumulatorMs -= interval;
-      this.spawnEnemy();
-      if (this.isPhase('gameover')) break;
-    }
-  }
-
-  private spawnEnemy(): void {
-    const wpIdx = Phaser.Math.Between(0, TRACK_WAYPOINTS.length - 1);
-    const wp = TRACK_WAYPOINTS[wpIdx];
-    const type: EnemyType = Math.random() < 0.5 ? 'NORMAL' : 'FAST';
-    const def = ENEMY_TYPES[type];
-    const overclockSpeedMult = this.state.currentEnemySpeed / 40;
-    const hp = Math.ceil(def.hp * this.state.currentEnemyHp);
-    const speed = def.speed * overclockSpeedMult;
-    const color = type === 'FAST' ? 0xffcc00 : 0xff3344;
-    const size = type === 'FAST' ? 10 : 16;
-    const enemy = this.add.rectangle(wp.x, wp.y, size, size, color) as Enemy;
-    enemy.id = this._nextEnemyId++;
-    enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
-    enemy.waypointIndex = (wpIdx + 1) % TRACK_WAYPOINTS.length;
-    enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = KILL_REWARD;
-    this.enemies.add(enemy);
-    this.enemyMap.set(enemy.id, enemy);
-    this.state.registerSpawn();
-  }
-
-  private spawnBoss(): void {
-    const wp = TRACK_WAYPOINTS[0];
-    const overclockSpeedMult = this.state.currentEnemySpeed / 40;
-    const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * BOSS_HP_MULT);
-    const boss = this.add.rectangle(wp.x, wp.y, 32, 32, 0x0055ff) as Enemy;
-    boss.id = this._nextEnemyId++;
-    boss.hp = bossHp; boss.maxHp = bossHp;
-    boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult;
-    boss.waypointIndex = 1; boss.enemyType = 'NORMAL'; boss.isBoss = true;
-    boss.killReward = BOSS_KILL_REWARD;
-    this.enemies.add(boss);
-    this.enemyMap.set(boss.id, boss);
-    this.state.registerSpawn();
-  }
-
-  private moveEnemies(deltaMs: number): void {
-    const dtSec = deltaMs / 1000;
-    this.enemies.getChildren().forEach((obj) => {
-      const e = obj as Enemy;
-      const wp = TRACK_WAYPOINTS[e.waypointIndex];
-      const dx = wp.x - e.x; const dy = wp.y - e.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < 8) { e.waypointIndex = (e.waypointIndex + 1) % TRACK_WAYPOINTS.length; return; }
-      const step = e.speed * dtSec;
-      e.x += (dx / dist) * step;
-      e.y += (dy / dist) * step;
-    });
-  }
-
-  private drawHpBars(): void {
-    this.hpBarGraphics.clear();
-    this.enemies.getChildren().forEach((obj) => {
-      const e = obj as Enemy;
-      const barW = e.isBoss ? 44 : 20;
-      const barH = e.isBoss ? 5 : 3;
-      const bx = e.x - barW / 2;
-      const by = e.y - e.displayHeight / 2 - 5;
-      this.hpBarGraphics.fillStyle(0x333333);
-      this.hpBarGraphics.fillRect(bx, by, barW, barH);
-      const pct = Math.max(0, e.hp / e.maxHp);
-      this.hpBarGraphics.fillStyle(pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xffcc00 : 0xff4444);
-      this.hpBarGraphics.fillRect(bx, by, barW * pct, barH);
-    });
-  }
-
-  private handleCombat(): void {
-    if (this.state.units.length === 0) return;
-
-    const snapshots = this.enemies.getChildren().map((obj) => {
-      const e = obj as Enemy;
-      const wp = TRACK_WAYPOINTS[e.waypointIndex];
-      return {
-        id: e.id, x: e.x, y: e.y, hp: e.hp,
-        progressScore: e.waypointIndex * 1000 - Math.hypot(wp.x - e.x, wp.y - e.y),
-        killReward: e.killReward,
-      };
-    });
-
-    const result = this.state.processCombat(snapshots);
-
-    for (const { id, hp } of result.hpUpdates) {
-      const enemy = this.enemyMap.get(id);
-      if (enemy) enemy.hp = hp;
-    }
-
-    let bossKilled = false;
-    for (const id of result.killedIds) {
-      const enemy = this.enemyMap.get(id);
-      if (enemy) {
-        if (enemy.isBoss) bossKilled = true;
-        enemy.destroy();
-        this.enemyMap.delete(id);
-      }
-    }
-    if (bossKilled && !this.state.isPaused) this.onBossKilled();
-
-    if (result.attacks.length > 0) {
-      this.flashGraphics.clear();
-      this.flashGraphics.lineStyle(2, 0xffff00, 1);
-      for (const atk of result.attacks) {
-        this.flashGraphics.beginPath();
-        this.flashGraphics.moveTo(atk.unitX, atk.unitY);
-        this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
-        this.flashGraphics.strokePath();
-        if (atk.isCrit) {
-          const critText = this.add.text(atk.enemyX, atk.enemyY - 10, 'CRIT!', {
-            fontFamily: 'monospace', fontSize: '13px', color: '#ff2222',
-          }).setOrigin(0.5).setDepth(4);
-          this.tweens.add({
-            targets: critText,
-            y: atk.enemyY - 40,
-            alpha: 0,
-            duration: 700,
-            onComplete: () => critText.destroy(),
-          });
-        }
-      }
-      this.time.delayedCall(100, () => this.flashGraphics.clear());
-    }
   }
 
   private onBossKilled(): void {
@@ -514,10 +363,7 @@ export class GameScene extends Phaser.Scene {
 
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
-    for (const e of [...this.enemyMap.values()]) e.destroy();
-    this.enemyMap.clear();
-    this.enemies.clear(false, false);
-    this.spawnAccumulatorMs = 0;
+    this.enemyRenderer.clearAll();
     this.banner?.destroy(); this.banner = undefined;
     this.popupRenderer.hideGameOver();
   }
