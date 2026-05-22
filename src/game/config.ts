@@ -27,16 +27,14 @@ export const SUMMON_BASE_COST = 10;
 export const SUMMON_COST_INCREMENT = 2;
 export const STARTING_GEMS = 3;
 
-// --- Track (ㅁ자 path, clockwise from top-left) ---
-export const TRACK_WAYPOINTS: { x: number; y: number }[] = [
-  { x: 30, y: 86 },
-  { x: 330, y: 86 },
-  { x: 330, y: 620 },
-  { x: 30, y: 620 },
-];
-
-// Inner zone for unit spawning (inside the track lane)
-export const UNIT_ZONE = { x1: 68, y1: 124, x2: 292, y2: 582 };
+// --- Track corners (base positions; per-game randomization happens in GameState) ---
+// Y safe range: 86~530 (avoids top HUD 0~76 and bottom bar 564~640)
+export const TRACK_BASE_TL = { x: 30,  y: 90 };
+export const TRACK_BASE_TR = { x: 330, y: 90 };
+export const TRACK_BASE_BR = { x: 330, y: 520 };
+export const TRACK_BASE_BL = { x: 30,  y: 520 };
+// Inward padding from each track edge to compute the valid unit placement zone
+export const TRACK_UNIT_ZONE_PADDING = 30;
 
 // --- Unit combat (legacy, superseded by RACE_STATS/HYBRID_STATS) ---
 export const BREEDING_DURATION_MS = 3000;

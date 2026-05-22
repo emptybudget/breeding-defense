@@ -5,7 +5,6 @@ import {
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
-  UNIT_ZONE,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { NotificationRenderer } from '../render/NotificationRenderer';
@@ -97,9 +96,10 @@ export class DragController {
   }
 
   private isValidUnitPosition(x: number, y: number): boolean {
+    const z = this.state.unitZone;
     return (
-      x >= UNIT_ZONE.x1 && x <= UNIT_ZONE.x2 &&
-      y >= UNIT_ZONE.y1 && y <= Math.min(UNIT_ZONE.y2, GAME_HEIGHT - 76)
+      x >= z.x1 && x <= z.x2 &&
+      y >= z.y1 && y <= Math.min(z.y2, GAME_HEIGHT - 76)
     );
   }
 
@@ -170,7 +170,7 @@ export class DragController {
       const started = this.state.startBreeding(droppedId, targetId);
       if (started) {
         // Snap droppedUnit next to target (밀착 연출)
-        const snapX = Math.min(UNIT_ZONE.x2, targetUnit.x + 18);
+        const snapX = Math.min(this.state.unitZone.x2, targetUnit.x + 18);
         const snapY = targetUnit.y;
         this.state.moveUnit(droppedId, snapX, snapY);
         go.setPosition(snapX, snapY);

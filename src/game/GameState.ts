@@ -34,7 +34,11 @@ import {
   TWIN_PROB_INC,
   UNIT_CAP,
   TIER3_STATS,
-  UNIT_ZONE,
+  TRACK_BASE_TL,
+  TRACK_BASE_TR,
+  TRACK_BASE_BR,
+  TRACK_BASE_BL,
+  TRACK_UNIT_ZONE_PADDING,
   VICTORY_TIME_MS,
 } from './config';
 import {
@@ -102,6 +106,35 @@ export class GameState {
   doubleAttackProbability = 0;
   criticalProbability = 0;
   globalDamageBonus = 0;
+
+  readonly trackWaypoints: { x: number; y: number }[];
+  readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
+
+  constructor() {
+    this.trackWaypoints = this.generateTrackWaypoints();
+    this.unitZone = this.computeUnitZone(this.trackWaypoints);
+  }
+
+  private generateTrackWaypoints(): { x: number; y: number }[] {
+    const r = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+    return [
+      { x: TRACK_BASE_TL.x + r(-10, 15), y: TRACK_BASE_TL.y + r(-10, 20) },
+      { x: TRACK_BASE_TR.x + r(-15, 10), y: TRACK_BASE_TR.y + r(-10, 20) },
+      { x: TRACK_BASE_BR.x + r(-15, 10), y: TRACK_BASE_BR.y + r(-15, 15) },
+      { x: TRACK_BASE_BL.x + r(-10, 15), y: TRACK_BASE_BL.y + r(-15, 15) },
+    ];
+  }
+
+  private computeUnitZone(wp: { x: number; y: number }[]) {
+    const [tl, tr, br, bl] = wp;
+    const pad = TRACK_UNIT_ZONE_PADDING;
+    return {
+      x1: Math.max(tl.x, bl.x) + pad,
+      y1: Math.max(tl.y, tr.y) + pad,
+      x2: Math.min(tr.x, br.x) - pad,
+      y2: Math.min(bl.y, br.y) - pad,
+    };
+  }
 
   private overclockSeconds = 0;
   private minuteHpMult = 1;
@@ -265,8 +298,8 @@ export class GameState {
     this.gold -= this.summonCost;
     this.summonCost += SUMMON_COST_INCREMENT;
     const race = RACES[Math.floor(Math.random() * RACES.length)];
-    const x = UNIT_ZONE.x1 + Math.random() * (UNIT_ZONE.x2 - UNIT_ZONE.x1);
-    const y = UNIT_ZONE.y1 + Math.random() * (UNIT_ZONE.y2 - UNIT_ZONE.y1);
+    const x = this.unitZone.x1 + Math.random() * (this.unitZone.x2 - this.unitZone.x1);
+    const y = this.unitZone.y1 + Math.random() * (this.unitZone.y2 - this.unitZone.y1);
     const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
     this.units.push(unit);
     return unit;

@@ -1,7 +1,4 @@
 import Phaser from 'phaser';
-import {
-  TRACK_WAYPOINTS,
-} from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { CENTER_X, CENTER_Y } from './constants';
 import { DragController } from './input/DragController';
@@ -51,14 +48,15 @@ export class GameScene extends Phaser.Scene {
       () => { this.onBossKilled(); },
     );
 
-    // Track
+    // Track (dynamic polygon each game)
     const g = this.add.graphics();
     g.lineStyle(36, 0x333333, 1);
-    g.strokeRect(
-      TRACK_WAYPOINTS[0].x, TRACK_WAYPOINTS[0].y,
-      TRACK_WAYPOINTS[1].x - TRACK_WAYPOINTS[0].x,
-      TRACK_WAYPOINTS[3].y - TRACK_WAYPOINTS[0].y,
-    );
+    const wp = this.state.trackWaypoints;
+    g.beginPath();
+    g.moveTo(wp[0].x, wp[0].y);
+    for (let i = 1; i < wp.length; i++) g.lineTo(wp[i].x, wp[i].y);
+    g.closePath();
+    g.strokePath();
 
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);

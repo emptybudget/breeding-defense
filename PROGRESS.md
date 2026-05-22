@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (튜토리얼 오버레이 + 사거리 드래그 전용 + 레시피 팝업 완료)
+> 마지막 갱신: 2026-05-22 (가변형 루프 트랙 + 하단 UI 잘림 해결)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -64,8 +64,10 @@ breeding-defense/
 | `UNIT_CAP` | 5 | 초기 유닛 한도 |
 | `SUMMON_BASE_COST` | 10 | 첫 소환 비용 |
 | `SUMMON_COST_INCREMENT` | 2 | 소환마다 누적 증가 |
-| `TRACK_WAYPOINTS` | 4개 좌표 | ㅁ자 트랙 모서리 (TL→TR→BR→BL) |
-| `UNIT_ZONE` | x1:68 y1:124 x2:292 y2:582 | 유닛 배치 가능 영역 (트랙 안쪽) |
+| `TRACK_BASE_TL/TR/BR/BL` | 기준 좌표 | **매 판 랜덤 변형** — GameState.trackWaypoints에 ±10~20px 노이즈 적용 |
+| `TRACK_UNIT_ZONE_PADDING` | 30 | 트랙 안쪽 패딩 |
+| `GameState.trackWaypoints` | 동적 4점 | 이번 판 실제 웨이포인트 (GameState 생성 시 결정) |
+| `GameState.unitZone` | 동적 박스 | 트랙 꼭짓점 기반으로 계산된 유닛 배치 영역 |
 | `UNIT_ATTACK_INTERVAL_MS` | 1000 | 유닛 공격 쿨타임 (1초) |
 | `UNIT_ATTACK_RANGE` | 120 | 유닛 사거리 (반지름 px) |
 | `UNIT_BASE_DAMAGE` | 1 | 1티어 기본 대미지 |
@@ -76,7 +78,7 @@ breeding-defense/
 | `POPULATION_UPGRADE_BASE_COST` | 50 | 사회성 첫 업그레이드 비용 |
 | `POPULATION_UPGRADE_COST_INCREASE` | 10 | 업그레이드마다 누적 증가 |
 | `ENEMY_SPAWN_INTERVAL_MS` | 2500 | 기본 스폰 주기 (↑ 난이도) |
-| `MINUTE_HP_MULT` | 1.5 | 1분마다 적 HP ×1.5 누적 |
+| `MINUTE_HP_MULT` | 1.25 | 1분마다 적 HP ×1.25 누적 |
 | `MINUTE_SPEED_MULT` | 1.2 | 1분마다 적 속도 ×1.2 누적 |
 | `STARTING_GEMS` | 3 | 시작 보석 수 |
 | `BOSS_HP_MULT` | 15 | 보스 HP = NORMAL×15 |
@@ -159,6 +161,11 @@ breeding-defense/
 - [x] **통합 알림 시스템:** `addNotification(msg, color)` — 하단 좌측 최대 4줄, 위로 밀려올라감, 3초 후 fade out; 보스 스폰·판매·잘못된 조합 연동
 - [x] **승리 팝업 3버튼 분기:** [다시하기] / [무한 모드](isInfiniteMode=true, 게임 재개) / [메인메뉴](비활성화)
 - [x] **무한 모드 플래그:** isInfiniteMode=true 시 2분 승리 조건 패스, 무한 난이도 가속 지속
+- [x] **골드 자동회복:** 매초 +2G (`GOLD_AUTO_RECOVERY_PER_SEC`)
+- [x] **튜토리얼 오버레이:** 시작 시 교배/합성/판매 안내 + 탭으로 fade out 시작
+- [x] **사거리 원 드래그 전용:** 평상시 숨김, 드래그 중에만 표시·이동
+- [x] **유닛 탭 → 레시피 팝업:** 1/2티어 조합식, 3티어 스펙 카드; 더블탭 = 잠금
+- [x] **가변형 루프 트랙:** 매 판 TL/TR/BR/BL에 ±10~20px 노이즈 — `GameState.trackWaypoints` 동적 생성, 트랙 다각형 렌더링, `unitZone` 동적 산출, 하단 UI 잘림 해결 (Y범위 86~530)
 
 ## 🎮 게임 디자인 결정 (코어 합의)
 

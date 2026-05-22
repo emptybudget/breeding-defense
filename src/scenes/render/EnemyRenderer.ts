@@ -4,7 +4,6 @@ import {
   BOSS_KILL_REWARD,
   ENEMY_TYPES,
   KILL_REWARD,
-  TRACK_WAYPOINTS,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { EnemyType } from '../../game/types';
@@ -55,7 +54,7 @@ export class EnemyRenderer {
   }
 
   spawnBoss(): void {
-    const wp = TRACK_WAYPOINTS[0];
+    const wp = this.state.trackWaypoints[0];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
     const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * BOSS_HP_MULT);
     const boss = this.scene.add.rectangle(wp.x, wp.y, 32, 32, 0x0055ff) as Enemy;
@@ -87,8 +86,9 @@ export class EnemyRenderer {
   }
 
   private spawnEnemy(): void {
-    const wpIdx = Phaser.Math.Between(0, TRACK_WAYPOINTS.length - 1);
-    const wp = TRACK_WAYPOINTS[wpIdx];
+    const waypoints = this.state.trackWaypoints;
+    const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
+    const wp = waypoints[wpIdx];
     const type: EnemyType = Math.random() < 0.5 ? 'NORMAL' : 'FAST';
     const def = ENEMY_TYPES[type];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
@@ -99,7 +99,7 @@ export class EnemyRenderer {
     const enemy = this.scene.add.rectangle(wp.x, wp.y, size, size, color) as Enemy;
     enemy.id = this._nextEnemyId++;
     enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
-    enemy.waypointIndex = (wpIdx + 1) % TRACK_WAYPOINTS.length;
+    enemy.waypointIndex = (wpIdx + 1) % waypoints.length;
     enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = KILL_REWARD;
     this.enemies.add(enemy);
     this.enemyMap.set(enemy.id, enemy);
@@ -108,12 +108,13 @@ export class EnemyRenderer {
 
   private moveEnemies(deltaMs: number): void {
     const dtSec = deltaMs / 1000;
+    const waypoints = this.state.trackWaypoints;
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;
-      const wp = TRACK_WAYPOINTS[e.waypointIndex];
+      const wp = waypoints[e.waypointIndex];
       const dx = wp.x - e.x; const dy = wp.y - e.y;
       const dist = Math.hypot(dx, dy);
-      if (dist < 8) { e.waypointIndex = (e.waypointIndex + 1) % TRACK_WAYPOINTS.length; return; }
+      if (dist < 8) { e.waypointIndex = (e.waypointIndex + 1) % waypoints.length; return; }
       const step = e.speed * dtSec;
       e.x += (dx / dist) * step;
       e.y += (dy / dist) * step;
@@ -139,9 +140,10 @@ export class EnemyRenderer {
   private handleCombat(): void {
     if (this.state.units.length === 0) return;
 
+    const waypoints = this.state.trackWaypoints;
     const snapshots = this.enemies.getChildren().map((obj) => {
       const e = obj as Enemy;
-      const wp = TRACK_WAYPOINTS[e.waypointIndex];
+      const wp = waypoints[e.waypointIndex];
       return {
         id: e.id, x: e.x, y: e.y, hp: e.hp,
         progressScore: e.waypointIndex * 1000 - Math.hypot(wp.x - e.x, wp.y - e.y),
