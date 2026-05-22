@@ -1,24 +1,20 @@
 import Phaser from 'phaser';
 import {
-  BREEDING_DURATION_MS,
   GAME_HEIGHT,
   GAME_WIDTH,
-  HYBRID_STATS,
-  RACE_STATS,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
-  TIER3_STATS,
   TRACK_WAYPOINTS,
   UNIT_ZONE,
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
-import { HybridRace, Race, Tier3Race, UnitData, UnitRace } from '../game/types';
-import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI } from './constants';
+import { CENTER_X, CENTER_Y } from './constants';
 import { EnemyRenderer } from './render/EnemyRenderer';
 import { HudRenderer } from './render/HudRenderer';
 import { NotificationRenderer } from './render/NotificationRenderer';
 import { PopupRenderer } from './render/PopupRenderer';
+import { UnitRenderer } from './render/UnitRenderer';
 
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
@@ -27,11 +23,7 @@ export class GameScene extends Phaser.Scene {
   private popupRenderer!: PopupRenderer;
   private banner?: Phaser.GameObjects.Text;
   private notificationRenderer!: NotificationRenderer;
-  private unitObjects = new Map<number, Phaser.GameObjects.Text>();
-  private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
-  private heartTexts = new Map<number, Phaser.GameObjects.Text>();
-  private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
-  private lockTexts = new Map<number, Phaser.GameObjects.Text>();
+  private unitRenderer!: UnitRenderer;
 
   constructor() {
     super('GameScene');
@@ -40,9 +32,10 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.state = new GameState();
     this.notificationRenderer = new NotificationRenderer(this);
+    this.unitRenderer = new UnitRenderer(this, this.state);
     this.hudRenderer = new HudRenderer(
       this,
-      () => { const unit = this.state.summon(); if (unit) this.addUnitCircle(unit); },
+      () => { const unit = this.state.summon(); if (unit) this.unitRenderer.addUnit(unit); },
       () => { this.state.upgradePopulation(); },
     );
     this.popupRenderer = new PopupRenderer(
@@ -115,8 +108,7 @@ export class GameScene extends Phaser.Scene {
     // Pause guard — skip all gameplay when reward popup is active
     if (this.state.isPaused) return;
 
-    this.syncZzzTexts();
-    this.syncLockTexts();
+    this.unitRenderer.syncOverlays();
     this.enemyRenderer.update(deltaMs);
 
     if (this.isPhase('gameover')) {
@@ -165,7 +157,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isOnSellZone(go.x, go.y)) {
       const sellGold = droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
       this.state.sellUnit(droppedId);
-      this.removeUnitObject(droppedId);
+      this.unitRenderer.removeUnit(droppedId);
       this.notificationRenderer.add(`💰 유닛 판매 +${sellGold}G`, '#ffd700');
       return;
     }
@@ -176,21 +168,13 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // Find nearest unit within 35px
-    let targetId: number | null = null;
-    for (const [id, other] of this.unitObjects) {
-      if (id === droppedId) continue;
-      if (Math.hypot(go.x - other.x, go.y - other.y) <= 35) {
-        targetId = id;
-        break;
-      }
-    }
+    const targetId = this.unitRenderer.getNearestUnitId(go.x, go.y, droppedId, 35);
 
     if (targetId === null) {
       // Empty space — all tiers can move
       if (this.isValidUnitPosition(go.x, go.y)) {
         this.state.moveUnit(droppedId, go.x, go.y);
-        this.rangeCircles.get(droppedId)?.setPosition(go.x, go.y);
+        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(go.x, go.y);
         return;
       }
       go.setPosition(droppedUnit.x, droppedUnit.y);
@@ -211,9 +195,9 @@ export class GameScene extends Phaser.Scene {
       if (droppedUnit.isLocked || targetUnit.isLocked) return;
       const result = this.state.synthesize(droppedId, targetId);
       if (result) {
-        this.removeUnitObject(droppedId);
-        this.removeUnitObject(targetId);
-        this.addUnitCircle(result);
+        this.unitRenderer.removeUnit(droppedId);
+        this.unitRenderer.removeUnit(targetId);
+        this.unitRenderer.addUnit(result);
       } else if (this.state.pendingNotification) {
         this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;
@@ -236,129 +220,17 @@ export class GameScene extends Phaser.Scene {
         const snapY = targetUnit.y;
         this.state.moveUnit(droppedId, snapX, snapY);
         go.setPosition(snapX, snapY);
-        this.rangeCircles.get(droppedId)?.setPosition(snapX, snapY);
-        this.startBreedingEffect(droppedId, targetId);
+        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(snapX, snapY);
+        this.unitRenderer.startBreedingEffect(droppedId, targetId);
       }
     } else {
       const result = this.state.synthesize(droppedId, targetId);
       if (result) {
-        this.removeUnitObject(droppedId);
-        this.removeUnitObject(targetId);
-        this.addUnitCircle(result);
+        this.unitRenderer.removeUnit(droppedId);
+        this.unitRenderer.removeUnit(targetId);
+        this.unitRenderer.addUnit(result);
       }
     }
-  }
-
-  private startBreedingEffect(idA: number, idB: number): void {
-    const goA = this.unitObjects.get(idA);
-    const goB = this.unitObjects.get(idB);
-    if (!goA || !goB) return;
-
-    const heartA = this.add.text(goA.x, goA.y - 22, '❤', {
-      fontSize: '14px', color: '#ff4444',
-    }).setOrigin(0.5).setDepth(2);
-    const heartB = this.add.text(goB.x, goB.y - 22, '❤', {
-      fontSize: '14px', color: '#ff4444',
-    }).setOrigin(0.5).setDepth(2);
-    this.heartTexts.set(idA, heartA);
-    this.heartTexts.set(idB, heartB);
-
-    this.time.delayedCall(BREEDING_DURATION_MS, () => {
-      heartA.destroy(); heartB.destroy();
-      this.heartTexts.delete(idA); this.heartTexts.delete(idB);
-      const born = this.state.completeBreeding(idA, idB);
-      for (const u of born) this.addUnitCircle(u);
-    });
-  }
-
-  private syncZzzTexts(): void {
-    for (const unit of this.state.units) {
-      const go = this.unitObjects.get(unit.id);
-      if (!go) continue;
-      if (unit.isExhausted) {
-        const existing = this.zzzTexts.get(unit.id);
-        if (!existing) {
-          const t = this.add.text(go.x, go.y - 16, 'zzz', {
-            fontSize: '11px', color: '#aaaaff',
-          }).setOrigin(0.5).setDepth(2);
-          this.zzzTexts.set(unit.id, t);
-        } else {
-          existing.setPosition(go.x, go.y - 16);
-        }
-      } else {
-        const t = this.zzzTexts.get(unit.id);
-        if (t) { t.destroy(); this.zzzTexts.delete(unit.id); }
-      }
-    }
-  }
-
-  private syncLockTexts(): void {
-    for (const unit of this.state.units) {
-      const go = this.unitObjects.get(unit.id);
-      if (!go) continue;
-      if (unit.isLocked) {
-        const existing = this.lockTexts.get(unit.id);
-        if (!existing) {
-          const t = this.add.text(go.x, go.y - 28, '🔒', {
-            fontSize: '11px',
-          }).setOrigin(0.5).setDepth(2);
-          this.lockTexts.set(unit.id, t);
-        } else {
-          existing.setPosition(go.x, go.y - 28);
-        }
-      } else {
-        const t = this.lockTexts.get(unit.id);
-        if (t) { t.destroy(); this.lockTexts.delete(unit.id); }
-      }
-    }
-  }
-
-  private removeUnitObject(id: number): void {
-    this.unitObjects.get(id)?.destroy();    this.unitObjects.delete(id);
-    this.rangeCircles.get(id)?.destroy();   this.rangeCircles.delete(id);
-    this.heartTexts.get(id)?.destroy();     this.heartTexts.delete(id);
-    this.zzzTexts.get(id)?.destroy();       this.zzzTexts.delete(id);
-    this.lockTexts.get(id)?.destroy();      this.lockTexts.delete(id);
-  }
-
-  private getUnitRange(race: UnitRace): number {
-    if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race].range;
-    if (race in RACE_STATS) return RACE_STATS[race as Race].range;
-    return HYBRID_STATS[race as HybridRace].range;
-  }
-
-  private addUnitCircle(unit: UnitData): void {
-    const range = this.getUnitRange(unit.race);
-    const color = RACE_COLORS[unit.race];
-
-    const rangeGfx = this.add.graphics().setDepth(0);
-    rangeGfx.lineStyle(1, color, 0.2);
-    rangeGfx.strokeCircle(0, 0, range);
-    rangeGfx.setPosition(unit.x, unit.y);
-    this.rangeCircles.set(unit.id, rangeGfx);
-
-    const fontSize = unit.tier === 3 ? '30px' : unit.tier === 2 ? '26px' : '20px';
-    const label = this.add.text(unit.x, unit.y, RACE_EMOJI[unit.race], {
-      fontSize,
-    }).setOrigin(0.5).setDepth(1);
-
-    label.setInteractive({ useHandCursor: true });
-    this.input.setDraggable(label);
-    label.setData('unitId', unit.id);
-
-    // Double-click to toggle lock
-    const clickState = { time: 0, x: 0, y: 0 };
-    label.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      const now = Date.now();
-      if (now - clickState.time < 300 && Math.hypot(ptr.x - clickState.x, ptr.y - clickState.y) < 10) {
-        this.state.toggleLock(unit.id);
-      }
-      clickState.time = now;
-      clickState.x = ptr.x;
-      clickState.y = ptr.y;
-    });
-
-    this.unitObjects.set(unit.id, label);
   }
 
   private gemContinue(): void {
