@@ -90,10 +90,11 @@ This project is collaborated on across multiple AI assistants. `PROGRESS.md` is 
 
 ## 7. Project Subagents
 
-Three project-scoped specialists live in `.claude/agents/`:
+Project-scoped specialists in `.claude/agents/`:
 
 - **`brainstormer`** — 아이디어 발산. 코드 수정 금지. 다양한 옵션 + 트레이드오프.
 - **`game-designer`** — 게임 디자인 분석. 4박자 사이클 기준으로 평가. 코드 수정 금지.
+- **`designer`** — 캐릭터/UI/아트 의뢰서 작성, 톤·스타일 결정, 스토어 메타 사양 조언. 코드 수정 금지.
 - **`refactor-expert`** — 구조적 리팩토링. 동작 보존, `npm run build` 검증 필수.
 
 Invoke them when the task matches their description. They auto-load `CLAUDE.md` + `PROGRESS.md` for context.
