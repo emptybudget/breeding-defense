@@ -7,6 +7,8 @@ import {
   SELL_GOLD_TIER3,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
+import { getCategory } from '../../game/unitHelpers';
+import { Tier1Race } from '../../game/types';
 import { NotificationRenderer } from '../render/NotificationRenderer';
 import { PopupRenderer } from '../render/PopupRenderer';
 import { UnitRenderer } from '../render/UnitRenderer';
@@ -166,7 +168,10 @@ export class DragController {
     if (droppedUnit.isExhausted || droppedUnit.isLocked) return;
     if (targetUnit.isExhausted || targetUnit.isLocked) return;
 
-    if (droppedUnit.race === targetUnit.race) {
+    const sameCategory =
+      getCategory(droppedUnit.race as Tier1Race) === getCategory(targetUnit.race as Tier1Race);
+
+    if (sameCategory) {
       const started = this.state.startBreeding(droppedId, targetId);
       if (started) {
         // Snap droppedUnit next to target (밀착 연출)
@@ -183,6 +188,9 @@ export class DragController {
         this.unitRenderer.removeUnit(droppedId);
         this.unitRenderer.removeUnit(targetId);
         this.unitRenderer.addUnit(result);
+      } else if (this.state.pendingNotification) {
+        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
+        this.state.pendingNotification = null;
       }
     }
   }

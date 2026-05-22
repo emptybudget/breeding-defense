@@ -1,27 +1,9 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { HybridRace, Race, Reward, Tier3Race, UnitData } from '../../game/types';
+import { Reward, Tier1Race, Tier3Race, UnitData } from '../../game/types';
+import { getTier2Recipes } from '../../game/unitHelpers';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../constants';
-
-// Recipe lookup tables (Phaser-layer only, not game logic)
-const TIER1_RECIPES: Record<Race, HybridRace[]> = {
-  Human: ['Human_Beast', 'Human_Robot'],
-  Beast: ['Human_Beast', 'Beast_Robot'],
-  Robot: ['Human_Robot', 'Beast_Robot'],
-};
-
-const TIER2_RECIPES: Record<HybridRace, Tier3Race[]> = {
-  Human_Beast: ['Cyborg_Wizard', 'Griffin'],
-  Human_Robot: ['Cyborg_Wizard', 'Dino_Mecha'],
-  Beast_Robot: ['Dino_Mecha', 'Griffin'],
-};
-
-const HYBRID_INGREDIENTS: Record<HybridRace, [Race, Race]> = {
-  Human_Beast: ['Human', 'Beast'],
-  Human_Robot: ['Human', 'Robot'],
-  Beast_Robot: ['Beast', 'Robot'],
-};
 
 export class PopupRenderer {
   private scene: Phaser.Scene;
@@ -73,13 +55,13 @@ export class PopupRenderer {
     const lines = [
       '🎮  조합 가이드  🎮',
       '',
-      '같은 종족끼리 드래그하면',
+      '같은 카테고리끼리 드래그하면',
       '❤  교배  →  개체수 증가!',
+      '(Human⚔️🏹 / Beast🐶🐿️ / Robot🦾🚀)',
       '',
-      '다른 종족끼리 드래그하면',
-      '🦾  합성  →  티어 상승!',
-      '',
-      '예)  👦+👦=👦  /  👦+🐶=🐺  /  🐺+🦾=🧙',
+      '다른 카테고리끼리 드래그하면',
+      '🧬  합성  →  2티어 유닛 생성!',
+      '예)  ⚔️+🐶=🐺  /  ⚔️+🦾=🧬',
       '',
       '🗑️  하단 드롭존에 드래그하면',
       '    유닛 판매  →  골드 환급!',
@@ -129,29 +111,23 @@ export class PopupRenderer {
     let lines: string[] = [];
 
     if (unit.tier === 1) {
-      const race = unit.race as Race;
+      const race = unit.race as Tier1Race;
       const emoji = RACE_EMOJI[race];
+      const recipes = getTier2Recipes(race);
       lines = [
         `${emoji}  ${race}`,
         '─────────────────',
-        ...TIER1_RECIPES[race].map(hybrid => {
-          const [a, b] = HYBRID_INGREDIENTS[hybrid];
-          const other = a === race ? b : a;
-          return `${emoji} + ${RACE_EMOJI[other]} = ${RACE_EMOJI[hybrid]} ${hybrid}`;
-        }),
+        ...recipes.map(({ partner, result }) =>
+          `${emoji} + ${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`
+        ),
       ];
     } else if (unit.tier === 2) {
-      const hybrid = unit.race as HybridRace;
-      const emoji = RACE_EMOJI[hybrid];
+      const emoji = RACE_EMOJI[unit.race];
       lines = [
-        `${emoji}  ${hybrid}`,
+        `${emoji}  ${unit.race}`,
         '─────────────────',
-        ...TIER2_RECIPES[hybrid].map(tier3 => {
-          const otherHybrid = (Object.keys(TIER2_RECIPES) as HybridRace[]).find(
-            h => h !== hybrid && TIER2_RECIPES[h].includes(tier3),
-          )!;
-          return `${emoji} + ${RACE_EMOJI[otherHybrid]} = ${RACE_EMOJI[tier3]} ${tier3}`;
-        }),
+        '3티어 레시피는',
+        'Phase E에서 추가 예정',
       ];
     } else {
       const tier3 = unit.race as Tier3Race;

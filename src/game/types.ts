@@ -1,7 +1,11 @@
-export type Race = 'Human' | 'Beast' | 'Robot';
-export type HybridRace = 'Human_Robot' | 'Human_Beast' | 'Beast_Robot';
-export type Tier3Race = 'Cyborg_Wizard' | 'Dino_Mecha' | 'Griffin';
-export type UnitRace = Race | HybridRace | Tier3Race;
+export type Race = 'Human' | 'Beast' | 'Robot'; // Category type (internal logic only)
+export type Tier1Race = 'Warrior' | 'Archer' | 'Dog' | 'Squirrel' | 'Android' | 'Cannon';
+export type HybridRace =
+  'Bio_Wolf' | 'Acorn_Girl' | 'Falcon_Eye' | 'Acorn_Hunter' |
+  'Cyborg_Slasher' | 'Cannon_Shooter' | 'Laser_Sniper' | 'Missile_Gunner' |
+  'Blade_Hound' | 'Gatling_Dog' | 'Electric_Coon' | 'Menhera_Squirrel';
+export type Tier3Race = 'Cyborg_Wizard' | 'Dino_Mecha' | 'Griffin'; // Phase E에서 재설계
+export type UnitRace = Tier1Race | HybridRace | Tier3Race;
 
 export type EnemyType = 'NORMAL' | 'FAST';
 

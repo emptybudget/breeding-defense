@@ -1,32 +1,75 @@
-import { HYBRID_STATS, RACE_STATS, TIER3_STATS } from './config';
-import { HybridRace, Race, Tier3Race, UnitData, UnitRace } from './types';
+import { HYBRID_STATS, TIER1_STATS, TIER3_STATS } from './config';
+import { HybridRace, Race, Tier1Race, Tier3Race, UnitData, UnitRace } from './types';
 
-export const RACES: Race[] = ['Human', 'Beast', 'Robot'];
+export const TIER1_RACES: Tier1Race[] = ['Warrior', 'Archer', 'Dog', 'Squirrel', 'Android', 'Cannon'];
 
-export const TIER3_RECIPES: Record<string, Tier3Race> = {
-  'Human_Beast+Human_Robot': 'Cyborg_Wizard',
-  'Beast_Robot+Human_Robot': 'Dino_Mecha',
-  'Beast_Robot+Human_Beast': 'Griffin',
+const CATEGORY_MAP: Record<Tier1Race, Race> = {
+  Warrior: 'Human', Archer: 'Human',
+  Dog: 'Beast',     Squirrel: 'Beast',
+  Android: 'Robot', Cannon: 'Robot',
 };
+
+const CATEGORY_RACES: Record<Race, Tier1Race[]> = {
+  Human: ['Warrior', 'Archer'],
+  Beast: ['Dog', 'Squirrel'],
+  Robot: ['Android', 'Cannon'],
+};
+
+export function getCategory(race: Tier1Race): Race {
+  return CATEGORY_MAP[race];
+}
+
+// Tier-2 synthesis recipes: sorted(a+b) → HybridRace
+const TIER2_RECIPE_MAP: Record<string, HybridRace> = {
+  'Dog+Warrior':        'Bio_Wolf',
+  'Squirrel+Warrior':   'Acorn_Girl',
+  'Archer+Dog':         'Falcon_Eye',
+  'Archer+Squirrel':    'Acorn_Hunter',
+  'Android+Warrior':    'Cyborg_Slasher',
+  'Cannon+Warrior':     'Cannon_Shooter',
+  'Android+Archer':     'Laser_Sniper',
+  'Archer+Cannon':      'Missile_Gunner',
+  'Android+Dog':        'Blade_Hound',
+  'Cannon+Dog':         'Gatling_Dog',
+  'Android+Squirrel':   'Electric_Coon',
+  'Cannon+Squirrel':    'Menhera_Squirrel',
+};
+
+export function resolveTier2Race(a: Tier1Race, b: Tier1Race): HybridRace | null {
+  return TIER2_RECIPE_MAP[[a, b].sort().join('+')] ?? null;
+}
+
+// Tier-3 recipes: implemented in Phase E
+export function resolveTier3Race(_a: HybridRace, _b: HybridRace): Tier3Race | null {
+  return null;
+}
+
+// Returns all tier-2 synthesis options for a given tier-1 unit
+export function getTier2Recipes(race: Tier1Race): Array<{ partner: Tier1Race; result: HybridRace }> {
+  return Object.entries(TIER2_RECIPE_MAP)
+    .filter(([key]) => key.split('+').includes(race))
+    .map(([key, result]) => {
+      const [a, b] = key.split('+') as [Tier1Race, Tier1Race];
+      return { partner: a === race ? b : a, result };
+    });
+}
+
+// Child race for breeding: same-category parents
+export function getOffspringRace(parentA: Tier1Race, parentB: Tier1Race): Tier1Race {
+  if (parentA === parentB) {
+    // 85% same, 15% mutation (another of same category)
+    if (Math.random() < 0.85) return parentA;
+    const others = CATEGORY_RACES[getCategory(parentA)].filter(r => r !== parentA);
+    return others[Math.floor(Math.random() * others.length)];
+  }
+  // Different same-category units: 50:50
+  return Math.random() < 0.5 ? parentA : parentB;
+}
 
 export function getUnitCombatStats(race: UnitRace): { range: number; damage: number; attackIntervalMs: number; maxTargets: number } {
   if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race];
-  if (race in RACE_STATS) return { ...RACE_STATS[race as Race], maxTargets: 1 };
+  if (race in TIER1_STATS) return { ...TIER1_STATS[race as Tier1Race], maxTargets: 1 };
   return { ...HYBRID_STATS[race as HybridRace], maxTargets: 1 };
-}
-
-export function resolveTier3Race(a: HybridRace, b: HybridRace): Tier3Race | null {
-  return TIER3_RECIPES[[a, b].sort().join('+')] ?? null;
-}
-
-export function resolveHybridRace(a: Race, b: Race): HybridRace {
-  const sorted = [a, b].sort().join('+');
-  const map: Record<string, HybridRace> = {
-    'Beast+Human': 'Human_Beast',
-    'Human+Robot': 'Human_Robot',
-    'Beast+Robot': 'Beast_Robot',
-  };
-  return map[sorted] ?? 'Human_Beast';
 }
 
 export function makeUnit(id: number, race: UnitRace, tier: 1 | 2 | 3, x: number, y: number): UnitData {

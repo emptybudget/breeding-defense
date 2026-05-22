@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (대격변 업데이트 설계 확정)
+> 마지막 갱신: 2026-05-22 (Phase A: 1티어 6종 + 2티어 12종 재배선)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -84,7 +84,7 @@
 
 | Phase | 내용 | 핵심 파일 |
 |---|---|---|
-| **A** | 1티어 6종 타입/스탯/소환/교배 재배선 | `types.ts`, `config.ts`, `GameState.ts`, `unitHelpers.ts`, `constants.ts` |
+| **A** ✅ | 1티어 6종 타입/스탯/소환/교배 재배선 | `types.ts`, `config.ts`, `GameState.ts`, `unitHelpers.ts`, `constants.ts` |
 | **B** | 2티어 기믹 1차: Falcon_Eye(딸피우선), Acorn_Hunter(연사), Missile_Gunner(멀티샷), Cyborg_Slasher(광역) | `combat.ts`, `EnemyRenderer.ts` |
 | **C** | 2티어 기믹 2차: Cannon_Shooter(넉백), Gatling_Dog(스플래시), Electric_Coon(체인) | `combat.ts`, `EnemyRenderer.ts` |
 | **D** | 2티어 기믹 3차: Acorn_Girl(오라), Blade_Hound(공속중첩), Menhera_Squirrel(지뢰) | `combat.ts`, `GameState.ts` |

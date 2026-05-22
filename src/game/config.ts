@@ -40,18 +40,30 @@ export const TRACK_UNIT_ZONE_PADDING = 30;
 export const BREEDING_DURATION_MS = 3000;
 export const BREEDING_EXHAUST_DURATION_MS = 3000;
 
-// Race-specific combat stats (tier-1)
-export const RACE_STATS = {
-  Human: { range: 60,  damage: 1, attackIntervalMs: 1000 },
-  Beast: { range: 120, damage: 1, attackIntervalMs: 1000 },
-  Robot: { range: 200, damage: 1, attackIntervalMs: 1000 },
+// Tier-1 unit combat stats (6종)
+export const TIER1_STATS = {
+  Warrior:  { range: 50,  damage: 2, attackIntervalMs: 1000 },
+  Archer:   { range: 150, damage: 1, attackIntervalMs: 1200 },
+  Dog:      { range: 80,  damage: 1, attackIntervalMs: 600  },
+  Squirrel: { range: 130, damage: 1, attackIntervalMs: 1000 },
+  Android:  { range: 60,  damage: 3, attackIntervalMs: 1500 },
+  Cannon:   { range: 180, damage: 2, attackIntervalMs: 2000 },
 } as const;
 
-// Hybrid-specific combat stats (tier-2)
+// Tier-2 hybrid combat stats (12종, gimmicks added in Phase B-D)
 export const HYBRID_STATS = {
-  Human_Robot: { range: 250, damage: 2, attackIntervalMs: 1000 },
-  Human_Beast: { range: 100, damage: 2, attackIntervalMs: 500  },
-  Beast_Robot: { range: 160, damage: 5, attackIntervalMs: 1000 },
+  Bio_Wolf:         { range: 90,  damage: 3, attackIntervalMs: 700  },
+  Acorn_Girl:       { range: 110, damage: 2, attackIntervalMs: 900  },
+  Falcon_Eye:       { range: 160, damage: 2, attackIntervalMs: 1100 },
+  Acorn_Hunter:     { range: 140, damage: 2, attackIntervalMs: 700  },
+  Cyborg_Slasher:   { range: 70,  damage: 5, attackIntervalMs: 1000 },
+  Cannon_Shooter:   { range: 80,  damage: 4, attackIntervalMs: 1200 },
+  Laser_Sniper:     { range: 200, damage: 3, attackIntervalMs: 1300 },
+  Missile_Gunner:   { range: 170, damage: 2, attackIntervalMs: 1000 },
+  Blade_Hound:      { range: 90,  damage: 3, attackIntervalMs: 800  },
+  Gatling_Dog:      { range: 100, damage: 2, attackIntervalMs: 600  },
+  Electric_Coon:    { range: 150, damage: 2, attackIntervalMs: 1100 },
+  Menhera_Squirrel: { range: 180, damage: 1, attackIntervalMs: 2000 },
 } as const;
 
 // Enemy types

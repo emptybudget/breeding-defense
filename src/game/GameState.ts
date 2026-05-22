@@ -21,6 +21,7 @@ import {
   REWARD_GOLD_AMOUNT,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
+  SELL_GOLD_TIER3,
   SPAWN_ACCEL_DECAY,
   SPAWN_ACCEL_INTERVAL_MS,
   STARTING_GEMS,
@@ -41,14 +42,20 @@ import {
   CombatResult,
   EnemySnapshot,
   HybridRace,
-  Race,
   Reward,
   RewardType,
+  Tier1Race,
   UnitData,
-  UnitRace,
 } from './types';
 import { runCombat } from './combat';
-import { RACES, makeUnit, resolveHybridRace, resolveTier3Race } from './unitHelpers';
+import {
+  TIER1_RACES,
+  getCategory,
+  getOffspringRace,
+  makeUnit,
+  resolveTier2Race,
+  resolveTier3Race,
+} from './unitHelpers';
 
 export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory';
 
@@ -194,7 +201,7 @@ export class GameState {
     const idx = this.units.findIndex(u => u.id === id);
     if (idx < 0) return;
     const unit = this.units[idx];
-    this.gold += unit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
+    this.gold += unit.tier === 3 ? SELL_GOLD_TIER3 : unit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
     this.units.splice(idx, 1);
   }
 
@@ -261,7 +268,7 @@ export class GameState {
     if (this.gold < this.summonCost || this.units.length >= this.maxUnits) return null;
     this.gold -= this.summonCost;
     this.summonCost += SUMMON_COST_INCREMENT;
-    const race = RACES[Math.floor(Math.random() * RACES.length)];
+    const race = TIER1_RACES[Math.floor(Math.random() * TIER1_RACES.length)];
     const x = this.unitZone.x1 + Math.random() * (this.unitZone.x2 - this.unitZone.x1);
     const y = this.unitZone.y1 + Math.random() * (this.unitZone.y2 - this.unitZone.y1);
     const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
@@ -273,7 +280,8 @@ export class GameState {
     const a = this.units.find(u => u.id === idA);
     const b = this.units.find(u => u.id === idB);
     if (!a || !b) return false;
-    if (a.race !== b.race || a.tier !== 1 || b.tier !== 1) return false;
+    if (a.tier !== 1 || b.tier !== 1) return false;
+    if (getCategory(a.race as Tier1Race) !== getCategory(b.race as Tier1Race)) return false;
     if (a.isBreeding || b.isBreeding) return false;
     if (a.isExhausted || b.isExhausted) return false;
     if (a.isLocked || b.isLocked) return false;
@@ -296,7 +304,8 @@ export class GameState {
     b.isExhausted = true; b.exhaustEndMs = exhaustEnd;
     const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
     const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
-    const offspring = makeUnit(this._nextUnitId++, a.race, 1, ox, oy);
+    const offspringRace = getOffspringRace(a.race as Tier1Race, b.race as Tier1Race);
+    const offspring = makeUnit(this._nextUnitId++, offspringRace, 1, ox, oy);
     this.units.push(offspring);
     const born: UnitData[] = [offspring];
 
@@ -304,7 +313,7 @@ export class GameState {
     if (this.twinProbability > 0 && Math.random() < this.twinProbability && this.units.length < this.maxUnits) {
       const tx = ox + (Math.random() - 0.5) * 24;
       const ty = oy + (Math.random() - 0.5) * 24;
-      const twin = makeUnit(this._nextUnitId++, a.race, 1, tx, ty);
+      const twin = makeUnit(this._nextUnitId++, offspringRace, 1, tx, ty);
       this.units.push(twin);
       born.push(twin);
     }
@@ -324,11 +333,13 @@ export class GameState {
     const [hi, lo] = aIdx > bIdx ? [aIdx, bIdx] : [bIdx, aIdx];
 
     if (a.tier === 1 && b.tier === 1) {
-      const baseRaces: UnitRace[] = ['Human', 'Beast', 'Robot'];
-      if (!baseRaces.includes(a.race) || !baseRaces.includes(b.race)) return null;
-      const hybridRace = resolveHybridRace(a.race as Race, b.race as Race);
+      const tier2Race = resolveTier2Race(a.race as Tier1Race, b.race as Tier1Race);
+      if (!tier2Race) {
+        this.pendingNotification = '⚠️ 조합법이 존재하지 않습니다.';
+        return null;
+      }
       this.units.splice(hi, 1); this.units.splice(lo, 1);
-      const hybrid = makeUnit(this._nextUnitId++, hybridRace, 2, hx, hy);
+      const hybrid = makeUnit(this._nextUnitId++, tier2Race, 2, hx, hy);
       this.units.push(hybrid);
       return hybrid;
     }

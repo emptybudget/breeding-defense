@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { BREEDING_DURATION_MS, HYBRID_STATS, RACE_STATS, TIER3_STATS } from '../../game/config';
+import { BREEDING_DURATION_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { HybridRace, Race, Tier3Race, UnitData, UnitRace } from '../../game/types';
+import { UnitData, UnitRace } from '../../game/types';
+import { getUnitCombatStats } from '../../game/unitHelpers';
 import { RACE_COLORS, RACE_EMOJI } from '../constants';
 
 export class UnitRenderer {
@@ -132,8 +133,6 @@ export class UnitRenderer {
   }
 
   private getUnitRange(race: UnitRace): number {
-    if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race].range;
-    if (race in RACE_STATS) return RACE_STATS[race as Race].range;
-    return HYBRID_STATS[race as HybridRace].range;
+    return getUnitCombatStats(race).range;
   }
 }
