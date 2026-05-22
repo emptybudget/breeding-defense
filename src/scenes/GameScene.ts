@@ -17,10 +17,11 @@ import {
   UNIT_ZONE,
 } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
-import { EnemyType, HybridRace, Race, Reward, Tier3Race, UnitData, UnitRace } from '../game/types';
+import { EnemyType, HybridRace, Race, Tier3Race, UnitData, UnitRace } from '../game/types';
 import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI } from './constants';
 import { HudRenderer } from './render/HudRenderer';
 import { NotificationRenderer } from './render/NotificationRenderer';
+import { PopupRenderer } from './render/PopupRenderer';
 
 type Enemy = Phaser.GameObjects.Rectangle & {
   id: number;
@@ -38,14 +39,11 @@ export class GameScene extends Phaser.Scene {
   private enemies!: Phaser.GameObjects.Group;
   private enemyMap = new Map<number, Enemy>();
   private hudRenderer!: HudRenderer;
+  private popupRenderer!: PopupRenderer;
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
   private notificationRenderer!: NotificationRenderer;
-  private gameOverContainer?: Phaser.GameObjects.Container;
-  private victoryContainer?: Phaser.GameObjects.Container;
-  private dimOverlay?: Phaser.GameObjects.Rectangle;
-  private rewardContainer?: Phaser.GameObjects.Container;
   private spawnAccumulatorMs = 0;
   private unitObjects = new Map<number, Phaser.GameObjects.Text>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
@@ -53,8 +51,6 @@ export class GameScene extends Phaser.Scene {
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
   private _nextEnemyId = 0;
-  // Boss reward state
-  private allRewards: Reward[] = [];
 
   constructor() {
     super('GameScene');
@@ -67,6 +63,17 @@ export class GameScene extends Phaser.Scene {
       this,
       () => { const unit = this.state.summon(); if (unit) this.addUnitCircle(unit); },
       () => { this.state.upgradePopulation(); },
+    );
+    this.popupRenderer = new PopupRenderer(
+      this,
+      this.state,
+      () => { this.scene.restart(); },
+      () => { this.gemContinue(); },
+      () => {
+        this.state.phase = 'playing';
+        this.state.isInfiniteMode = true;
+        this.state.isPaused = false;
+      },
     );
     this.enemies = this.add.group();
 
@@ -118,7 +125,7 @@ export class GameScene extends Phaser.Scene {
 
     // Victory check
     if (this.isPhase('victory')) {
-      if (!this.victoryContainer) this.showVictoryPopup();
+      if (!this.popupRenderer.hasVictoryPopup) this.popupRenderer.showVictory();
       return;
     }
 
@@ -133,7 +140,7 @@ export class GameScene extends Phaser.Scene {
     this.handleCombat();
 
     if (this.isPhase('gameover')) {
-      this.showGameOverPopup();
+      this.popupRenderer.showGameOver();
       return;
     }
 
@@ -282,72 +289,10 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ─── Boss reward popup ──────────────────────────────────────────────
-
   private onBossKilled(): void {
     this.state.isPaused = true;
-    this.allRewards = this.state.generateRewards(3); // pre-generate 3, show 2
-    this.showRewardPopup(2);
-  }
-
-  private showRewardPopup(count: 2 | 3): void {
-    this.rewardContainer?.destroy();
-    this.dimOverlay?.destroy();
-
-    this.dimOverlay = this.add
-      .rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72)
-      .setDepth(15);
-
-    const container = this.add.container(CENTER_X, CENTER_Y).setDepth(16);
-    const bg = this.add.rectangle(0, 0, 326, 230, 0x111122, 0.96);
-
-    const title = this.add.text(0, -95, '⚔️ 보스 처치!\n보상을 선택하세요', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffd700', align: 'center',
-    }).setOrigin(0.5);
-
-    const rewards = this.allRewards.slice(0, count);
-    const xPositions = count === 2 ? [-82, 82] : [-115, 0, 115];
-
-    const cards = rewards.map((reward, i) => {
-      const card = this.add.text(xPositions[i], 10, reward.label, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ffffff',
-        backgroundColor: '#1a3355', padding: { x: 10, y: 16 },
-        align: 'center',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      card.on('pointerover', () => card.setStyle({ backgroundColor: '#2a5588' }));
-      card.on('pointerout', () => card.setStyle({ backgroundColor: '#1a3355' }));
-      card.on('pointerdown', () => {
-        this.state.applyReward(reward.type);
-        this.closeRewardPopup();
-      });
-      return card;
-    });
-
-    const items: Phaser.GameObjects.GameObject[] = [bg, title, ...cards];
-
-    if (count === 2 && this.state.gems > 0) {
-      const expandBtn = this.add.text(0, 100, `💎 선택지 추가 (보석 ${this.state.gems}개)`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#aaddff',
-        backgroundColor: '#113344', padding: { x: 12, y: 8 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      expandBtn.on('pointerdown', () => {
-        if (this.state.gems <= 0) return;
-        this.state.gems -= 1;
-        this.showRewardPopup(3);
-      });
-      items.push(expandBtn);
-    }
-
-    container.add(items);
-    this.rewardContainer = container;
-  }
-
-  private closeRewardPopup(): void {
-    this.rewardContainer?.destroy();
-    this.rewardContainer = undefined;
-    this.dimOverlay?.destroy();
-    this.dimOverlay = undefined;
-    this.allRewards = [];
+    const rewards = this.state.generateRewards(3);
+    this.popupRenderer.showReward(2, rewards);
   }
 
   // ─── Unit drag & drop ───────────────────────────────────────────────
@@ -567,36 +512,6 @@ export class GameScene extends Phaser.Scene {
     this.unitObjects.set(unit.id, label);
   }
 
-  // ─── Game over popup ────────────────────────────────────────────────
-
-  private showGameOverPopup(): void {
-    if (this.gameOverContainer) return;
-
-    const container = this.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.add.rectangle(0, 0, 290, 210, 0x000000, 0.88);
-    const title = this.add.text(0, -78, 'GAME OVER', {
-      fontFamily: 'monospace', fontSize: '24px', color: '#ff5555',
-    }).setOrigin(0.5);
-
-    const restartBtn = this.add.text(0, -24, '  다시하기  ', {
-      fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 14, y: 9 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    restartBtn.on('pointerdown', () => { this.scene.restart(); });
-
-    const hasGems = this.state.gems > 0;
-    const gemBtn = this.add.text(0, 44, `  보석(${this.state.gems})로 이어하기  `, {
-      fontFamily: 'monospace', fontSize: '14px',
-      color: hasGems ? '#ffffff' : '#666666',
-      backgroundColor: hasGems ? '#334455' : '#222222',
-      padding: { x: 14, y: 9 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
-    if (hasGems) gemBtn.on('pointerdown', () => { this.gemContinue(); });
-
-    container.add([bg, title, restartBtn, gemBtn]);
-    this.gameOverContainer = container;
-  }
-
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
     for (const e of [...this.enemyMap.values()]) e.destroy();
@@ -604,7 +519,7 @@ export class GameScene extends Phaser.Scene {
     this.enemies.clear(false, false);
     this.spawnAccumulatorMs = 0;
     this.banner?.destroy(); this.banner = undefined;
-    this.gameOverContainer?.destroy(); this.gameOverContainer = undefined;
+    this.popupRenderer.hideGameOver();
   }
 
   private showBanner(text: string, color: string): void {
@@ -614,41 +529,4 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
   }
 
-  private showVictoryPopup(): void {
-    const container = this.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.add.rectangle(0, 0, 310, 240, 0x000000, 0.92);
-    const title = this.add.text(0, -95, '🏆 VICTORY 🏆', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#ffd700', align: 'center',
-    }).setOrigin(0.5);
-    const gemInfo = this.add.text(0, -48, `보석 +1 획득! 현재 💎 ${this.state.gems}개`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaddff', align: 'center',
-    }).setOrigin(0.5);
-
-    const restartBtn = this.add.text(-95, 30, ' 다시하기 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    restartBtn.on('pointerdown', () => { this.scene.restart(); });
-
-    const infiniteBtn = this.add.text(0, 30, ' 무한 모드 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#334455', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    infiniteBtn.on('pointerdown', () => {
-      this.state.phase = 'playing';
-      this.state.isInfiniteMode = true;
-      this.state.isPaused = false;
-      container.destroy();
-      this.victoryContainer = undefined;
-    });
-
-    const menuBtn = this.add.text(95, 30, ' 메인메뉴 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#888888',
-      backgroundColor: '#222222', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setAlpha(0.4);
-    menuBtn.disableInteractive();
-
-    container.add([bg, title, gemInfo, restartBtn, infiniteBtn, menuBtn]);
-    this.victoryContainer = container;
-  }
 }

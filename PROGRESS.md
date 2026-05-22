@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (리팩토링 3/8 HudRenderer 추출)
+> 마지막 갱신: 2026-05-22 (리팩토링 4/8 PopupRenderer 추출)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -34,11 +34,12 @@ breeding-defense/
     │   ├── types.ts         # Race, UnitData 타입 정의
     │   └── GameState.ts     # phase / 타이머 / 경제 / 유닛 배열 / summon()
     └── scenes/              # 🎨 Phaser 레이어
-        ├── GameScene.ts     # 트랙, 적 스폰/이동, 유닛 렌더링, 팝업 — 654줄
+        ├── GameScene.ts     # 트랙, 적 스폰/이동, 유닛 렌더링 — 532줄
         ├── constants.ts     # RACE_COLORS, RACE_EMOJI, CENTER_X/Y, SELL_ZONE_X/Y
         └── render/
             ├── HudRenderer.ts           # 상하단 바, 타이머/골드/유닛/보석/소환·사회성 버튼
-            └── NotificationRenderer.ts  # 하단 좌측 4줄 알림 스택
+            ├── NotificationRenderer.ts  # 하단 좌측 4줄 알림 스택
+            └── PopupRenderer.ts         # gameOver / victory / reward shop / dim
 ```
 
 ## 상수 (src/game/config.ts)
@@ -213,7 +214,9 @@ breeding-defense/
 체크리스트:
 - [x] 리팩토링 1/8 (constants.ts)
 - [x] 리팩토링 2/8 (NotificationRenderer)
-- [ ] **[1] 리팩토링 3~8/8** (백그라운드, 회귀 0)
+- [x] 리팩토링 3/8 (HudRenderer)
+- [x] 리팩토링 4/8 (PopupRenderer)
+- [ ] **[1] 리팩토링 5~8/8** (백그라운드, 회귀 0)
 - [ ] **[2] 게임 내실 다지기** — 아래 🔍 진단의 B/C/A 우선 적용 (총 ~3.5h)
   - [ ] **B (Grind 회복)** — `tick()`에 매초 골드 +2 자동회복 추가 (`KILL_REWARD`와 별개), 30min
   - [ ] **C (Pop 회복)** — `MINUTE_HP_MULT` 1.5→1.25, `TIER3_STATS` damage ×2 (Dino 15→30, Wizard 3→6, Griffin 1→2), 10min
@@ -335,7 +338,7 @@ src/scenes/
 1. ✅ `scenes/constants.ts` 분리 (CENTER_X/Y, SELL_ZONE_X/Y, RACE_COLORS, RACE_EMOJI)
 2. ✅ `NotificationRenderer` 추출 (가장 독립적)
 3. ✅ `HudRenderer` 추출 (상하단 바, 타이머/골드/유닛/보석/소환·사회성 버튼, 판매드롭존)
-4. `PopupRenderer` 추출 (gameOver/victory/reward — pause 협조 필요)
+4. ✅ `PopupRenderer` 추출 (gameOver/victory/reward — pause 협조 필요)
 5. `EnemyRenderer` 추출
 6. `UnitRenderer` 추출 (가장 복잡 — 오버레이 다수)
 7. `DragController` 추출
