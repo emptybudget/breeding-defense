@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (가변형 루프 트랙 + 하단 UI 잘림 해결)
+> 마지막 갱신: 2026-05-22 (타이틀·스테이지셀렉트 씬 추가 + Scene 루프 완성)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -28,19 +28,21 @@ breeding-defense/
 ├── vite.config.ts           # host:true, port:5173
 ├── .gitignore
 └── src/
-    ├── main.ts              # Phaser.Game 부트 (Scale.FIT, CENTER_BOTH)
+    ├── main.ts              # Phaser.Game 부트 (씬 배열: TitleScene→StageSelectScene→GameScene)
     ├── game/                # 🧠 순수 데이터 레이어
     │   ├── config.ts        # 상수 (경제 + 트랙 포함)
     │   ├── types.ts         # Race, UnitData 타입 정의
     │   └── GameState.ts     # phase / 타이머 / 경제 / 유닛 배열 / summon()
     └── scenes/              # 🎨 Phaser 레이어
-        ├── GameScene.ts     # ~150줄: lifecycle + update 오케스트레이션
+        ├── TitleScene.ts    # 타이틀 화면 (페이드 전환 → StageSelectScene)
+        ├── StageSelectScene.ts  # 스테이지 선택 (Stage 1 버튼 → GameScene)
+        ├── GameScene.ts     # ~140줄: lifecycle + update 오케스트레이션
         ├── constants.ts     # RACE_COLORS, RACE_EMOJI, SELL_ZONE 좌표
         ├── render/
         │   ├── HudRenderer.ts
         │   ├── EnemyRenderer.ts
         │   ├── UnitRenderer.ts
-        │   ├── PopupRenderer.ts
+        │   ├── PopupRenderer.ts    # onStageSelect 콜백 추가
         │   └── NotificationRenderer.ts
         └── input/
             └── DragController.ts
@@ -166,6 +168,9 @@ breeding-defense/
 - [x] **사거리 원 드래그 전용:** 평상시 숨김, 드래그 중에만 표시·이동
 - [x] **유닛 탭 → 레시피 팝업:** 1/2티어 조합식, 3티어 스펙 카드; 더블탭 = 잠금
 - [x] **가변형 루프 트랙:** 매 판 TL/TR/BR/BL에 ±10~20px 노이즈 — `GameState.trackWaypoints` 동적 생성, 트랙 다각형 렌더링, `unitZone` 동적 산출, 하단 UI 잘림 해결 (Y범위 86~530)
+- [x] **타이틀 화면 (TitleScene):** 게임 시작 진입점, 'Breeding Defense' 로고, 깜빡이는 터치 안내, 페이드아웃→StageSelectScene 전환
+- [x] **스테이지 셀렉트 (StageSelectScene):** 스테이지 1 버튼(stageId 데이터 전달), 페이드 인/아웃 전환 → GameScene
+- [x] **Scene 루프 완성:** 게임오버→'스테이지 선택으로 돌아가기' 버튼, 빅토리→'스테이지선택' 버튼 활성화; `scene.start('StageSelectScene')` 으로 안전 전환 (GameState 새 인스턴스로 자동 초기화)
 
 ## 🎮 게임 디자인 결정 (코어 합의)
 
@@ -237,6 +242,7 @@ breeding-defense/
   - [x] 유닛 드래그 시에만 사거리 원 표시 (평상시 숨김, 드래그 중 이동)
   - [x] 유닛 탭 → 조합식 레시피 팝업 (1티어: 2티어 레시피, 2티어: 3티어 레시피, 3티어: 스펙 카드)
   - [x] 더블탭 → 잠금 토글 (DragController로 이동)
+- [x] **[미션10] 타이틀·스테이지셀렉트·Scene 루프** — TitleScene / StageSelectScene 신규, PopupRenderer onStageSelect 연결
 - [ ] **[4] DEV값 → 출시값 적용** (`VICTORY_TIME_MS` 420000=7분 / `ENEMY_SPAWN_INTERVAL_MS` 5000)
 - [ ] **[5] 풀 7분 플레이 1~2회** → 미친 수치 1~2개만 즉시 조정
 - [ ] **[6] Firebase Hosting 배포** + 공유 URL 확보

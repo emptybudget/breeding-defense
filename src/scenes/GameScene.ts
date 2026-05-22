@@ -41,6 +41,7 @@ export class GameScene extends Phaser.Scene {
         this.state.isInfiniteMode = true;
         this.state.isPaused = false;
       },
+      () => { this.scene.start('StageSelectScene'); },
     );
     this.enemyRenderer = new EnemyRenderer(
       this,

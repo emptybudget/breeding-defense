@@ -29,6 +29,7 @@ export class PopupRenderer {
   private onRestart: () => void;
   private onGemContinue: () => void;
   private onInfiniteMode: () => void;
+  private onStageSelect: () => void;
 
   private gameOverContainer?: Phaser.GameObjects.Container;
   private victoryContainer?: Phaser.GameObjects.Container;
@@ -44,12 +45,14 @@ export class PopupRenderer {
     onRestart: () => void,
     onGemContinue: () => void,
     onInfiniteMode: () => void,
+    onStageSelect: () => void,
   ) {
     this.scene = scene;
     this.state = state;
     this.onRestart = onRestart;
     this.onGemContinue = onGemContinue;
     this.onInfiniteMode = onInfiniteMode;
+    this.onStageSelect = onStageSelect;
   }
 
   get hasGameOverPopup(): boolean {
@@ -188,19 +191,19 @@ export class PopupRenderer {
     if (this.gameOverContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 290, 210, 0x000000, 0.88);
-    const title = this.scene.add.text(0, -78, 'GAME OVER', {
+    const bg = this.scene.add.rectangle(0, 0, 290, 250, 0x000000, 0.88);
+    const title = this.scene.add.text(0, -95, 'GAME OVER', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ff5555',
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(0, -24, '  다시하기  ', {
+    const restartBtn = this.scene.add.text(0, -38, '  다시하기  ', {
       fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
       backgroundColor: '#334433', padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.onRestart(); });
 
     const hasGems = this.state.gems > 0;
-    const gemBtn = this.scene.add.text(0, 44, `  보석(${this.state.gems})로 이어하기  `, {
+    const gemBtn = this.scene.add.text(0, 26, `  보석(${this.state.gems})로 이어하기  `, {
       fontFamily: 'monospace', fontSize: '14px',
       color: hasGems ? '#ffffff' : '#666666',
       backgroundColor: hasGems ? '#334455' : '#222222',
@@ -208,7 +211,13 @@ export class PopupRenderer {
     }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
     if (hasGems) gemBtn.on('pointerdown', () => { this.onGemContinue(); });
 
-    container.add([bg, title, restartBtn, gemBtn]);
+    const stageBtn = this.scene.add.text(0, 90, '스테이지 선택으로 돌아가기', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
+      backgroundColor: '#1a1a1a', padding: { x: 10, y: 7 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    stageBtn.on('pointerdown', () => { this.onStageSelect(); });
+
+    container.add([bg, title, restartBtn, gemBtn, stageBtn]);
     this.gameOverContainer = container;
   }
 
@@ -247,11 +256,11 @@ export class PopupRenderer {
       this.onInfiniteMode();
     });
 
-    const menuBtn = this.scene.add.text(95, 30, ' 메인메뉴 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#888888',
-      backgroundColor: '#222222', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setAlpha(0.4);
-    menuBtn.disableInteractive();
+    const menuBtn = this.scene.add.text(95, 30, ' 스테이지선택 ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      backgroundColor: '#333355', padding: { x: 8, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    menuBtn.on('pointerdown', () => { this.onStageSelect(); });
 
     container.add([bg, title, gemInfo, restartBtn, infiniteBtn, menuBtn]);
     this.victoryContainer = container;
