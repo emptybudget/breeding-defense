@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (리팩토링 8/8 GameScene 슬림화 완료)
+> 마지막 갱신: 2026-05-22 (리팩토링 완료, 게임 내실 B/C/A 적용)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -221,10 +221,10 @@ breeding-defense/
 - [x] 리팩토링 3/8 (HudRenderer)
 - [x] 리팩토링 4/8 (PopupRenderer)
 - [x] **[1] 리팩토링 2~8/8** (백그라운드, 회귀 0) — 완료
-- [ ] **[2] 게임 내실 다지기** — 아래 🔍 진단의 B/C/A 우선 적용 (총 ~3.5h)
-  - [ ] **B (Grind 회복)** — `tick()`에 매초 골드 +2 자동회복 추가 (`KILL_REWARD`와 별개), 30min
-  - [ ] **C (Pop 회복)** — `MINUTE_HP_MULT` 1.5→1.25, `TIER3_STATS` damage ×2 (Dino 15→30, Wizard 3→6, Griffin 1→2), 10min
-  - [ ] **A (Plan 도입)** — 소환 버튼 3개 분리(Human/Beast/Robot), Robot만 비용 15G로 차별, 2~3h
+- [x] **[2] 게임 내실 다지기** — B/C/A 적용 완료
+  - [x] **B (Grind 회복)** — `tick()`에 매초 골드 +2 자동회복 (`GOLD_AUTO_RECOVERY_PER_SEC`), `KILL_REWARD`와 별개
+  - [x] **C (Pop 회복)** — `MINUTE_HP_MULT` 1.5→1.25, `TIER3_STATS` damage ×2 (Dino 30, Wizard 6, Griffin 2)
+  - [x] **A (Plan 확인)** — 소환은 이미 Human/Beast/Robot 1/3 균등 랜덤. 3개 분리 버튼 철회: "랜덤 묘미 유지, 나중에 고급 소환/확률 조작 시스템으로 확장" (사용자 결정)
 - [ ] **[3] 튜토리얼 1페이지** — 시작 시 한 화면. **"같은 종족 끌면 교배, 다른 종족 끌면 합성" 필수** (없으면 50% 친구 머지 시도조차 안 함)
 - [ ] **[4] DEV값 → 출시값 적용** (`VICTORY_TIME_MS` 420000=7분 / `ENEMY_SPAWN_INTERVAL_MS` 5000)
 - [ ] **[5] 풀 7분 플레이 1~2회** → 미친 수치 1~2개만 즉시 조정

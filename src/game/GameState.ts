@@ -2,6 +2,7 @@ import {
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
+  GOLD_AUTO_RECOVERY_PER_SEC,
   CRIT_DAMAGE_MULT,
   DOUBLE_ATK_INIT_PROB,
   DOUBLE_ATK_PROB_INC,
@@ -108,6 +109,7 @@ export class GameState {
   private lastMinuteCrossed = 0;
   private spawnAccelMult = 1;
   private lastThirtySecCrossed = 0;
+  private lastSecondCrossed = 0;
   private phaseBeforeGameOver: Phase = 'playing';
   private _nextUnitId = 0;
   private bossRewardCallCount = 0;
@@ -127,6 +129,13 @@ export class GameState {
     }
     if (this.elapsedMs > CLEAR_TIME_MS) {
       this.overclockSeconds = (this.elapsedMs - CLEAR_TIME_MS) / 1000;
+    }
+
+    // Auto gold recovery (+2/sec)
+    const currentSecond = Math.floor(this.elapsedMs / 1000);
+    if (currentSecond > this.lastSecondCrossed) {
+      this.gold += GOLD_AUTO_RECOVERY_PER_SEC * (currentSecond - this.lastSecondCrossed);
+      this.lastSecondCrossed = currentSecond;
     }
 
     // Per-minute permanent buff

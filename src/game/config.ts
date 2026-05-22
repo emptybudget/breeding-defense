@@ -15,11 +15,12 @@ export const OVERCLOCK_SPAWN_DECAY = 0.97;
 export const OVERCLOCK_MIN_SPAWN_MS = 200;
 
 // Per-minute permanent buff (from minute 1 onward)
-export const MINUTE_HP_MULT = 1.5;    // +50% HP per minute
+export const MINUTE_HP_MULT = 1.25;   // +25% HP per minute
 export const MINUTE_SPEED_MULT = 1.2; // +20% speed per minute
 
 // --- Economy ---
 export const STARTING_GOLD = 100;
+export const GOLD_AUTO_RECOVERY_PER_SEC = 2;
 export const KILL_REWARD = 5;
 export const UNIT_CAP = 5;
 export const SUMMON_BASE_COST = 10;
@@ -76,9 +77,9 @@ export const SELL_GOLD_TIER3 = 60;
 
 // Tier-3 combat stats (range, damage, attackIntervalMs, maxTargets)
 export const TIER3_STATS = {
-  Cyborg_Wizard: { range: 180, damage: 3,  attackIntervalMs: 1000, maxTargets: 3 },
-  Dino_Mecha:    { range: 150, damage: 15, attackIntervalMs: 1500, maxTargets: 1 },
-  Griffin:       { range: 220, damage: 1,  attackIntervalMs: 200,  maxTargets: 1 },
+  Cyborg_Wizard: { range: 180, damage: 6,  attackIntervalMs: 1000, maxTargets: 3 },
+  Dino_Mecha:    { range: 150, damage: 30, attackIntervalMs: 1500, maxTargets: 1 },
+  Griffin:       { range: 220, damage: 2,  attackIntervalMs: 200,  maxTargets: 1 },
 } as const;
 
 // Probabilistic upgrades (boss rewards)
