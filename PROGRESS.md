@@ -1,7 +1,33 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (참고 게임 갱신 + designer 에이전트 + 디자인 의뢰 메모)
+> 마지막 갱신: 2026-05-22 (GameState.ts 분리 최우선 작업으로 등록)
+
+## 🚨 최우선 다음 작업 — GameState.ts 분리
+
+**현재 `src/game/GameState.ts` 456줄.** 단일 클래스에 phase/타이머/경제/유닛/전투/보상/교배/합성이 모두 들어있어 너무 비대함. 다른 작업 들어가기 전에 먼저 분리.
+
+**작업 지침:**
+- `refactor-expert` 서브에이전트로 위임 권장 (구조적 리팩토링 = 그 에이전트 전문)
+- **데이터/Phaser 분리 원칙 유지** — 분리된 파일들도 모두 `src/game/` 아래 순수 TS, Phaser import 0
+- 동작 보존이 최우선 — `npm run build` 통과 필수, 게임 동작 변화 0
+- 분리 후보 (refactor-expert가 최종 판단):
+  - `PhaseManager` — phase 전환, elapsedMs, 오버클록 진입, 승리/패배 판정
+  - `Economy` — gold, gems, summonCost, populationUpgradeCost, 자동회복
+  - `UnitManager` — units 배열, summon/move/sell/toggleLock, maxUnits
+  - `BreedingSystem` — startBreeding, completeBreeding, 쌍둥이 확률
+  - `SynthesisSystem` — synthesize, 레시피
+  - `CombatSystem` — processCombat, 치명타, 더블어택
+  - `RewardSystem` — generateRewards, applyReward
+  - `GameState` (껍데기) — 위 모듈들을 조합, 외부 API 유지 (씬 코드 수정 최소화)
+- **외부 API(`GameScene`에서 호출하는 메서드/게터)는 시그니처 유지** — 호출부 변경 최소화
+
+**완료 기준:**
+1. `GameState.ts` 200줄 미만 (오케스트레이터 역할)
+2. `npm run build` 통과
+3. 사용자가 IDX 미리보기로 한 판 플레이 → 회귀 없음 확인
+4. 이 PROGRESS.md의 "GameState API" 섹션 갱신
+5. 마일스톤 [0]에 체크
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -207,9 +233,10 @@ breeding-defense/
 ### 🎯 5월 마일스톤 (2026-05-31): 친구 클로즈 테스트
 **"폴리시보다 피드백. 일단 친구들 손에 쥐여주기."** Firebase Hosting 웹 URL 배포.
 
-**작업 순서:** 리팩토링 → 게임 내실 다지기 → 튜토리얼 → DEV값 원복 → 풀플레이 → 배포 → 사전 → 본격
+**작업 순서:** GameState 분리 → 리팩토링 → 게임 내실 다지기 → 튜토리얼 → DEV값 원복 → 풀플레이 → 배포 → 사전 → 본격
 
 **진행 상황:**
+- [ ] **[0] GameState.ts 분리** (최우선, 위 섹션 참조) — 456줄 → 모듈 분리
 - [x] **[1] 리팩토링 8/8** — GameScene 747→140줄, 매니저 7개 분리
 - [x] **[2] 게임 내실 다지기** (game-designer B/C 적용, A 철회)
   - [x] **B**: 골드 +2/sec 자동회복
@@ -300,7 +327,9 @@ Android 먼저 → iOS. 스토어 메타 (아이콘/스플래시/권한/스크�
 나중에 고려: TANK 적 추가, 3티어 완성 ULTIMATE 연출, 최고기록 localStorage.
 
 ## 🏗️ 리팩토링
-완료 (1~8/8). GameScene 747줄 → 140줄 오케스트레이터 + 매니저 7개 분리. 데이터/Phaser 분리 원칙 유지.
+씬 레이어 완료 (1~8/8). GameScene 747줄 → 140줄 오케스트레이터 + 매니저 7개 분리. 데이터/Phaser 분리 원칙 유지.
+
+**다음 라운드 (진행 중):** `GameState.ts` 456줄 분리 — 상단 "🚨 최우선 다음 작업" 섹션 참조.
 
 ## 실행 / 검증
 ```bash
