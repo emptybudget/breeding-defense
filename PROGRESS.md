@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (GameState.ts 분리 완료)
+> 마지막 갱신: 2026-05-22 (대격변 업데이트 설계 확정)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -13,6 +13,84 @@
 - **Vite 5** + **TypeScript 5** (strict) + **Phaser 3.80**
 - 추후 **Capacitor**로 Android/iOS 패키징 예정
 - 개발 환경: Firebase Studio (구 IDX) + 웹 Claude Code
+
+## 🔮 대격변 업데이트 설계 (합의 완료, 미구현)
+
+> 코어 판타지 강화 목적. **4티어 시스템**으로 확장. 구현은 Phase A→E 순서대로.
+
+### 4티어 유닛 전체 구조
+
+| 티어 | 종 수 | 생성 방법 |
+|---|---|---|
+| 1티어 | 6종 | 골드 소환 (1/6 균등) |
+| 2티어 | 12종 | 다른 카테고리 1티어 두 개 합성 |
+| 3티어 | 6종 | 특정 2티어 두 개 합성 (레시피 고정) |
+| 4티어 | 1종 | 특정 3티어 세 개 합성 |
+
+### 1티어 6종 스탯
+
+| 유닛 | 카테고리 | 이모지 | range | dmg | intervalMs |
+|---|---|---|---|---|---|
+| Warrior | Human | ⚔️ | 50 | 2 | 1000 |
+| Archer | Human | 🏹 | 150 | 1 | 1200 |
+| Dog | Beast | 🐶 | 80 | 1 | 600 |
+| Squirrel | Beast | 🐿️ | 130 | 1 | 1000 |
+| Android | Robot | 🦾 | 60 | 3 | 1500 |
+| Cannon | Robot | 🚀 | 180 | 2 | 2000 |
+
+### 교배 규칙 (변경)
+
+- **교배 조건:** 같은 카테고리(Human/Beast/Robot)이면 가능 (세부 종족 달라도 OK)
+- **같은 세부 종족** (Warrior+Warrior): 85% 동종 복사, **15% 돌연변이** (같은 카테고리 내 다른 종)
+- **다른 세부 종족** (Warrior+Archer): 50:50 확률로 자식 결정
+- 소환도 의사-랜덤 권장: 최근 3개 중복 제외로 편향 방지
+
+### 2티어 합성 레시피 12종
+
+| 2티어 | 재료 | 기믹 |
+|---|---|---|
+| 🐺 Bio_Wolf | Warrior + Dog | 근접 인파이터 |
+| 🐿️ Acorn_Girl | Warrior + Squirrel | 주변 아군 공속 오라 +20% |
+| 🦅 Falcon_Eye | Archer + Dog | 딸피 우선 저격 |
+| 🏹 Acorn_Hunter | Archer + Squirrel | 고속 연사 |
+| 🧬 Cyborg_Slasher | Warrior + Android | 전방 광역 베기 |
+| 🛡️ Cannon_Shooter | Warrior + Cannon | 적 넉백 |
+| ⚡ Laser_Sniper | Archer + Android | 관통 레이저 |
+| 💣 Missile_Gunner | Archer + Cannon | 3타겟 멀티샷 |
+| 🐕 Blade_Hound | Dog + Android | 공격 시 공속 중첩 광전사 |
+| ⚾ Gatling_Dog | Dog + Cannon | 스플래시 폭탄 (반경 40px 50% 피해) |
+| ⚡ Electric_Coon | Squirrel + Android | 체인 라이트닝 (최대 2마리 연쇄) |
+| 💔 Menhera_Squirrel | Squirrel + Cannon | 트랙 위 지뢰 매설 |
+
+### 3티어 합성 레시피 6종
+
+| 3티어 | 재료 | 컨셉 |
+|---|---|---|
+| 🧙 Cyborg_Wizard | Cannon_Shooter + Acorn_Hunter | 포방+정밀 → 기계+마법 마법사 |
+| 🌋 Dino_Mecha | Gatling_Dog + Cyborg_Slasher | 폭탄+근력 → 메카 공룡 |
+| 🦅 Griffin | Falcon_Eye + Bio_Wolf | 매+늑대 → 하늘+땅 맹수 |
+| ⚡ Thunder_Hawk | Laser_Sniper + Electric_Coon | 관통+체인 → 연쇄 전격 저격수 |
+| 🌿 Berserk_Shaman | Acorn_Girl + Blade_Hound | 오라+광전사 → 전장 광란 버프 |
+| 💥 Chaos_Artillery | Missile_Gunner + Menhera_Squirrel | 멀티샷+지뢰 → 폭발물 전문 포격수 |
+
+### 4티어 — Astral_God 🌟
+
+**레시피:** `Griffin` + `Thunder_Hawk` + `Cyborg_Wizard`
+
+자연 맹수 + 번개 + 마법기계 = 세 세계 융합 최종 존재.
+비용: 최소 tier-1 12개 → 군대 거의 전부 갈아넣는 궁극의 "Pop" 유닛.
+
+### 구현 Phase 로드맵
+
+| Phase | 내용 | 핵심 파일 |
+|---|---|---|
+| **A** | 1티어 6종 타입/스탯/소환/교배 재배선 | `types.ts`, `config.ts`, `GameState.ts`, `unitHelpers.ts`, `constants.ts` |
+| **B** | 2티어 기믹 1차: Falcon_Eye(딸피우선), Acorn_Hunter(연사), Missile_Gunner(멀티샷), Cyborg_Slasher(광역) | `combat.ts`, `EnemyRenderer.ts` |
+| **C** | 2티어 기믹 2차: Cannon_Shooter(넉백), Gatling_Dog(스플래시), Electric_Coon(체인) | `combat.ts`, `EnemyRenderer.ts` |
+| **D** | 2티어 기믹 3차: Acorn_Girl(오라), Blade_Hound(공속중첩), Menhera_Squirrel(지뢰) | `combat.ts`, `GameState.ts` |
+| **E** | 3티어 6종 + 4티어 Astral_God + 레시피 팝업 개편 | `unitHelpers.ts`, `PopupRenderer.ts` |
+
+---
 
 ## 아키텍처 규칙 (중요)
 **데이터 레이어와 Phaser 레이어 분리.** `src/game/*` 는 Phaser를 import하지 않는 순수 TS. 모든 상태/규칙은 여기. `src/scenes/*` 는 그래픽/입력만 담당.
