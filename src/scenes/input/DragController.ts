@@ -9,6 +9,7 @@ import {
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { NotificationRenderer } from '../render/NotificationRenderer';
+import { PopupRenderer } from '../render/PopupRenderer';
 import { UnitRenderer } from '../render/UnitRenderer';
 
 export class DragController {
@@ -16,32 +17,77 @@ export class DragController {
   private state: GameState;
   private unitRenderer: UnitRenderer;
   private notificationRenderer: NotificationRenderer;
+  private popupRenderer: PopupRenderer;
+
+  private dragStartX = 0;
+  private dragStartY = 0;
+  private lastTapUnitId = -1;
+  private lastTapTime = 0;
 
   constructor(
     scene: Phaser.Scene,
     state: GameState,
     unitRenderer: UnitRenderer,
     notificationRenderer: NotificationRenderer,
+    popupRenderer: PopupRenderer,
   ) {
     this.scene = scene;
     this.state = state;
     this.unitRenderer = unitRenderer;
     this.notificationRenderer = notificationRenderer;
+    this.popupRenderer = popupRenderer;
   }
 
   register(): void {
-    this.scene.input.on('dragstart', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
-      (go as Phaser.GameObjects.Text).setDepth(4);
+    this.scene.input.on('dragstart', (ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
+      const label = go as Phaser.GameObjects.Text;
+      label.setDepth(4);
+      this.dragStartX = ptr.x;
+      this.dragStartY = ptr.y;
+      const unitId = label.getData('unitId') as number;
+      this.unitRenderer.getRangeCircle(unitId)?.setVisible(true);
     });
+
     this.scene.input.on('drag', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
       const label = go as Phaser.GameObjects.Text;
       label.x = dragX;
       label.y = dragY;
+      const unitId = label.getData('unitId') as number;
+      this.unitRenderer.getRangeCircle(unitId)?.setPosition(dragX, dragY);
     });
-    this.scene.input.on('dragend', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, _dropped: boolean) => {
+
+    this.scene.input.on('dragend', (ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject) => {
       const label = go as Phaser.GameObjects.Text;
       label.setDepth(1);
       const unitId = label.getData('unitId') as number;
+      this.unitRenderer.getRangeCircle(unitId)?.setVisible(false);
+
+      const dist = Math.hypot(ptr.x - this.dragStartX, ptr.y - this.dragStartY);
+      if (dist < 8) {
+        // Tap — only when game is not paused by other popups
+        if (!this.state.isPaused) {
+          const now = Date.now();
+          if (unitId === this.lastTapUnitId && now - this.lastTapTime < 300) {
+            // Double-tap → lock toggle
+            this.state.toggleLock(unitId);
+            this.lastTapUnitId = -1;
+          } else {
+            // Single tap → recipe popup
+            this.lastTapUnitId = unitId;
+            this.lastTapTime = now;
+            const unit = this.state.units.find(u => u.id === unitId);
+            if (unit) {
+              this.state.isPaused = true;
+              this.popupRenderer.showRecipe(unit, () => { this.state.isPaused = false; });
+            }
+          }
+        }
+        // Snap back to state position
+        const unit = this.state.units.find(u => u.id === unitId);
+        if (unit) label.setPosition(unit.x, unit.y);
+        return;
+      }
+
       this.handleDrop(unitId, label);
     });
   }

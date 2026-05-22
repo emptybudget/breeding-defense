@@ -63,8 +63,12 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
-    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer);
+    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer);
     this.dragController.register();
+
+    // Show tutorial overlay and pause until dismissed
+    this.state.isPaused = true;
+    this.popupRenderer.showTutorial(() => { this.state.isPaused = false; });
   }
 
   update(_time: number, deltaMs: number): void {

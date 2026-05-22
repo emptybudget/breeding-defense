@@ -24,9 +24,10 @@ export class UnitRenderer {
     const color = RACE_COLORS[unit.race];
 
     const rangeGfx = this.scene.add.graphics().setDepth(0);
-    rangeGfx.lineStyle(1, color, 0.2);
+    rangeGfx.lineStyle(2, color, 0.6);
     rangeGfx.strokeCircle(0, 0, range);
     rangeGfx.setPosition(unit.x, unit.y);
+    rangeGfx.setVisible(false); // 드래그 시에만 표시
     this.rangeCircles.set(unit.id, rangeGfx);
 
     const fontSize = unit.tier === 3 ? '30px' : unit.tier === 2 ? '26px' : '20px';
@@ -37,17 +38,6 @@ export class UnitRenderer {
     label.setInteractive({ useHandCursor: true });
     this.scene.input.setDraggable(label);
     label.setData('unitId', unit.id);
-
-    const clickState = { time: 0, x: 0, y: 0 };
-    label.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      const now = Date.now();
-      if (now - clickState.time < 300 && Math.hypot(ptr.x - clickState.x, ptr.y - clickState.y) < 10) {
-        this.state.toggleLock(unit.id);
-      }
-      clickState.time = now;
-      clickState.x = ptr.x;
-      clickState.y = ptr.y;
-    });
 
     this.unitObjects.set(unit.id, label);
   }
