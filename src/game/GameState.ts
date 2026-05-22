@@ -3,13 +3,11 @@ import {
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
   GOLD_AUTO_RECOVERY_PER_SEC,
-  CRIT_DAMAGE_MULT,
   DOUBLE_ATK_INIT_PROB,
   DOUBLE_ATK_PROB_INC,
   ENEMY_BASE_HP,
   ENEMY_BASE_SPEED,
   ENEMY_SPAWN_INTERVAL_MS,
-  HYBRID_STATS,
   KILL_REWARD,
   MAX_ENEMIES,
   MINUTE_HP_MULT,
@@ -20,7 +18,6 @@ import {
   OVERCLOCK_SPEED_GROWTH,
   POPULATION_UPGRADE_BASE_COST,
   POPULATION_UPGRADE_COST_INCREASE,
-  RACE_STATS,
   REWARD_GOLD_AMOUNT,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
@@ -33,7 +30,6 @@ import {
   TWIN_INIT_PROB,
   TWIN_PROB_INC,
   UNIT_CAP,
-  TIER3_STATS,
   TRACK_BASE_TL,
   TRACK_BASE_TR,
   TRACK_BASE_BR,
@@ -42,51 +38,19 @@ import {
   VICTORY_TIME_MS,
 } from './config';
 import {
-  AttackEvent,
   CombatResult,
   EnemySnapshot,
   HybridRace,
   Race,
   Reward,
   RewardType,
-  Tier3Race,
   UnitData,
   UnitRace,
 } from './types';
+import { runCombat } from './combat';
+import { RACES, makeUnit, resolveHybridRace, resolveTier3Race } from './unitHelpers';
 
 export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory';
-
-const RACES: Race[] = ['Human', 'Beast', 'Robot'];
-
-function getUnitCombatStats(race: UnitRace): { range: number; damage: number; attackIntervalMs: number; maxTargets: number } {
-  if (race in TIER3_STATS) return TIER3_STATS[race as Tier3Race];
-  if (race in RACE_STATS) return { ...RACE_STATS[race as Race], maxTargets: 1 };
-  return { ...HYBRID_STATS[race as HybridRace], maxTargets: 1 };
-}
-
-const TIER3_RECIPES: Record<string, Tier3Race> = {
-  'Human_Beast+Human_Robot': 'Cyborg_Wizard',
-  'Beast_Robot+Human_Robot': 'Dino_Mecha',
-  'Beast_Robot+Human_Beast': 'Griffin',
-};
-
-function resolveTier3Race(a: HybridRace, b: HybridRace): Tier3Race | null {
-  return TIER3_RECIPES[[a, b].sort().join('+')] ?? null;
-}
-
-function resolveHybridRace(a: Race, b: Race): HybridRace {
-  const sorted = [a, b].sort().join('+');
-  const map: Record<string, HybridRace> = {
-    'Beast+Human': 'Human_Beast',
-    'Human+Robot': 'Human_Robot',
-    'Beast+Robot': 'Beast_Robot',
-  };
-  return map[sorted] ?? 'Human_Beast';
-}
-
-function makeUnit(id: number, race: UnitRace, tier: 1 | 2 | 3, x: number, y: number): UnitData {
-  return { id, race, tier, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0, isLocked: false };
-}
 
 export class GameState {
   elapsedMs = 0;
@@ -385,48 +349,18 @@ export class GameState {
   }
 
   processCombat(snapshots: EnemySnapshot[]): CombatResult {
-    const now = this.elapsedMs;
-    const attacks: AttackEvent[] = [];
-    const killedSet = new Set<number>();
-    const liveHp = new Map<number, number>(snapshots.map(e => [e.id, e.hp]));
-
-    for (const unit of this.units) {
-      if (unit.isBreeding) continue;
-      const stats = getUnitCombatStats(unit.race);
-      if (now - unit.lastAttackedAtMs < stats.attackIntervalMs) continue;
-
-      const inRange = snapshots
-        .filter(e => !killedSet.has(e.id) && Math.hypot(e.x - unit.x, e.y - unit.y) <= stats.range)
-        .sort((a, b) => b.progressScore - a.progressScore)
-        .slice(0, stats.maxTargets);
-      if (inRange.length === 0) continue;
-
-      unit.lastAttackedAtMs = now;
-      for (const target of inRange) {
-        const baseDmg = stats.damage + this.globalDamageBonus;
-        let finalDmg = baseDmg;
-        let isCrit = false;
-        if (this.criticalProbability > 0 && Math.random() < this.criticalProbability) {
-          finalDmg = Math.ceil(finalDmg * CRIT_DAMAGE_MULT);
-          isCrit = true;
-        }
-        if (Math.random() < this.doubleAttackProbability) finalDmg *= 2;
-        const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
-        liveHp.set(target.id, newHp);
-        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit });
-        if (newHp <= 0) {
-          killedSet.add(target.id);
-          this.registerKill(target.killReward);
-        }
-      }
+    const { killRewards, ...result } = runCombat(
+      this.units,
+      snapshots,
+      this.elapsedMs,
+      this.criticalProbability,
+      this.doubleAttackProbability,
+      this.globalDamageBonus,
+    );
+    for (const reward of killRewards) {
+      this.registerKill(reward);
     }
-
-    const killedIds = [...killedSet];
-    const hpUpdates = snapshots
-      .filter(e => !killedSet.has(e.id) && liveHp.get(e.id) !== e.hp)
-      .map(e => ({ id: e.id, hp: liveHp.get(e.id)! }));
-
-    return { attacks, killedIds, hpUpdates };
+    return result;
   }
 
   get currentSpawnIntervalMs(): number {
