@@ -19,6 +19,7 @@ import {
 import { GameState, Phase } from '../game/GameState';
 import { EnemyType, HybridRace, Race, Reward, Tier3Race, UnitData, UnitRace } from '../game/types';
 import { CENTER_X, CENTER_Y, RACE_COLORS, RACE_EMOJI, SELL_ZONE_X, SELL_ZONE_Y } from './constants';
+import { NotificationRenderer } from './render/NotificationRenderer';
 
 type Enemy = Phaser.GameObjects.Rectangle & {
   id: number;
@@ -45,7 +46,7 @@ export class GameScene extends Phaser.Scene {
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private banner?: Phaser.GameObjects.Text;
-  private notificationTexts: Phaser.GameObjects.Text[] = [];
+  private notificationRenderer!: NotificationRenderer;
   private gameOverContainer?: Phaser.GameObjects.Container;
   private victoryContainer?: Phaser.GameObjects.Container;
   private dimOverlay?: Phaser.GameObjects.Rectangle;
@@ -66,6 +67,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.state = new GameState();
+    this.notificationRenderer = new NotificationRenderer(this);
     this.enemies = this.add.group();
 
     // Track
@@ -156,7 +158,7 @@ export class GameScene extends Phaser.Scene {
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
       this.spawnBoss();
-      this.addNotification('👹 보스가 등장했습니다!', '#ff6666');
+      this.notificationRenderer.add('👹 보스가 등장했습니다!', '#ff6666');
     }
 
     // Victory check
@@ -237,26 +239,6 @@ export class GameScene extends Phaser.Scene {
     this.enemies.add(boss);
     this.enemyMap.set(boss.id, boss);
     this.state.registerSpawn();
-  }
-
-  private addNotification(message: string, color = '#ffffff'): void {
-    for (const t of this.notificationTexts) t.y -= 20;
-    if (this.notificationTexts.length >= 4) this.notificationTexts.shift()?.destroy();
-    const t = this.add.text(8, GAME_HEIGHT - 82, message, {
-      fontFamily: 'monospace', fontSize: '11px', color,
-      stroke: '#000000', strokeThickness: 2,
-    }).setDepth(7);
-    this.notificationTexts.push(t);
-    this.time.delayedCall(3000, () => {
-      this.tweens.add({
-        targets: t, alpha: 0, duration: 600,
-        onComplete: () => {
-          t.destroy();
-          const idx = this.notificationTexts.indexOf(t);
-          if (idx >= 0) this.notificationTexts.splice(idx, 1);
-        },
-      });
-    });
   }
 
   private moveEnemies(deltaMs: number): void {
@@ -435,7 +417,7 @@ export class GameScene extends Phaser.Scene {
       const sellGold = droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
       this.state.sellUnit(droppedId);
       this.removeUnitObject(droppedId);
-      this.addNotification(`💰 유닛 판매 +${sellGold}G`, '#ffd700');
+      this.notificationRenderer.add(`💰 유닛 판매 +${sellGold}G`, '#ffd700');
       return;
     }
 
@@ -484,7 +466,7 @@ export class GameScene extends Phaser.Scene {
         this.removeUnitObject(targetId);
         this.addUnitCircle(result);
       } else if (this.state.pendingNotification) {
-        this.addNotification(this.state.pendingNotification, '#ffaa44');
+        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;
       }
       return;
