@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { META_STARS_PER_VICTORY } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, META_STARS_PER_VICTORY } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y } from './constants';
@@ -22,6 +22,7 @@ export class GameScene extends Phaser.Scene {
   private unitRenderer!: UnitRenderer;
   private dragController!: DragController;
   private mineGraphics!: Phaser.GameObjects.Graphics;
+  private dangerBorder!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('GameScene');
@@ -69,6 +70,7 @@ export class GameScene extends Phaser.Scene {
 
     // Mine rendering layer (above track, below enemies)
     this.mineGraphics = this.add.graphics();
+    this.dangerBorder = this.add.graphics().setDepth(5);
 
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
@@ -108,6 +110,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    this.updateDangerBorder();
+
     // Pause guard — skip all gameplay when reward popup is active
     if (this.state.isPaused) return;
 
@@ -141,6 +145,15 @@ export class GameScene extends Phaser.Scene {
 
   private isPhase(p: Phase): boolean {
     return this.state.phase === p;
+  }
+
+  private updateDangerBorder(): void {
+    this.dangerBorder.clear();
+    if (this.state.enemyCount >= 40) {
+      const pulse = 0.25 + 0.25 * Math.sin(this.time.now / 200);
+      this.dangerBorder.lineStyle(18, 0xff0000, pulse);
+      this.dangerBorder.strokeRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    }
   }
 
   private onBossKilled(): void {

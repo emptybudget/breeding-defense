@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { BREEDING_DURATION_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { UnitData, UnitRace } from '../../game/types';
-import { getUnitCombatStats } from '../../game/unitHelpers';
+import { HybridRace, Tier1Race, Tier3Race, UnitData, UnitRace } from '../../game/types';
+import { getCategory, getUnitCombatStats, resolveAstralGodThird, resolveTier3Race } from '../../game/unitHelpers';
 import { RACE_COLORS, RACE_EMOJI } from '../constants';
 
 export class UnitRenderer {
@@ -14,6 +14,7 @@ export class UnitRenderer {
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
+  private glowRings = new Map<number, Phaser.GameObjects.Graphics>();
 
   constructor(scene: Phaser.Scene, state: GameState) {
     this.scene = scene;
@@ -49,6 +50,7 @@ export class UnitRenderer {
     this.heartTexts.get(id)?.destroy();     this.heartTexts.delete(id);
     this.zzzTexts.get(id)?.destroy();       this.zzzTexts.delete(id);
     this.lockTexts.get(id)?.destroy();      this.lockTexts.delete(id);
+    this.glowRings.get(id)?.destroy();      this.glowRings.delete(id);
   }
 
   startBreedingEffect(idA: number, idB: number): void {
@@ -76,6 +78,7 @@ export class UnitRenderer {
   syncOverlays(): void {
     this.syncZzzTexts();
     this.syncLockTexts();
+    this.syncGlowRings();
   }
 
   getRangeCircle(id: number): Phaser.GameObjects.Graphics | undefined {
@@ -137,6 +140,64 @@ export class UnitRenderer {
         if (t) { t.destroy(); this.lockTexts.delete(unit.id); }
       }
     }
+  }
+
+  private syncGlowRings(): void {
+    const capable = this.getSynthesisCapableIds();
+
+    for (const [id, gfx] of this.glowRings) {
+      if (!capable.has(id)) { gfx.destroy(); this.glowRings.delete(id); }
+    }
+
+    const pulse = 0.35 + 0.35 * Math.sin(this.scene.time.now / 300);
+
+    for (const id of capable) {
+      const go = this.unitObjects.get(id);
+      if (!go) continue;
+      const unit = this.state.units.find(u => u.id === id);
+      if (!unit) continue;
+
+      const radius = unit.tier === 3 ? 22 : unit.tier === 2 ? 18 : 14;
+      const color = RACE_COLORS[unit.race];
+
+      let gfx = this.glowRings.get(id);
+      if (!gfx) { gfx = this.scene.add.graphics().setDepth(0); this.glowRings.set(id, gfx); }
+
+      gfx.clear();
+      gfx.lineStyle(3, color, pulse);
+      gfx.strokeCircle(go.x, go.y, radius);
+      gfx.lineStyle(6, color, pulse * 0.35);
+      gfx.strokeCircle(go.x, go.y, radius + 5);
+    }
+  }
+
+  private getSynthesisCapableIds(): Set<number> {
+    const capable = new Set<number>();
+    const units = this.state.units;
+
+    for (let i = 0; i < units.length; i++) {
+      const a = units[i];
+      if (a.isLocked || a.isBreeding || a.isExhausted || a.tier === 4) continue;
+
+      for (let j = i + 1; j < units.length; j++) {
+        const b = units[j];
+        if (b.isLocked || b.isBreeding || b.isExhausted || b.tier === 4) continue;
+        if (a.tier !== b.tier) continue;
+
+        let canSynth = false;
+        if (a.tier === 1) {
+          canSynth = getCategory(a.race as Tier1Race) !== getCategory(b.race as Tier1Race);
+        } else if (a.tier === 2) {
+          canSynth = resolveTier3Race(a.race as HybridRace, b.race as HybridRace) !== null;
+        } else if (a.tier === 3) {
+          canSynth = resolveAstralGodThird(a.race as Tier3Race, b.race as Tier3Race) !== null;
+        }
+
+        if (canSynth) { capable.add(a.id); capable.add(b.id); }
+      }
+    }
+
+    return capable;
   }
 
   private getUnitRange(race: UnitRace): number {

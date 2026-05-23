@@ -98,11 +98,17 @@ export class DragController {
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
     const isTier4 = tier === 4;
+
+    // 0.3초 freeze
+    const wasPaused = this.state.isPaused;
+    this.state.isPaused = true;
+    this.scene.time.delayedCall(300, () => { this.state.isPaused = wasPaused; });
+
     const flashColor = isTier4 ? 0xffffff : 0xffcc00;
-    const flashAlpha = isTier4 ? 0.8 : 0.4;
-    const flashDuration = isTier4 ? 500 : 300;
-    const label = isTier4 ? 'ASTRAL GOD!! 🌟' : 'TIER 3!';
-    const fontSize = isTier4 ? '40px' : '32px';
+    const flashAlpha = isTier4 ? 0.9 : 0.55;
+    const flashDuration = isTier4 ? 600 : 350;
+    const label = isTier4 ? '🌟 ULTIMATE!! 🌟' : 'TIER 3!';
+    const fontSize = isTier4 ? '44px' : '32px';
     const textColor = isTier4 ? '#ffdd00' : '#ffcc00';
     const strokeThickness = isTier4 ? 6 : 4;
     const textDuration = isTier4 ? 2000 : 1000;
