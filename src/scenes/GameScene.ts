@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
+import { META_STARS_PER_VICTORY } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
+import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y } from './constants';
 import { DragController } from './input/DragController';
 import { EnemyRenderer } from './render/EnemyRenderer';
@@ -10,6 +12,8 @@ import { UnitRenderer } from './render/UnitRenderer';
 
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
+  private metaProgress!: MetaProgress;
+  private starsAwarded = false;
   private enemyRenderer!: EnemyRenderer;
   private hudRenderer!: HudRenderer;
   private popupRenderer!: PopupRenderer;
@@ -17,19 +21,23 @@ export class GameScene extends Phaser.Scene {
   private notificationRenderer!: NotificationRenderer;
   private unitRenderer!: UnitRenderer;
   private dragController!: DragController;
+  private mineGraphics!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('GameScene');
   }
 
   create(): void {
-    this.state = new GameState();
+    this.metaProgress = new MetaProgress();
+    this.starsAwarded = false;
+    this.state = new GameState(this.metaProgress.getData());
     this.notificationRenderer = new NotificationRenderer(this);
     this.unitRenderer = new UnitRenderer(this, this.state);
     this.hudRenderer = new HudRenderer(
       this,
       () => { const unit = this.state.summon(); if (unit) this.unitRenderer.addUnit(unit); },
       () => { this.state.upgradePopulation(); },
+      () => { this.onPause(); },
     );
     this.popupRenderer = new PopupRenderer(
       this,
@@ -59,6 +67,9 @@ export class GameScene extends Phaser.Scene {
     g.closePath();
     g.strokePath();
 
+    // Mine rendering layer (above track, below enemies)
+    this.mineGraphics = this.add.graphics();
+
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
@@ -87,7 +98,13 @@ export class GameScene extends Phaser.Scene {
 
     // Victory check
     if (this.isPhase('victory')) {
-      if (!this.popupRenderer.hasVictoryPopup) this.popupRenderer.showVictory();
+      if (!this.popupRenderer.hasVictoryPopup) {
+        if (!this.starsAwarded) {
+          this.metaProgress.addStars(META_STARS_PER_VICTORY);
+          this.starsAwarded = true;
+        }
+        this.popupRenderer.showVictory();
+      }
       return;
     }
 
@@ -95,6 +112,16 @@ export class GameScene extends Phaser.Scene {
     if (this.state.isPaused) return;
 
     this.unitRenderer.syncOverlays();
+
+    // Render mines as small yellow circles
+    this.mineGraphics.clear();
+    if (this.state.mines.length > 0) {
+      this.mineGraphics.fillStyle(0xffee00, 0.85);
+      for (const mine of this.state.mines) {
+        this.mineGraphics.fillCircle(mine.x, mine.y, 6);
+      }
+    }
+
     this.enemyRenderer.update(deltaMs);
 
     if (this.isPhase('gameover')) {
@@ -120,6 +147,15 @@ export class GameScene extends Phaser.Scene {
     this.state.isPaused = true;
     const rewards = this.state.generateRewards(3);
     this.popupRenderer.showReward(2, rewards);
+  }
+
+  private onPause(): void {
+    if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
+    this.state.isPaused = true;
+    this.popupRenderer.showPause(
+      () => { this.state.isPaused = false; },
+      () => { this.scene.start('StageSelectScene'); },
+    );
   }
 
   private gemContinue(): void {

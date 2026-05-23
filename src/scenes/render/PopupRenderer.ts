@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS } from '../../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { Reward, Tier1Race, Tier3Race, UnitData } from '../../game/types';
-import { getTier2Recipes } from '../../game/unitHelpers';
+import { HybridRace, Reward, Tier1Race, Tier3Race, UnitData } from '../../game/types';
+import { ASTRAL_GOD_RECIPE, getTier2Recipes, getTier3Recipes } from '../../game/unitHelpers';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../constants';
 
 export class PopupRenderer {
@@ -20,6 +20,7 @@ export class PopupRenderer {
   private allRewards: Reward[] = [];
 
   private recipeContainer?: Phaser.GameObjects.Container;
+  private pauseContainer?: Phaser.GameObjects.Container;
 
   constructor(
     scene: Phaser.Scene,
@@ -90,6 +91,55 @@ export class PopupRenderer {
     bg.on('pointerdown', dismiss);
   }
 
+  // ── Pause ─────────────────────────────────────────────────────────────────
+
+  showPause(onResume: () => void, onQuit: () => void): void {
+    if (this.pauseContainer) return;
+
+    const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
+    const bg = this.scene.add.rectangle(0, 0, 290, 270, 0x000000, 0.92);
+
+    const title = this.scene.add.text(0, -110, '⏸  일시정지', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
+    }).setOrigin(0.5);
+
+    const stats = [
+      `경과 시간 : ${this.state.formatTimer()}`,
+      `현재 골드 : ${this.state.gold} G`,
+      `보유 유닛 : ${this.state.units.length} / ${this.state.maxUnits}`,
+      `잔여 적   : ${this.state.enemyCount} / 50`,
+      `보유 보석 : 💎 ${this.state.gems}`,
+    ].join('\n');
+
+    const statsText = this.scene.add.text(0, -30, stats, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
+      align: 'left', lineSpacing: 8,
+    }).setOrigin(0.5);
+
+    const resumeBtn = this.scene.add.text(-68, 90, '  ▶ 계속하기  ', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
+      backgroundColor: '#334433', padding: { x: 10, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    resumeBtn.on('pointerdown', () => {
+      container.destroy();
+      this.pauseContainer = undefined;
+      onResume();
+    });
+
+    const quitBtn = this.scene.add.text(72, 90, '  🚪 종료  ', {
+      fontFamily: 'monospace', fontSize: '14px', color: '#ffaaaa',
+      backgroundColor: '#442222', padding: { x: 10, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    quitBtn.on('pointerdown', () => {
+      container.destroy();
+      this.pauseContainer = undefined;
+      onQuit();
+    });
+
+    container.add([bg, title, statsText, resumeBtn, quitBtn]);
+    this.pauseContainer = container;
+  }
+
   // ── Recipe popup ──────────────────────────────────────────────────────────
 
   showRecipe(unit: UnitData, onClose: () => void): void {
@@ -122,20 +172,43 @@ export class PopupRenderer {
         ),
       ];
     } else if (unit.tier === 2) {
-      const emoji = RACE_EMOJI[unit.race];
+      const race = unit.race as HybridRace;
+      const emoji = RACE_EMOJI[race];
+      const recipe = getTier3Recipes(race)[0];
       lines = [
-        `${emoji}  ${unit.race}`,
+        `${emoji}  ${race}`,
         '─────────────────',
-        '3티어 레시피는',
-        'Phase E에서 추가 예정',
       ];
-    } else {
+      if (recipe) {
+        lines.push(`${emoji} + ${RACE_EMOJI[recipe.partner]} = ${RACE_EMOJI[recipe.result]} ${recipe.result}`);
+      } else {
+        lines.push('레시피 없음');
+      }
+    } else if (unit.tier === 3) {
       const tier3 = unit.race as Tier3Race;
       const stats = TIER3_STATS[tier3];
       const emoji = RACE_EMOJI[tier3];
       lines = [
-        `${emoji}  최종 티어!`,
-        `${tier3}`,
+        `${emoji}  ${tier3}`,
+        '─────────────────',
+        `범위: ${stats.range}px`,
+        `대미지: ${stats.damage}`,
+        `공격속도: ${stats.attackIntervalMs}ms`,
+        `동시 타겟: ${stats.maxTargets}`,
+      ];
+      if (ASTRAL_GOD_RECIPE.includes(tier3)) {
+        const others = ASTRAL_GOD_RECIPE.filter(r => r !== tier3);
+        lines.push('─────────────────');
+        lines.push(`🌟 Astral_God 재료`);
+        lines.push(`+ ${others.map(r => `${RACE_EMOJI[r]}`).join(' + ')} = 🌟`);
+      }
+    } else {
+      const stats = TIER4_STATS['Astral_God'];
+      lines = [
+        `🌟  Astral_God`,
+        '─────────────────',
+        '✨ 세 세계의 융합체',
+        `레시피: 🦅 + 🌩️ + 🧙`,
         '─────────────────',
         `범위: ${stats.range}px`,
         `대미지: ${stats.damage}`,

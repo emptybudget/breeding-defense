@@ -93,6 +93,30 @@ export class DragController {
     });
   }
 
+  private showSynthesisEffect(tier: number): void {
+    if (tier < 3) return;
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const isTier4 = tier === 4;
+    const flashColor = isTier4 ? 0xffffff : 0xffcc00;
+    const flashAlpha = isTier4 ? 0.8 : 0.4;
+    const flashDuration = isTier4 ? 500 : 300;
+    const label = isTier4 ? 'ASTRAL GOD!! 🌟' : 'TIER 3!';
+    const fontSize = isTier4 ? '40px' : '32px';
+    const textColor = isTier4 ? '#ffdd00' : '#ffcc00';
+    const strokeThickness = isTier4 ? 6 : 4;
+    const textDuration = isTier4 ? 2000 : 1000;
+
+    const flash = this.scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, flashColor, flashAlpha).setDepth(10);
+    this.scene.tweens.add({ targets: flash, alpha: 0, duration: flashDuration, onComplete: () => flash.destroy() });
+
+    const text = this.scene.add.text(cx, cy, label, {
+      fontFamily: 'monospace', fontSize, color: textColor,
+      stroke: '#000000', strokeThickness,
+    }).setOrigin(0.5).setDepth(11);
+    this.scene.tweens.add({ targets: text, y: cy - 80, alpha: 0, duration: textDuration, onComplete: () => text.destroy() });
+  }
+
   private isOnSellZone(x: number, y: number): boolean {
     return x >= GAME_WIDTH - 70 && y >= GAME_HEIGHT - 76;
   }
@@ -143,7 +167,27 @@ export class DragController {
     const targetUnit = this.state.units.find(u => u.id === targetId);
     if (!targetUnit || targetUnit.isBreeding) return;
 
-    // Tier-3 units cannot interact
+    // Tier-4 units cannot interact
+    if (droppedUnit.tier === 4 || targetUnit.tier === 4) return;
+
+    // Tier-3 + Tier-3 → Astral_God (3-way synthesis)
+    if (droppedUnit.tier === 3 && targetUnit.tier === 3) {
+      if (droppedUnit.isLocked || targetUnit.isLocked) return;
+      const result = this.state.synthesize(droppedId, targetId);
+      if (result) {
+        this.unitRenderer.removeUnit(droppedId);
+        this.unitRenderer.removeUnit(targetId);
+        this.unitRenderer.removeStaleUnits(this.state.units.map(u => u.id));
+        this.unitRenderer.addUnit(result);
+        this.showSynthesisEffect(result.tier);
+      } else if (this.state.pendingNotification) {
+        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
+        this.state.pendingNotification = null;
+      }
+      return;
+    }
+
+    // Mixed-tier interactions involving tier-3 → block
     if (droppedUnit.tier === 3 || targetUnit.tier === 3) return;
 
     // Tier-2 + Tier-2 → tier-3 synthesis
@@ -154,6 +198,7 @@ export class DragController {
         this.unitRenderer.removeUnit(droppedId);
         this.unitRenderer.removeUnit(targetId);
         this.unitRenderer.addUnit(result);
+        this.showSynthesisEffect(result.tier);
       } else if (this.state.pendingNotification) {
         this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;

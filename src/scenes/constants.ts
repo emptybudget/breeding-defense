@@ -32,10 +32,15 @@ export const RACE_COLORS: Record<UnitRace, number> = {
   Gatling_Dog:      0xff9933,
   Electric_Coon:    0xffaa00,
   Menhera_Squirrel: 0xee5500,
-  // Tier 3 (Phase E에서 재설계)
+  // Tier 3
   Cyborg_Wizard:    0xffcc00,
   Dino_Mecha:       0xff4400,
   Griffin:          0x00ffaa,
+  Thunder_Hawk:     0x9900ff,
+  Berserk_Shaman:   0x00ff88,
+  Chaos_Artillery:  0xff2200,
+  // Tier 4
+  Astral_God:       0xffd700,
 };
 
 export const RACE_EMOJI: Record<UnitRace, string> = {
@@ -65,4 +70,9 @@ export const RACE_EMOJI: Record<UnitRace, string> = {
   Cyborg_Wizard:    '🧙',
   Dino_Mecha:       '🌋',
   Griffin:          '🦅',
+  Thunder_Hawk:     '🌩️',
+  Berserk_Shaman:   '🌿',
+  Chaos_Artillery:  '💥',
+  // Tier 4
+  Astral_God:       '🌟',
 };

@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-22 (Phase A: 1티어 6종 + 2티어 12종 재배선)
+> 마지막 갱신: 2026-05-22 (DEV값 원복 + 소환 비용 상한 + 합성 연출 + TANK 적)
 
 ## 개요
 - 모바일 세로 디펜스 게임 (시간 생존형, 360x640).
@@ -85,10 +85,11 @@
 | Phase | 내용 | 핵심 파일 |
 |---|---|---|
 | **A** ✅ | 1티어 6종 타입/스탯/소환/교배 재배선 | `types.ts`, `config.ts`, `GameState.ts`, `unitHelpers.ts`, `constants.ts` |
-| **B** | 2티어 기믹 1차: Falcon_Eye(딸피우선), Acorn_Hunter(연사), Missile_Gunner(멀티샷), Cyborg_Slasher(광역) | `combat.ts`, `EnemyRenderer.ts` |
-| **C** | 2티어 기믹 2차: Cannon_Shooter(넉백), Gatling_Dog(스플래시), Electric_Coon(체인) | `combat.ts`, `EnemyRenderer.ts` |
-| **D** | 2티어 기믹 3차: Acorn_Girl(오라), Blade_Hound(공속중첩), Menhera_Squirrel(지뢰) | `combat.ts`, `GameState.ts` |
-| **E** | 3티어 6종 + 4티어 Astral_God + 레시피 팝업 개편 | `unitHelpers.ts`, `PopupRenderer.ts` |
+| **B** ✅ | 2티어 기믹 1차: Falcon_Eye(딸피우선), Acorn_Hunter(연사), Missile_Gunner(멀티샷), Cyborg_Slasher(광역) | `combat.ts`, `config.ts`, `unitHelpers.ts` |
+| **C** ✅ | 2티어 기믹 2차: Cannon_Shooter(넉백), Gatling_Dog(스플래시), Electric_Coon(체인) | `combat.ts`, `types.ts`, `EnemyRenderer.ts` |
+| **D** ✅ | 2티어 기믹 3차: Acorn_Girl(오라), Blade_Hound(공속중첩), Menhera_Squirrel(지뢰) | `combat.ts`, `GameState.ts`, `types.ts`, `config.ts`, `GameScene.ts` |
+| **E** ✅ | 3티어 6종 + 4티어 Astral_God + 레시피 팝업 개편 | `unitHelpers.ts`, `PopupRenderer.ts`, `combat.ts`, `config.ts`, `types.ts`, `constants.ts`, `GameState.ts`, `UnitRenderer.ts`, `DragController.ts` |
+| **F** ✅ | 메타프로그레션 상점 (StageSelectScene) + 별 화폐 + 영구 강화 4종 | `MetaProgress.ts`(신규), `config.ts`, `GameState.ts`, `GameScene.ts`, `StageSelectScene.ts` |
 
 ---
 
@@ -150,12 +151,16 @@ breeding-defense/
 | `BREEDING_DURATION_MS` / `_EXHAUST_DURATION_MS` | 3000 / 3000 | 교배 시간 / 탈진 시간 |
 | `TRACK_BASE_*` + `TRACK_UNIT_ZONE_PADDING` | — | 트랙 기준 좌표, 매판 ±10~20px 노이즈 |
 | `ENEMY_TYPES.NORMAL` / `.FAST` | hp5속40 / hp2속75 | 적 종류 |
-| `RACE_STATS` / `HYBRID_STATS` / `TIER3_STATS` | — | 종족별 전투 스탯 (range/damage/attackIntervalMs/maxTargets) |
-| `SELL_GOLD_TIER1/2/3` | 10 / 30 / 60 | 판매 보상 |
+| `RACE_STATS` / `HYBRID_STATS` / `TIER3_STATS` / `TIER4_STATS` | — | 종족별 전투 스탯 (range/damage/attackIntervalMs/maxTargets) |
+| `SELL_GOLD_TIER1/2/3/4` | 10 / 30 / 60 / 150 | 판매 보상 |
+| `META_STARS_PER_VICTORY` | 3 | 승리 시 별 지급 |
+| `META_UPGRADES` | 4종 (startingGold/summonCost/unitCap/autoGold) | 메타 상점 영구 강화 정의 |
 | `TWIN_INIT_PROB` / `_INC` | 0.10 / 0.02 | 쌍둥이 확률 |
 | `DOUBLE_ATK_INIT_PROB` / `_INC` | 0.10 / 0.02 | 더블어택 확률 |
 
 > 3티어 dmg는 game-designer C 조정 후: Cyborg_Wizard 6 / Dino_Mecha 30 / Griffin 2.
+> 신규 3티어: Thunder_Hawk(range220/dmg5/1100ms/체인3) / Berserk_Shaman(range100/dmg5/700ms/오라200px+40%) / Chaos_Artillery(range190/dmg3/1500ms/5타겟+지뢰)
+> 4티어 Astral_God: range260/dmg10/300ms/8타겟/보장크리티컬/체인4. 레시피: Griffin+Thunder_Hawk+Cyborg_Wizard (100px 이내 3-way 합성).
 
 ## GameState API (src/game/GameState.ts)
 - **상태:** `phase` ('playing'|'clear'|'overclock'|'gameover'|'victory'), `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`, `isInfiniteMode`, `pendingNotification`, `trackWaypoints`, `unitZone`
@@ -164,12 +169,13 @@ breeding-defense/
 
 ## 타입 (src/game/types.ts)
 - `Race`: Human | Beast | Robot
-- `HybridRace`: Human_Robot | Human_Beast | Beast_Robot
-- `Tier3Race`: Cyborg_Wizard | Dino_Mecha | Griffin
-- `UnitRace`: Race | HybridRace | Tier3Race
+- `HybridRace`: Bio_Wolf | Acorn_Girl | Falcon_Eye | Acorn_Hunter | Cyborg_Slasher | Cannon_Shooter | Laser_Sniper | Missile_Gunner | Blade_Hound | Gatling_Dog | Electric_Coon | Menhera_Squirrel
+- `Tier3Race`: Cyborg_Wizard | Dino_Mecha | Griffin | Thunder_Hawk | Berserk_Shaman | Chaos_Artillery
+- `Tier4Race`: Astral_God
+- `UnitRace`: Tier1Race | HybridRace | Tier3Race | Tier4Race
 - `EnemyType`: NORMAL | FAST
 - `RewardType`: gem | gold | damage | maxUnits | twinProb | doubleAtk | crit
-- `UnitData`: id, race, tier(1|2|3), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs, isLocked
+- `UnitData`: id, race, tier(1|2|3|4), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs, isLocked
 - `EnemySnapshot`, `AttackEvent`, `CombatResult` (combat I/O)
 
 ## 구현 완료 (그룹별)
@@ -228,6 +234,7 @@ breeding-defense/
 - 매판 가변 트랙 (±10~20px 노이즈)
 - 통합 알림 시스템 (하단 좌측 4줄 fade out)
 - 교배 밀착 연출 (드래그 유닛이 대상 오른쪽 18px로 즉시 이동)
+- 인게임 ⏸ 일시정지 버튼 (상단 HUD 중앙) → 경과시간/골드/유닛/적/보석 정산 팝업 → 계속하기 / 🚪 종료(스테이지 선택)
 
 ### Scene 루프
 - TitleScene (로고 + 깜빡이는 터치 안내 → fade → StageSelectScene)
@@ -273,7 +280,8 @@ breeding-defense/
 
 ### 미결정 (다음 출퇴근 토픽 후보)
 - [ ] 스테이지 구조: 개수 / 선형·맵·챕터 / 클리어 조건
-- [ ] 메타프로그레션 트리: 영구 업그레이드 목록 / 화폐 / 비용 곡선
+- [x] 메타프로그레션 트리: 1차 구현 완료 (영구 강화 4종 + 별 화폐) — Phase F
+- [ ] 메타프로그레션 확장: 시너지 해금 / 스타터 유닛 선택 / 2차 업그레이드 트리
 - [ ] 시너지 카탈로그: 종족간/티어간 시너지 5~10개
 - [ ] 아트 방향: 이모지 유지 / 픽셀 / 일러스트
 - [ ] 수익 모델: F2P 광고 / IAP / 프리미엄
@@ -296,7 +304,7 @@ breeding-defense/
   - [x] **A 철회**: 랜덤 묘미 유지 (사용자 결정)
 - [x] **[3] 튜토리얼 + 보너스 UX** (시작 오버레이, 드래그 시에만 사거리원, 탭→레시피 팝업, 더블탭→잠금)
 - [x] **추가**: TitleScene / StageSelectScene / Scene 루프 / 가변 트랙
-- [ ] **[4] DEV값 → 출시값** (`VICTORY_TIME_MS` 420000=7분 / `ENEMY_SPAWN_INTERVAL_MS` 5000)
+- [x] **[4] DEV값 → 출시값** (`VICTORY_TIME_MS` 420000=7분 / `ENEMY_SPAWN_INTERVAL_MS` 5000) + 소환 비용 상한 30G (`SUMMON_MAX_COST`)
 - [ ] **[5] 7분 풀플레이** → 미친 수치 1~2개 즉시 조정
 - [ ] **[6] Firebase Hosting 배포** + 공유 URL
 - [ ] **[7] 사전 테스트** (본인 폰 + 친구 1명) → 치명 버그 픽스
@@ -376,7 +384,8 @@ Android 먼저 → iOS. 스토어 메타 (아이콘/스플래시/권한/스크�
 - **C (Pop 회복)** → HP 1.5→1.25, 3티어 dmg ×2 ✅ 적용
 - **A (Plan 도입)** → 종족 선택 소환 ❌ 철회 (랜덤 묘미 유지). 부분 보완: 레시피 팝업
 
-나중에 고려: TANK 적 추가, 3티어 완성 ULTIMATE 연출, 최고기록 localStorage.
+나중에 고려: 최고기록 localStorage.
+구현 완료: TANK 적 추가 (HP20/속도25/회색24px, 3분 이후 15% 확률, 처치 12G), 3티어/4티어 합성 완성 연출 (노랑 플래시 + 텍스트).
 
 ## 🏗️ 리팩토링
 씬 레이어 완료 (1~8/8). GameScene 747줄 → 140줄 오케스트레이터 + 매니저 7개 분리. 데이터/Phaser 분리 원칙 유지.

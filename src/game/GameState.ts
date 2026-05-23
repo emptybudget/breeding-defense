@@ -1,8 +1,10 @@
+import { MetaData } from './MetaProgress';
 import {
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
   GOLD_AUTO_RECOVERY_PER_SEC,
+  META_UPGRADES,
   DOUBLE_ATK_INIT_PROB,
   DOUBLE_ATK_PROB_INC,
   ENEMY_BASE_HP,
@@ -10,6 +12,8 @@ import {
   ENEMY_SPAWN_INTERVAL_MS,
   KILL_REWARD,
   MAX_ENEMIES,
+  MINE_DAMAGE,
+  MINE_LIFETIME_MS,
   MINUTE_HP_MULT,
   MINUTE_SPEED_MULT,
   OVERCLOCK_HP_GROWTH,
@@ -22,14 +26,18 @@ import {
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
+  SELL_GOLD_TIER4,
   SPAWN_ACCEL_DECAY,
   SPAWN_ACCEL_INTERVAL_MS,
   STARTING_GEMS,
   STARTING_GOLD,
   SUMMON_BASE_COST,
   SUMMON_COST_INCREMENT,
+  SUMMON_MAX_COST,
   TWIN_INIT_PROB,
   TWIN_PROB_INC,
+  CRIT_INIT_PROB,
+  CRIT_PROB_INC,
   UNIT_CAP,
   TRACK_BASE_TL,
   TRACK_BASE_TR,
@@ -42,9 +50,11 @@ import {
   CombatResult,
   EnemySnapshot,
   HybridRace,
+  Mine,
   Reward,
   RewardType,
   Tier1Race,
+  Tier3Race,
   UnitData,
 } from './types';
 import { runCombat } from './combat';
@@ -55,6 +65,7 @@ import {
   makeUnit,
   resolveTier2Race,
   resolveTier3Race,
+  resolveAstralGodThird,
 } from './unitHelpers';
 
 export type Phase = 'playing' | 'clear' | 'overclock' | 'gameover' | 'victory';
@@ -78,10 +89,19 @@ export class GameState {
   criticalProbability = 0;
   globalDamageBonus = 0;
 
+  mines: Mine[] = [];
+
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
+  private goldAutoRecovery = GOLD_AUTO_RECOVERY_PER_SEC;
 
-  constructor() {
+  constructor(meta?: MetaData) {
+    if (meta) {
+      this.gold = STARTING_GOLD + meta.levels.startingGold * META_UPGRADES.startingGold.effectPer;
+      this.summonCost = Math.max(1, SUMMON_BASE_COST - meta.levels.summonCost * META_UPGRADES.summonCost.effectPer);
+      this.maxUnits = UNIT_CAP + meta.levels.unitCap * META_UPGRADES.unitCap.effectPer;
+      this.goldAutoRecovery = GOLD_AUTO_RECOVERY_PER_SEC + meta.levels.autoGold * META_UPGRADES.autoGold.effectPer;
+    }
     this.trackWaypoints = this.generateTrackWaypoints();
     this.unitZone = this.computeUnitZone(this.trackWaypoints);
   }
@@ -116,6 +136,7 @@ export class GameState {
   private lastSecondCrossed = 0;
   private phaseBeforeGameOver: Phase = 'playing';
   private _nextUnitId = 0;
+  private _nextMineId = 0;
   private bossRewardCallCount = 0;
 
   tick(deltaMs: number): void {
@@ -138,7 +159,7 @@ export class GameState {
     // Auto gold recovery (+2/sec)
     const currentSecond = Math.floor(this.elapsedMs / 1000);
     if (currentSecond > this.lastSecondCrossed) {
-      this.gold += GOLD_AUTO_RECOVERY_PER_SEC * (currentSecond - this.lastSecondCrossed);
+      this.gold += this.goldAutoRecovery * (currentSecond - this.lastSecondCrossed);
       this.lastSecondCrossed = currentSecond;
     }
 
@@ -164,6 +185,11 @@ export class GameState {
         unit.isExhausted = false;
         unit.exhaustEndMs = 0;
       }
+    }
+
+    // Expire old mines
+    if (this.mines.length > 0) {
+      this.mines = this.mines.filter(m => this.elapsedMs - m.placedAtMs < MINE_LIFETIME_MS);
     }
   }
 
@@ -201,7 +227,7 @@ export class GameState {
     const idx = this.units.findIndex(u => u.id === id);
     if (idx < 0) return;
     const unit = this.units[idx];
-    this.gold += unit.tier === 3 ? SELL_GOLD_TIER3 : unit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
+    this.gold += unit.tier === 4 ? SELL_GOLD_TIER4 : unit.tier === 3 ? SELL_GOLD_TIER3 : unit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
     this.units.splice(idx, 1);
   }
 
@@ -226,7 +252,7 @@ export class GameState {
       { type: 'maxUnits', label: '🏠 유닛 한도 +1' },
       { type: 'twinProb', label: this.twinProbability === 0 ? '👶 쌍둥이 10%' : `👶 쌍둥이 +2% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
       { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? '⚡ 더블어택 10%' : `⚡ 더블어택 +2% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
-      { type: 'crit', label: this.criticalProbability === 0 ? '🎯 치명타 50%' : `🎯 치명타 +50% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
+      { type: 'crit', label: this.criticalProbability === 0 ? '🎯 치명타 20%' : `🎯 치명타 +10% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
     ];
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -258,7 +284,9 @@ export class GameState {
           : Math.min(1, this.doubleAttackProbability + DOUBLE_ATK_PROB_INC);
         break;
       case 'crit':
-        this.criticalProbability = Math.min(1, this.criticalProbability + 0.5);
+        this.criticalProbability = this.criticalProbability === 0
+          ? CRIT_INIT_PROB
+          : Math.min(1, this.criticalProbability + CRIT_PROB_INC);
         break;
     }
     this.isPaused = false;
@@ -267,7 +295,7 @@ export class GameState {
   summon(): UnitData | null {
     if (this.gold < this.summonCost || this.units.length >= this.maxUnits) return null;
     this.gold -= this.summonCost;
-    this.summonCost += SUMMON_COST_INCREMENT;
+    this.summonCost = Math.min(SUMMON_MAX_COST, this.summonCost + SUMMON_COST_INCREMENT);
     const race = TIER1_RACES[Math.floor(Math.random() * TIER1_RACES.length)];
     const x = this.unitZone.x1 + Math.random() * (this.unitZone.x2 - this.unitZone.x1);
     const y = this.unitZone.y1 + Math.random() * (this.unitZone.y2 - this.unitZone.y1);
@@ -356,20 +384,47 @@ export class GameState {
       return ultimate;
     }
 
+    if (a.tier === 3 && b.tier === 3) {
+      const thirdRace = resolveAstralGodThird(a.race as Tier3Race, b.race as Tier3Race);
+      if (!thirdRace) {
+        this.pendingNotification = '⚠️ 조합법이 존재하지 않습니다.';
+        return null;
+      }
+      const third = this.units.find(u =>
+        u.race === thirdRace && u.id !== idA && u.id !== idB && !u.isLocked &&
+        Math.hypot(u.x - hx, u.y - hy) <= 100
+      );
+      if (!third) {
+        this.pendingNotification = `⚠️ Astral_God: ${thirdRace} 필요 (100px 이내)`;
+        return null;
+      }
+      const thirdIdx = this.units.findIndex(u => u.id === third.id);
+      [aIdx, bIdx, thirdIdx].sort((x, y) => y - x).forEach(idx => this.units.splice(idx, 1));
+      const astral = makeUnit(this._nextUnitId++, 'Astral_God', 4, hx, hy);
+      this.units.push(astral);
+      return astral;
+    }
+
     return null;
   }
 
   processCombat(snapshots: EnemySnapshot[]): CombatResult {
-    const { killRewards, ...result } = runCombat(
+    const { killRewards, newMinePositions, consumedMineIds, ...result } = runCombat(
       this.units,
       snapshots,
       this.elapsedMs,
       this.criticalProbability,
       this.doubleAttackProbability,
       this.globalDamageBonus,
+      this.mines,
     );
-    for (const reward of killRewards) {
-      this.registerKill(reward);
+    for (const reward of killRewards) this.registerKill(reward);
+    for (const pos of newMinePositions) {
+      this.mines.push({ id: this._nextMineId++, x: pos.x, y: pos.y, damage: MINE_DAMAGE, placedAtMs: this.elapsedMs });
+    }
+    if (consumedMineIds.length > 0) {
+      const consumed = new Set(consumedMineIds);
+      this.mines = this.mines.filter(m => !consumed.has(m.id));
     }
     return result;
   }

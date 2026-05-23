@@ -31,7 +31,7 @@ export class UnitRenderer {
     rangeGfx.setVisible(false); // 드래그 시에만 표시
     this.rangeCircles.set(unit.id, rangeGfx);
 
-    const fontSize = unit.tier === 3 ? '30px' : unit.tier === 2 ? '26px' : '20px';
+    const fontSize = unit.tier >= 4 ? '36px' : unit.tier === 3 ? '30px' : unit.tier === 2 ? '26px' : '20px';
     const label = this.scene.add.text(unit.x, unit.y, RACE_EMOJI[unit.race], {
       fontSize,
     }).setOrigin(0.5).setDepth(1);
@@ -80,6 +80,13 @@ export class UnitRenderer {
 
   getRangeCircle(id: number): Phaser.GameObjects.Graphics | undefined {
     return this.rangeCircles.get(id);
+  }
+
+  removeStaleUnits(liveIds: number[]): void {
+    const liveSet = new Set(liveIds);
+    for (const id of [...this.unitObjects.keys()]) {
+      if (!liveSet.has(id)) this.removeUnit(id);
+    }
   }
 
   getNearestUnitId(x: number, y: number, excludeId: number, radius: number): number | null {

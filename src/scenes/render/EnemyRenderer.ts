@@ -3,7 +3,12 @@ import {
   BOSS_HP_MULT,
   BOSS_KILL_REWARD,
   ENEMY_TYPES,
+  GAME_HEIGHT,
+  GAME_WIDTH,
   KILL_REWARD,
+  TANK_KILL_REWARD,
+  TANK_SPAWN_PROBABILITY,
+  TANK_SPAWN_START_MS,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { EnemyType } from '../../game/types';
@@ -89,18 +94,26 @@ export class EnemyRenderer {
     const waypoints = this.state.trackWaypoints;
     const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
     const wp = waypoints[wpIdx];
-    const type: EnemyType = Math.random() < 0.5 ? 'NORMAL' : 'FAST';
+
+    let type: EnemyType;
+    if (this.state.elapsedMs >= TANK_SPAWN_START_MS && Math.random() < TANK_SPAWN_PROBABILITY) {
+      type = 'TANK';
+    } else {
+      type = Math.random() < 0.5 ? 'NORMAL' : 'FAST';
+    }
+
     const def = ENEMY_TYPES[type];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
     const hp = Math.ceil(def.hp * this.state.currentEnemyHp);
     const speed = def.speed * overclockSpeedMult;
-    const color = type === 'FAST' ? 0xffcc00 : 0xff3344;
-    const size = type === 'FAST' ? 10 : 16;
+    const color = type === 'FAST' ? 0xffcc00 : type === 'TANK' ? 0x888888 : 0xff3344;
+    const size = type === 'FAST' ? 10 : type === 'TANK' ? 24 : 16;
+    const killReward = type === 'TANK' ? TANK_KILL_REWARD : KILL_REWARD;
     const enemy = this.scene.add.rectangle(wp.x, wp.y, size, size, color) as Enemy;
     enemy.id = this._nextEnemyId++;
     enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
     enemy.waypointIndex = (wpIdx + 1) % waypoints.length;
-    enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = KILL_REWARD;
+    enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = killReward;
     this.enemies.add(enemy);
     this.enemyMap.set(enemy.id, enemy);
     this.state.registerSpawn();
@@ -125,8 +138,8 @@ export class EnemyRenderer {
     this.hpBarGraphics.clear();
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;
-      const barW = e.isBoss ? 44 : 20;
-      const barH = e.isBoss ? 5 : 3;
+      const barW = e.isBoss ? 44 : e.enemyType === 'TANK' ? 30 : 20;
+      const barH = e.isBoss ? 5 : e.enemyType === 'TANK' ? 4 : 3;
       const bx = e.x - barW / 2;
       const by = e.y - e.displayHeight / 2 - 5;
       this.hpBarGraphics.fillStyle(0x333333);
@@ -156,6 +169,15 @@ export class EnemyRenderer {
     for (const { id, hp } of result.hpUpdates) {
       const enemy = this.enemyMap.get(id);
       if (enemy) enemy.hp = hp;
+    }
+
+    // Gimmick: Cannon_Shooter — 넉백 적용
+    for (const { id, dx, dy } of result.knockbacks) {
+      const enemy = this.enemyMap.get(id);
+      if (enemy) {
+        enemy.x = Phaser.Math.Clamp(enemy.x + dx, 10, GAME_WIDTH - 10);
+        enemy.y = Phaser.Math.Clamp(enemy.y + dy, 80, GAME_HEIGHT - 80);
+      }
     }
 
     let bossKilled = false;

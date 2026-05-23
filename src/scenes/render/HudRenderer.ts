@@ -15,11 +15,13 @@ export class HudRenderer {
   private gemsText!: Phaser.GameObjects.Text;
   private summonBtn!: Phaser.GameObjects.Text;
   private popBtn!: Phaser.GameObjects.Text;
+  private onPause: () => void;
 
-  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void) {
+  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void) {
     this.scene = scene;
     this.onSummon = onSummon;
     this.onPopUpgrade = onPopUpgrade;
+    this.onPause = onPause;
   }
 
   create(state: GameState): void {
@@ -40,6 +42,12 @@ export class HudRenderer {
     this.unitText = this.scene.add.text(GAME_WIDTH - 12, 42, `Units: 0/${state.maxUnits}`, {
       fontFamily: 'monospace', fontSize: '16px', color: '#aaffaa',
     }).setOrigin(1, 0).setDepth(6);
+
+    this.scene.add.text(CENTER_X, 44, ' ⏸ ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#cccccc',
+      backgroundColor: '#333344', padding: { x: 7, y: 3 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => { this.onPause(); });
 
     // Bottom bar
     this.scene.add.rectangle(0, GAME_HEIGHT - 76, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
