@@ -333,7 +333,8 @@ export class GameState {
     if (a.isBreeding || b.isBreeding) return false;
     if (a.isExhausted || b.isExhausted) return false;
     if (a.isLocked || b.isLocked) return false;
-    if (this.units.length >= this.maxUnits) return false;
+    const pendingOffspring = this.units.filter(u => u.isBreeding).length / 2;
+    if (this.units.length + pendingOffspring >= this.maxUnits) return false;
     const endMs = this.elapsedMs + BREEDING_DURATION_MS;
     a.isBreeding = true; a.breedingEndMs = endMs;
     b.isBreeding = true; b.breedingEndMs = endMs;
