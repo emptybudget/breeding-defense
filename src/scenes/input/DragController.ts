@@ -7,8 +7,8 @@ import {
   SELL_GOLD_TIER3,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { getCategory } from '../../game/unitHelpers';
-import { Tier1Race } from '../../game/types';
+import { ASTRAL_GOD_RECIPE, getCategory, getTier3Recipes } from '../../game/unitHelpers';
+import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../game/types';
 import { NotificationRenderer } from '../render/NotificationRenderer';
 import { PopupRenderer } from '../render/PopupRenderer';
 import { UnitRenderer } from '../render/UnitRenderer';
@@ -47,6 +47,8 @@ export class DragController {
       this.dragStartY = ptr.y;
       const unitId = label.getData('unitId') as number;
       this.unitRenderer.getRangeCircle(unitId)?.setVisible(true);
+      const draggedUnit = this.state.units.find(u => u.id === unitId);
+      if (draggedUnit) this.unitRenderer.setHighlights(this.getValidPartners(draggedUnit));
     });
 
     this.scene.input.on('drag', (_ptr: Phaser.Input.Pointer, go: Phaser.GameObjects.GameObject, dragX: number, dragY: number) => {
@@ -62,6 +64,7 @@ export class DragController {
       label.setDepth(1);
       const unitId = label.getData('unitId') as number;
       this.unitRenderer.getRangeCircle(unitId)?.setVisible(false);
+      this.unitRenderer.clearHighlights();
 
       const dist = Math.hypot(ptr.x - this.dragStartX, ptr.y - this.dragStartY);
       if (dist < 8) {
@@ -93,19 +96,42 @@ export class DragController {
     });
   }
 
+  private getValidPartners(dragged: UnitData): number[] {
+    if (dragged.tier === 4) return [];
+    if (dragged.tier === 1) {
+      return this.state.units
+        .filter(u => u.id !== dragged.id && u.tier === 1 && !u.isLocked && !u.isExhausted && !u.isBreeding)
+        .map(u => u.id);
+    }
+    if (dragged.tier === 2) {
+      const partnerRaces = new Set(getTier3Recipes(dragged.race as HybridRace).map(r => r.partner));
+      return this.state.units
+        .filter(u => u.id !== dragged.id && u.tier === 2 && partnerRaces.has(u.race as HybridRace) && !u.isLocked)
+        .map(u => u.id);
+    }
+    if (dragged.tier === 3 && ASTRAL_GOD_RECIPE.includes(dragged.race as Tier3Race)) {
+      return this.state.units
+        .filter(u => u.id !== dragged.id && u.tier === 3 && ASTRAL_GOD_RECIPE.includes(u.race as Tier3Race) && !u.isLocked)
+        .map(u => u.id);
+    }
+    return [];
+  }
+
   private showSynthesisEffect(tier: number): void {
     if (tier < 3) return;
+    this.state.isPaused = true;
+    this.scene.time.delayedCall(300, () => { this.state.isPaused = false; });
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
     const isTier4 = tier === 4;
     const flashColor = isTier4 ? 0xffffff : 0xffcc00;
-    const flashAlpha = isTier4 ? 0.8 : 0.4;
-    const flashDuration = isTier4 ? 500 : 300;
-    const label = isTier4 ? 'ASTRAL GOD!! 🌟' : 'TIER 3!';
-    const fontSize = isTier4 ? '40px' : '32px';
-    const textColor = isTier4 ? '#ffdd00' : '#ffcc00';
+    const flashAlpha = isTier4 ? 0.9 : 0.5;
+    const flashDuration = isTier4 ? 600 : 300;
+    const label = isTier4 ? '🌟 ASTRAL GOD!! 🌟' : '✨ ULTIMATE! ✨';
+    const fontSize = isTier4 ? '40px' : '30px';
+    const textColor = isTier4 ? '#ffdd00' : '#00ffcc';
     const strokeThickness = isTier4 ? 6 : 4;
-    const textDuration = isTier4 ? 2000 : 1000;
+    const textDuration = isTier4 ? 2000 : 1200;
 
     const flash = this.scene.add.rectangle(cx, cy, GAME_WIDTH, GAME_HEIGHT, flashColor, flashAlpha).setDepth(10);
     this.scene.tweens.add({ targets: flash, alpha: 0, duration: flashDuration, onComplete: () => flash.destroy() });
@@ -115,6 +141,10 @@ export class DragController {
       stroke: '#000000', strokeThickness,
     }).setOrigin(0.5).setDepth(11);
     this.scene.tweens.add({ targets: text, y: cy - 80, alpha: 0, duration: textDuration, onComplete: () => text.destroy() });
+
+    if (isTier4) {
+      this.scene.cameras.main.shake(500, 0.02);
+    }
   }
 
   private isOnSellZone(x: number, y: number): boolean {

@@ -14,6 +14,7 @@ export class UnitRenderer {
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
+  private highlightGraphics = new Map<number, Phaser.GameObjects.Graphics>();
 
   constructor(scene: Phaser.Scene, state: GameState) {
     this.scene = scene;
@@ -44,11 +45,39 @@ export class UnitRenderer {
   }
 
   removeUnit(id: number): void {
-    this.unitObjects.get(id)?.destroy();    this.unitObjects.delete(id);
-    this.rangeCircles.get(id)?.destroy();   this.rangeCircles.delete(id);
-    this.heartTexts.get(id)?.destroy();     this.heartTexts.delete(id);
-    this.zzzTexts.get(id)?.destroy();       this.zzzTexts.delete(id);
-    this.lockTexts.get(id)?.destroy();      this.lockTexts.delete(id);
+    this.unitObjects.get(id)?.destroy();      this.unitObjects.delete(id);
+    this.rangeCircles.get(id)?.destroy();     this.rangeCircles.delete(id);
+    this.heartTexts.get(id)?.destroy();       this.heartTexts.delete(id);
+    this.zzzTexts.get(id)?.destroy();         this.zzzTexts.delete(id);
+    this.lockTexts.get(id)?.destroy();        this.lockTexts.delete(id);
+    this.highlightGraphics.get(id)?.destroy(); this.highlightGraphics.delete(id);
+  }
+
+  setHighlights(ids: number[]): void {
+    this.clearHighlights();
+    for (const id of ids) {
+      const go = this.unitObjects.get(id);
+      if (!go) continue;
+      const gfx = this.scene.add.graphics().setDepth(0);
+      gfx.lineStyle(3, 0x00ffcc, 1);
+      gfx.strokeCircle(go.x, go.y, 22);
+      this.highlightGraphics.set(id, gfx);
+      this.scene.tweens.add({
+        targets: gfx,
+        alpha: { from: 0.3, to: 1 },
+        duration: 350,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  clearHighlights(): void {
+    for (const gfx of this.highlightGraphics.values()) {
+      this.scene.tweens.killTweensOf(gfx);
+      gfx.destroy();
+    }
+    this.highlightGraphics.clear();
   }
 
   startBreedingEffect(idA: number, idB: number): void {

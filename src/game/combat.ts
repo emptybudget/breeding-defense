@@ -22,7 +22,7 @@ export function runCombat(
   doubleAttackProbability: number,
   globalDamageBonus: number,
   mines: Mine[],
-): CombatResult & { killRewards: number[]; newMinePositions: { x: number; y: number }[]; consumedMineIds: number[] } {
+): CombatResult & { killRewards: number[]; newMinePositions: { x: number; y: number }[]; consumedMineIds: number[]; tierKillCounts: Map<number, number> } {
   const now = elapsedMs;
   const attacks: AttackEvent[] = [];
   const killedSet = new Set<number>();
@@ -31,6 +31,7 @@ export function runCombat(
   const liveHp = new Map<number, number>(snapshots.map(e => [e.id, e.hp]));
   const newMinePositions: { x: number; y: number }[] = [];
   const consumedMineIds: number[] = [];
+  const tierKillCounts = new Map<number, number>();
 
   // Gimmick: Acorn_Girl — aura +20% attack speed for all allies within radius
   const auraBuffedIds = new Set<number>();
@@ -128,6 +129,7 @@ export function runCombat(
         if (newHp <= 0) {
           killedSet.add(target.id);
           killRewards.push(target.killReward);
+          tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1);
         } else if (unit.race === 'Cannon_Shooter') {
           // Gimmick: Cannon_Shooter — 넉백
           const dx = target.x - unit.x;
@@ -167,7 +169,7 @@ export function runCombat(
             const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
             liveHp.set(next.id, chainHp);
             attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false });
-            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); }
+            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
             chainSrc = next;
           }
         }
@@ -190,7 +192,7 @@ export function runCombat(
             const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
             liveHp.set(next.id, chainHp);
             attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false });
-            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); }
+            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
             chainSrc = next;
           }
         }
@@ -231,5 +233,5 @@ export function runCombat(
     .filter(e => !killedSet.has(e.id) && liveHp.get(e.id) !== e.hp)
     .map(e => ({ id: e.id, hp: liveHp.get(e.id)! }));
 
-  return { attacks, killedIds, hpUpdates, killRewards, knockbacks, newMinePositions, consumedMineIds };
+  return { attacks, killedIds, hpUpdates, killRewards, knockbacks, newMinePositions, consumedMineIds, tierKillCounts };
 }
