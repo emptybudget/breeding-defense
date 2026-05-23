@@ -240,19 +240,23 @@ export class PopupRenderer {
     if (this.gameOverContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 290, 250, 0x000000, 0.88);
-    const title = this.scene.add.text(0, -95, 'GAME OVER', {
+    const bg = this.scene.add.rectangle(0, 0, 290, 280, 0x000000, 0.88);
+    const title = this.scene.add.text(0, -110, 'GAME OVER', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ff5555',
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(0, -38, '  다시하기  ', {
+    const timeText = this.scene.add.text(0, -70, `생존 시간: ${this.state.formatTimer()}`, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
+    }).setOrigin(0.5);
+
+    const restartBtn = this.scene.add.text(0, -28, '  다시하기  ', {
       fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
       backgroundColor: '#334433', padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.onRestart(); });
 
     const hasGems = this.state.gems > 0;
-    const gemBtn = this.scene.add.text(0, 26, `  보석(${this.state.gems})로 이어하기  `, {
+    const gemBtn = this.scene.add.text(0, 38, `  보석(${this.state.gems})로 이어하기  `, {
       fontFamily: 'monospace', fontSize: '14px',
       color: hasGems ? '#ffffff' : '#666666',
       backgroundColor: hasGems ? '#334455' : '#222222',
@@ -260,13 +264,13 @@ export class PopupRenderer {
     }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
     if (hasGems) gemBtn.on('pointerdown', () => { this.onGemContinue(); });
 
-    const stageBtn = this.scene.add.text(0, 90, '스테이지 선택으로 돌아가기', {
+    const stageBtn = this.scene.add.text(0, 105, '스테이지 선택으로 돌아가기', {
       fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
       backgroundColor: '#1a1a1a', padding: { x: 10, y: 7 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     stageBtn.on('pointerdown', () => { this.onStageSelect(); });
 
-    container.add([bg, title, restartBtn, gemBtn, stageBtn]);
+    container.add([bg, title, timeText, restartBtn, gemBtn, stageBtn]);
     this.gameOverContainer = container;
   }
 
@@ -281,21 +285,27 @@ export class PopupRenderer {
     if (this.victoryContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 310, 240, 0x000000, 0.92);
-    const title = this.scene.add.text(0, -95, '🏆 VICTORY 🏆', {
+    const bg = this.scene.add.rectangle(0, 0, 310, 270, 0x000000, 0.92);
+    const title = this.scene.add.text(0, -115, '🏆 VICTORY 🏆', {
       fontFamily: 'monospace', fontSize: '22px', color: '#ffd700', align: 'center',
     }).setOrigin(0.5);
-    const gemInfo = this.scene.add.text(0, -48, `보석 +1 획득! 현재 💎 ${this.state.gems}개`, {
+    const stars = this.scene.add.text(0, -78, '⭐⭐⭐  +3', {
+      fontFamily: 'monospace', fontSize: '20px', color: '#ffd700', align: 'center',
+    }).setOrigin(0.5);
+    const timeText = this.scene.add.text(0, -44, `생존 시간: ${this.state.formatTimer()}`, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa', align: 'center',
+    }).setOrigin(0.5);
+    const gemInfo = this.scene.add.text(0, -16, `보석 +1 획득! 현재 💎 ${this.state.gems}개`, {
       fontFamily: 'monospace', fontSize: '14px', color: '#aaddff', align: 'center',
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(-95, 30, ' 다시하기 ', {
+    const restartBtn = this.scene.add.text(-95, 42, ' 다시하기 ', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
       backgroundColor: '#334433', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.onRestart(); });
 
-    const infiniteBtn = this.scene.add.text(0, 30, ' 무한 모드 ', {
+    const infiniteBtn = this.scene.add.text(0, 42, ' 무한 모드 ', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
       backgroundColor: '#334455', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
@@ -305,13 +315,13 @@ export class PopupRenderer {
       this.onInfiniteMode();
     });
 
-    const menuBtn = this.scene.add.text(95, 30, ' 스테이지선택 ', {
+    const menuBtn = this.scene.add.text(95, 42, ' 스테이지선택 ', {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
       backgroundColor: '#333355', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     menuBtn.on('pointerdown', () => { this.onStageSelect(); });
 
-    container.add([bg, title, gemInfo, restartBtn, infiniteBtn, menuBtn]);
+    container.add([bg, title, stars, timeText, gemInfo, restartBtn, infiniteBtn, menuBtn]);
     this.victoryContainer = container;
   }
 

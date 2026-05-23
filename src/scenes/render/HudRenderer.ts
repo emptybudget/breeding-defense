@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, SUMMON_MAX_COST } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { CENTER_X, SELL_ZONE_X, SELL_ZONE_Y } from '../constants';
 
@@ -76,7 +76,8 @@ export class HudRenderer {
     this.goldText.setText(`Gold: ${state.gold}`);
     this.unitText.setText(`Units: ${state.units.length}/${state.maxUnits}`);
     this.gemsText.setText(`Gem: ${state.gems}`);
-    this.summonBtn.setText(`소환 (${state.summonCost}G)`);
+    const atMax = state.summonCost >= SUMMON_MAX_COST;
+    this.summonBtn.setText(atMax ? `소환 (MAX)` : `소환 (${state.summonCost}G)`);
     this.popBtn.setText(`사회성 (${state.populationUpgradeCost}G)`);
   }
 }
