@@ -83,6 +83,8 @@ export class GameState {
   isPaused = false;
   isInfiniteMode = false;
   pendingBossSpawn = false;
+  pendingBossAlert = false;
+  pendingStreakBonus = false;
   pendingNotification: string | null = null;
   twinProbability = 0;
   doubleAttackProbability = 0;
@@ -133,11 +135,13 @@ export class GameState {
   private lastMinuteCrossed = 0;
   private spawnAccelMult = 1;
   private lastThirtySecCrossed = 0;
+  private lastBossAlertThirtySec = -1;
   private lastSecondCrossed = 0;
   private phaseBeforeGameOver: Phase = 'playing';
   private _nextUnitId = 0;
   private _nextMineId = 0;
   private bossRewardCallCount = 0;
+  private recentKillTimestamps: number[] = [];
 
   tick(deltaMs: number): void {
     if (this.phase === 'gameover' || this.isPaused) return;
@@ -179,6 +183,14 @@ export class GameState {
       this.pendingBossSpawn = true;
     }
 
+    // Boss alert: 5 seconds before each boss spawn
+    const nextBossInterval = this.lastThirtySecCrossed + 1;
+    if (this.lastBossAlertThirtySec < nextBossInterval &&
+        this.elapsedMs >= nextBossInterval * SPAWN_ACCEL_INTERVAL_MS - 5000) {
+      this.lastBossAlertThirtySec = nextBossInterval;
+      this.pendingBossAlert = true;
+    }
+
     // Auto-clear exhaustion
     for (const unit of this.units) {
       if (unit.isExhausted && this.elapsedMs >= unit.exhaustEndMs) {
@@ -208,6 +220,14 @@ export class GameState {
   registerKill(reward = KILL_REWARD): void {
     if (this.enemyCount > 0) this.enemyCount -= 1;
     this.gold += reward;
+
+    this.recentKillTimestamps.push(this.elapsedMs);
+    this.recentKillTimestamps = this.recentKillTimestamps.filter(t => this.elapsedMs - t < 1000);
+    if (this.recentKillTimestamps.length >= 5) {
+      this.gold += 10;
+      this.pendingStreakBonus = true;
+      this.recentKillTimestamps = [];
+    }
   }
 
   upgradePopulation(): boolean {
@@ -313,7 +333,8 @@ export class GameState {
     if (a.isBreeding || b.isBreeding) return false;
     if (a.isExhausted || b.isExhausted) return false;
     if (a.isLocked || b.isLocked) return false;
-    if (this.units.length >= this.maxUnits) return false;
+    const pendingOffspring = this.units.filter(u => u.isBreeding).length / 2;
+    if (this.units.length + pendingOffspring >= this.maxUnits) return false;
     const endMs = this.elapsedMs + BREEDING_DURATION_MS;
     a.isBreeding = true; a.breedingEndMs = endMs;
     b.isBreeding = true; b.breedingEndMs = endMs;

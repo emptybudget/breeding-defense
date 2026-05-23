@@ -23,6 +23,7 @@ export class GameScene extends Phaser.Scene {
   private dragController!: DragController;
   private mineGraphics!: Phaser.GameObjects.Graphics;
   private dangerBorder!: Phaser.GameObjects.Graphics;
+  private dangerTween?: Phaser.Tweens.Tween;
 
   constructor() {
     super('GameScene');
@@ -70,7 +71,13 @@ export class GameScene extends Phaser.Scene {
 
     // Mine rendering layer (above track, below enemies)
     this.mineGraphics = this.add.graphics();
-    this.dangerBorder = this.add.graphics().setDepth(5);
+
+    // Danger border (40+ enemies)
+    this.dangerTween = undefined;
+    this.dangerBorder = this.add.graphics().setDepth(50);
+    this.dangerBorder.lineStyle(10, 0xff2222, 1);
+    this.dangerBorder.strokeRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    this.dangerBorder.setAlpha(0);
 
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
@@ -90,12 +97,25 @@ export class GameScene extends Phaser.Scene {
 
     // HUD always updates
     this.hudRenderer.update(this.state);
+    this.updateDangerBorder();
+
+    // Boss alert (5s before spawn)
+    if (this.state.pendingBossAlert) {
+      this.state.pendingBossAlert = false;
+      this.notificationRenderer.add('⚠️ 보스 출현 5초 전!', '#ff8800');
+    }
 
     // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
       this.enemyRenderer.spawnBoss();
       this.notificationRenderer.add('👹 보스가 등장했습니다!', '#ff6666');
+    }
+
+    // Kill streak bonus
+    if (this.state.pendingStreakBonus) {
+      this.state.pendingStreakBonus = false;
+      this.notificationRenderer.add('🔥 킬 스트릭! +10G', '#ffdd00');
     }
 
     // Victory check
@@ -109,8 +129,6 @@ export class GameScene extends Phaser.Scene {
       }
       return;
     }
-
-    this.updateDangerBorder();
 
     // Pause guard — skip all gameplay when reward popup is active
     if (this.state.isPaused) return;
@@ -143,17 +161,25 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private isPhase(p: Phase): boolean {
-    return this.state.phase === p;
+  private updateDangerBorder(): void {
+    const danger = this.state.enemyCount >= 40;
+    if (danger && !this.dangerTween) {
+      this.dangerTween = this.tweens.add({
+        targets: this.dangerBorder,
+        alpha: { from: 0, to: 0.7 },
+        duration: 500,
+        yoyo: true,
+        repeat: -1,
+      });
+    } else if (!danger && this.dangerTween) {
+      this.dangerTween.stop();
+      this.dangerTween = undefined;
+      this.dangerBorder.setAlpha(0);
+    }
   }
 
-  private updateDangerBorder(): void {
-    this.dangerBorder.clear();
-    if (this.state.enemyCount >= 40) {
-      const pulse = 0.25 + 0.25 * Math.sin(this.time.now / 200);
-      this.dangerBorder.lineStyle(18, 0xff0000, pulse);
-      this.dangerBorder.strokeRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
-    }
+  private isPhase(p: Phase): boolean {
+    return this.state.phase === p;
   }
 
   private onBossKilled(): void {
