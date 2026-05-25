@@ -5,9 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Breeding Defense</title>
     <style>
-      html, body { margin: 0; padding: 0; height: 100%; background: #000; overflow: hidden; }
-      body { display: flex; align-items: center; justify-content: center; }
-      #game { width: 100vw; height: 100vh; }
+      html, body { margin: 0; padding: 0; background: #000; overflow: hidden; }
+      body {
+        display: flex; align-items: center; justify-content: center;
+        height: 100vh; height: 100dvh;
+        padding-top: env(safe-area-inset-top, 0px);
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        box-sizing: border-box;
+      }
+      #game { width: 100vw; height: 100%; }
     </style>
   </head>
   <body>
