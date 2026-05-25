@@ -207,18 +207,7 @@ export class DragController {
     // Tier-3 + Tier-3 → Astral_God (3-way synthesis)
     if (droppedUnit.tier === 3 && targetUnit.tier === 3) {
       if (droppedUnit.isLocked || targetUnit.isLocked) return;
-      const result = this.state.synthesize(droppedId, targetId);
-      if (result) {
-        this.unitRenderer.removeUnit(droppedId);
-        this.unitRenderer.removeUnit(targetId);
-        this.unitRenderer.removeStaleUnits(this.state.units.map(u => u.id));
-        this.unitRenderer.addUnit(result);
-        this.showSynthesisEffect(result.tier);
-        this.sfx?.playSFX('synth');
-      } else if (this.state.pendingNotification) {
-        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
-        this.state.pendingNotification = null;
-      }
+      this.trySynthesize(droppedId, targetId, /* cleanupStale */ true);
       return;
     }
 
@@ -228,17 +217,7 @@ export class DragController {
     // Tier-2 + Tier-2 → tier-3 synthesis
     if (droppedUnit.tier === 2 && targetUnit.tier === 2) {
       if (droppedUnit.isLocked || targetUnit.isLocked) return;
-      const result = this.state.synthesize(droppedId, targetId);
-      if (result) {
-        this.unitRenderer.removeUnit(droppedId);
-        this.unitRenderer.removeUnit(targetId);
-        this.unitRenderer.addUnit(result);
-        this.showSynthesisEffect(result.tier);
-        this.sfx?.playSFX('synth');
-      } else if (this.state.pendingNotification) {
-        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
-        this.state.pendingNotification = null;
-      }
+      this.trySynthesize(droppedId, targetId, /* cleanupStale */ false);
       return;
     }
 
@@ -264,16 +243,22 @@ export class DragController {
         this.sfx?.playSFX('breed');
       }
     } else {
-      const result = this.state.synthesize(droppedId, targetId);
-      if (result) {
-        this.unitRenderer.removeUnit(droppedId);
-        this.unitRenderer.removeUnit(targetId);
-        this.unitRenderer.addUnit(result);
-        this.sfx?.playSFX('synth');
-      } else if (this.state.pendingNotification) {
-        this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
-        this.state.pendingNotification = null;
-      }
+      this.trySynthesize(droppedId, targetId, /* cleanupStale */ false, /* showEffect */ false);
+    }
+  }
+
+  private trySynthesize(idA: number, idB: number, cleanupStale: boolean, showEffect = true): void {
+    const result = this.state.synthesize(idA, idB);
+    if (result) {
+      this.unitRenderer.removeUnit(idA);
+      this.unitRenderer.removeUnit(idB);
+      if (cleanupStale) this.unitRenderer.removeStaleUnits(this.state.units.map(u => u.id));
+      this.unitRenderer.addUnit(result);
+      if (showEffect) this.showSynthesisEffect(result.tier);
+      this.sfx?.playSFX('synth');
+    } else if (this.state.pendingNotification) {
+      this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
+      this.state.pendingNotification = null;
     }
   }
 }

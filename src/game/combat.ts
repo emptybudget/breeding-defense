@@ -14,6 +14,48 @@ const ELECTRIC_COON_CHAIN_RANGE = 100;
 const ELECTRIC_COON_MAX_CHAINS = 2;
 const ELECTRIC_COON_CHAIN_MULT = 0.5;
 
+/** Chain-lightning helper: bounces damage from src through up to maxChains nearby enemies. */
+function applyChainLightning(
+  src: EnemySnapshot,
+  baseDmg: number,
+  chainMult: number,
+  maxChains: number,
+  chainRange: number,
+  isCritForChain: boolean,
+  snapshots: EnemySnapshot[],
+  killedSet: Set<number>,
+  killRewards: number[],
+  liveHp: Map<number, number>,
+  attacks: AttackEvent[],
+  tierKillCounts: Map<number, number>,
+  unitTier: number,
+): void {
+  let chainSrc = src;
+  let chainDmg = baseDmg;
+  const chained = new Set<number>([src.id]);
+  for (let c = 0; c < maxChains; c++) {
+    if (killedSet.has(chainSrc.id)) break;
+    chainDmg = Math.max(1, Math.ceil(chainDmg * chainMult));
+    const next = snapshots
+      .filter(e => !killedSet.has(e.id) && !chained.has(e.id) &&
+        Math.hypot(e.x - chainSrc.x, e.y - chainSrc.y) <= chainRange)
+      .sort((a, b) =>
+        Math.hypot(a.x - chainSrc.x, a.y - chainSrc.y) -
+        Math.hypot(b.x - chainSrc.x, b.y - chainSrc.y))[0];
+    if (!next) break;
+    chained.add(next.id);
+    const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
+    liveHp.set(next.id, chainHp);
+    attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: isCritForChain, damage: chainDmg });
+    if (chainHp <= 0) {
+      killedSet.add(next.id);
+      killRewards.push(next.killReward);
+      tierKillCounts.set(unitTier, (tierKillCounts.get(unitTier) ?? 0) + 1);
+    }
+    chainSrc = next;
+  }
+}
+
 export function runCombat(
   units: UnitData[],
   snapshots: EnemySnapshot[],
@@ -153,48 +195,12 @@ export function runCombat(
 
         // Gimmick: Electric_Coon — 체인 라이트닝 (chains to up to 2 nearest enemies)
         if (unit.race === 'Electric_Coon' && !killedSet.has(target.id)) {
-          let chainSrc = target;
-          let chainDmg = finalDmg;
-          const chained = new Set<number>([target.id]);
-          for (let c = 0; c < ELECTRIC_COON_MAX_CHAINS; c++) {
-            chainDmg = Math.max(1, Math.ceil(chainDmg * ELECTRIC_COON_CHAIN_MULT));
-            const next = snapshots
-              .filter(e => !killedSet.has(e.id) && !chained.has(e.id) &&
-                Math.hypot(e.x - chainSrc.x, e.y - chainSrc.y) <= ELECTRIC_COON_CHAIN_RANGE)
-              .sort((a, b) =>
-                Math.hypot(a.x - chainSrc.x, a.y - chainSrc.y) -
-                Math.hypot(b.x - chainSrc.x, b.y - chainSrc.y))[0];
-            if (!next) break;
-            chained.add(next.id);
-            const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
-            liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false, damage: chainDmg });
-            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
-            chainSrc = next;
-          }
+          applyChainLightning(target, finalDmg, ELECTRIC_COON_CHAIN_MULT, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
         }
 
         // Gimmick: Thunder_Hawk — chain lightning (3 chains, 80% each)
         if (unit.race === 'Thunder_Hawk' && !killedSet.has(target.id)) {
-          let chainSrc = target;
-          let chainDmg = finalDmg;
-          const chained = new Set<number>([target.id]);
-          for (let c = 0; c < THUNDER_HAWK_CHAIN_COUNT; c++) {
-            chainDmg = Math.max(1, Math.ceil(chainDmg * THUNDER_HAWK_CHAIN_MULT));
-            const next = snapshots
-              .filter(e => !killedSet.has(e.id) && !chained.has(e.id) &&
-                Math.hypot(e.x - chainSrc.x, e.y - chainSrc.y) <= THUNDER_HAWK_CHAIN_RANGE)
-              .sort((a, b) =>
-                Math.hypot(a.x - chainSrc.x, a.y - chainSrc.y) -
-                Math.hypot(b.x - chainSrc.x, b.y - chainSrc.y))[0];
-            if (!next) break;
-            chained.add(next.id);
-            const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
-            liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false, damage: chainDmg });
-            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
-            chainSrc = next;
-          }
+          applyChainLightning(target, finalDmg, THUNDER_HAWK_CHAIN_MULT, THUNDER_HAWK_CHAIN_COUNT, THUNDER_HAWK_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
         }
 
         // Gimmick: Chaos_Artillery — also plant mine at each hit location
@@ -204,25 +210,7 @@ export function runCombat(
 
         // Gimmick: Astral_God — chain lightning (4 chains, 90% each, crit)
         if (unit.race === 'Astral_God' && !killedSet.has(target.id)) {
-          let chainSrc = target;
-          let chainDmg = finalDmg;
-          const chained = new Set<number>([target.id]);
-          for (let c = 0; c < ASTRAL_GOD_CHAIN_COUNT; c++) {
-            chainDmg = Math.max(1, Math.ceil(chainDmg * ASTRAL_GOD_CHAIN_MULT));
-            const next = snapshots
-              .filter(e => !killedSet.has(e.id) && !chained.has(e.id) &&
-                Math.hypot(e.x - chainSrc.x, e.y - chainSrc.y) <= ASTRAL_GOD_CHAIN_RANGE)
-              .sort((a, b) =>
-                Math.hypot(a.x - chainSrc.x, a.y - chainSrc.y) -
-                Math.hypot(b.x - chainSrc.x, b.y - chainSrc.y))[0];
-            if (!next) break;
-            chained.add(next.id);
-            const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
-            liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: true, damage: chainDmg });
-            if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); }
-            chainSrc = next;
-          }
+          applyChainLightning(target, finalDmg, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_RANGE, true, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
         }
       }
     }
