@@ -9,6 +9,7 @@ import { HudRenderer } from './render/HudRenderer';
 import { NotificationRenderer } from './render/NotificationRenderer';
 import { PopupRenderer } from './render/PopupRenderer';
 import { UnitRenderer } from './render/UnitRenderer';
+import { SoundManager } from './SoundManager';
 
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
@@ -24,6 +25,9 @@ export class GameScene extends Phaser.Scene {
   private mineGraphics!: Phaser.GameObjects.Graphics;
   private dangerBorder!: Phaser.GameObjects.Graphics;
   private dangerTween?: Phaser.Tweens.Tween;
+  private sfx!: SoundManager;
+  private overclockSfxPlayed = false;
+  private bossTimerText?: Phaser.GameObjects.Text;
 
   constructor() {
     super('GameScene');
@@ -32,7 +36,11 @@ export class GameScene extends Phaser.Scene {
   create(): void {
     this.metaProgress = new MetaProgress();
     this.starsAwarded = false;
-    this.state = new GameState(this.metaProgress.getData());
+    this.overclockSfxPlayed = false;
+    const stageId = ((this.scene.settings.data as Record<string, unknown>)?.stageId as number) ?? 1;
+    this.state = new GameState(this.metaProgress.getData(), stageId);
+    this.sfx = new SoundManager();
+    this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
     this.unitRenderer = new UnitRenderer(this, this.state);
     this.hudRenderer = new HudRenderer(
@@ -40,6 +48,7 @@ export class GameScene extends Phaser.Scene {
       () => { const unit = this.state.summon(); if (unit) this.unitRenderer.addUnit(unit); },
       () => { this.state.upgradePopulation(); },
       () => { this.onPause(); },
+      () => { this.onRecipeBook(); },
     );
     this.popupRenderer = new PopupRenderer(
       this,
@@ -57,6 +66,7 @@ export class GameScene extends Phaser.Scene {
       this,
       this.state,
       () => { this.onBossKilled(); },
+      this.sfx,
     );
 
     // Track (dynamic polygon each game)
@@ -82,7 +92,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
-    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer);
+    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.sfx);
     this.dragController.register();
 
     // Show tutorial overlay and pause until dismissed
@@ -110,6 +120,24 @@ export class GameScene extends Phaser.Scene {
       this.state.pendingBossSpawn = false;
       this.enemyRenderer.spawnBoss();
       this.notificationRenderer.add('👹 보스가 등장했습니다!', '#ff6666');
+      this.sfx.playSFX('boss');
+      // Show fast-kill countdown (skip first boss)
+      if (this.state.bossCount > 1) {
+        this.startBossCountdown();
+      }
+    }
+
+    // Boss fast-kill countdown update
+    if (this.bossTimerText && this.state.bossSpawnedAtMs !== null) {
+      const remaining = this.state.stageConfig.bossTimeLimitMs - (this.state.elapsedMs - this.state.bossSpawnedAtMs);
+      if (remaining <= 0) {
+        this.bossTimerText.destroy();
+        this.bossTimerText = undefined;
+      } else {
+        const secs = Math.ceil(remaining / 1000);
+        this.bossTimerText.setText(`⚡ ${secs}초`);
+        this.bossTimerText.setColor(secs <= 5 ? '#ff4444' : '#ffdd00');
+      }
     }
 
     // Kill streak bonus
@@ -125,6 +153,7 @@ export class GameScene extends Phaser.Scene {
           this.metaProgress.addStars(META_STARS_PER_VICTORY);
           this.starsAwarded = true;
         }
+        this.sfx.playSFX('victory');
         this.popupRenderer.showVictory();
       }
       return;
@@ -147,11 +176,16 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.update(deltaMs);
 
     if (this.isPhase('gameover')) {
+      this.sfx.playSFX('gameover');
       this.popupRenderer.showGameOver();
       return;
     }
 
     if (this.isPhase('clear')) {
+      if (!this.overclockSfxPlayed) {
+        this.overclockSfxPlayed = true;
+        this.sfx.playSFX('overclock');
+      }
       this.showBanner('Game Clear!\n오버클록 모드 진입!', '#ffd24a');
       this.time.delayedCall(1500, () => {
         this.banner?.destroy();
@@ -183,9 +217,26 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBossKilled(): void {
+    const isFastKill = this.state.bossCount > 1 &&
+      this.state.bossSpawnedAtMs !== null &&
+      (this.state.elapsedMs - this.state.bossSpawnedAtMs) <= this.state.stageConfig.bossTimeLimitMs;
+    this.state.bossSpawnedAtMs = null;
+    this.bossTimerText?.destroy();
+    this.bossTimerText = undefined;
+    if (isFastKill) {
+      this.notificationRenderer.add('⚡ 속전속결! 보상 +1', '#ffdd00');
+    }
     this.state.isPaused = true;
-    const rewards = this.state.generateRewards(3);
-    this.popupRenderer.showReward(2, rewards);
+    const rewardCount = isFastKill ? 3 : 2;
+    const rewards = this.state.generateRewards(rewardCount + 1);
+    this.popupRenderer.showReward(rewardCount, rewards);
+  }
+
+  private startBossCountdown(): void {
+    this.bossTimerText?.destroy();
+    this.bossTimerText = this.add.text(CENTER_X, 500, '⚡ --초', {
+      fontFamily: 'monospace', fontSize: '18px', color: '#ffdd00',
+    }).setOrigin(0.5).setDepth(10);
   }
 
   private onPause(): void {
@@ -195,6 +246,12 @@ export class GameScene extends Phaser.Scene {
       () => { this.state.isPaused = false; },
       () => { this.scene.start('StageSelectScene'); },
     );
+  }
+
+  private onRecipeBook(): void {
+    if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
+    this.state.isPaused = true;
+    this.popupRenderer.showRecipeBook(() => { this.state.isPaused = false; });
   }
 
   private gemContinue(): void {
@@ -211,4 +268,7 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5);
   }
 
+  shutdown(): void {
+    this.sfx?.stopBGM();
+  }
 }

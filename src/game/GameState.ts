@@ -9,7 +9,6 @@ import {
   DOUBLE_ATK_PROB_INC,
   ENEMY_BASE_HP,
   ENEMY_BASE_SPEED,
-  ENEMY_SPAWN_INTERVAL_MS,
   KILL_REWARD,
   MAX_ENEMIES,
   MINE_DAMAGE,
@@ -39,12 +38,10 @@ import {
   CRIT_INIT_PROB,
   CRIT_PROB_INC,
   UNIT_CAP,
-  TRACK_BASE_TL,
-  TRACK_BASE_TR,
-  TRACK_BASE_BR,
-  TRACK_BASE_BL,
-  TRACK_UNIT_ZONE_PADDING,
   VICTORY_TIME_MS,
+  STAGE_CONFIGS,
+  StageConfig,
+  StageId,
 } from './config';
 import {
   CombatResult,
@@ -85,6 +82,10 @@ export class GameState {
   pendingBossSpawn = false;
   pendingBossAlert = false;
   pendingStreakBonus = false;
+  bossSpawnedAtMs: number | null = null;
+  bossCount = 0;
+  private _lastSynthesisMs = 0;
+  private _synthesisComboCount = 0;
   pendingNotification: string | null = null;
   twinProbability = 0;
   doubleAttackProbability = 0;
@@ -95,9 +96,11 @@ export class GameState {
 
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
+  readonly stageConfig: StageConfig;
   private goldAutoRecovery = GOLD_AUTO_RECOVERY_PER_SEC;
 
-  constructor(meta?: MetaData) {
+  constructor(meta?: MetaData, stageId: number = 1) {
+    this.stageConfig = STAGE_CONFIGS[(stageId as StageId)] ?? STAGE_CONFIGS[1];
     if (meta) {
       this.gold = STARTING_GOLD + meta.levels.startingGold * META_UPGRADES.startingGold.effectPer;
       this.summonCost = Math.max(1, SUMMON_BASE_COST - meta.levels.summonCost * META_UPGRADES.summonCost.effectPer);
@@ -109,24 +112,38 @@ export class GameState {
   }
 
   private generateTrackWaypoints(): { x: number; y: number }[] {
-    const r = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-    return [
-      { x: TRACK_BASE_TL.x + r(-10, 15), y: TRACK_BASE_TL.y + r(-10, 20) },
-      { x: TRACK_BASE_TR.x + r(-15, 10), y: TRACK_BASE_TR.y + r(-10, 20) },
-      { x: TRACK_BASE_BR.x + r(-15, 10), y: TRACK_BASE_BR.y + r(-15, 15) },
-      { x: TRACK_BASE_BL.x + r(-10, 15), y: TRACK_BASE_BL.y + r(-15, 15) },
-    ];
+    const n = (v: number, d: number) => Math.round(v + (Math.random() - 0.5) * 2 * d);
+    const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+    const pt = (bx: number, by: number, dx = 18, dy = 18) => ({
+      x: clamp(n(bx, dx), 18, 342),
+      y: clamp(n(by, dy), 90, 525),
+    });
+
+    // 5 distinct track layouts — pick one at random each game
+    const pick = Math.floor(Math.random() * 5);
+    switch (pick) {
+      case 0: // Rectangle (classic)
+        return [pt(30,100), pt(330,100), pt(330,510), pt(30,510)];
+
+      case 1: // S-snake — zigzag crosses through center
+        return [pt(30,100), pt(330,100), pt(330,305), pt(30,305), pt(30,510), pt(330,510)];
+
+      case 2: // Hexagon / V-top — symmetric, closes cleanly on left edge
+        return [pt(30,145), pt(180,100,20,12), pt(330,145), pt(330,475), pt(180,505,20,12), pt(30,475)];
+
+      case 3: // Kite / arrowhead-right — 5 pts, clean left-edge close
+        return [pt(30,100), pt(330,100), pt(265,310,15,15), pt(105,310,15,15), pt(30,510)];
+
+      case 4: // W-arch — arch in the middle of right side
+        return [pt(30,100), pt(330,100), pt(330,280), pt(195,170,20,20), pt(30,280), pt(30,510), pt(330,510)];
+    }
+    // fallback
+    return [pt(30,100), pt(330,100), pt(330,510), pt(30,510)];
   }
 
-  private computeUnitZone(wp: { x: number; y: number }[]) {
-    const [tl, tr, br, bl] = wp;
-    const pad = TRACK_UNIT_ZONE_PADDING;
-    return {
-      x1: Math.max(tl.x, bl.x) + pad,
-      y1: Math.max(tl.y, tr.y) + pad,
-      x2: Math.min(tr.x, br.x) - pad,
-      y2: Math.min(bl.y, br.y) - pad,
-    };
+  private computeUnitZone(_wp: { x: number; y: number }[]) {
+    // Fixed interior zone — safe for all track shapes
+    return { x1: 68, y1: 132, x2: 292, y2: 480 };
   }
 
   private overclockSeconds = 0;
@@ -181,6 +198,8 @@ export class GameState {
       this.lastThirtySecCrossed = currentThirtySec;
       this.spawnAccelMult *= SPAWN_ACCEL_DECAY;
       this.pendingBossSpawn = true;
+      this.bossCount++;
+      this.bossSpawnedAtMs = this.elapsedMs;
     }
 
     // Boss alert: 5 seconds before each boss spawn
@@ -390,6 +409,7 @@ export class GameState {
       this.units.splice(hi, 1); this.units.splice(lo, 1);
       const hybrid = makeUnit(this._nextUnitId++, tier2Race, 2, hx, hy);
       this.units.push(hybrid);
+      this.applySynthesisCombo();
       return hybrid;
     }
 
@@ -402,6 +422,7 @@ export class GameState {
       this.units.splice(hi, 1); this.units.splice(lo, 1);
       const ultimate = makeUnit(this._nextUnitId++, tier3Race, 3, hx, hy);
       this.units.push(ultimate);
+      this.applySynthesisCombo();
       return ultimate;
     }
 
@@ -423,6 +444,7 @@ export class GameState {
       [aIdx, bIdx, thirdIdx].sort((x, y) => y - x).forEach(idx => this.units.splice(idx, 1));
       const astral = makeUnit(this._nextUnitId++, 'Astral_God', 4, hx, hy);
       this.units.push(astral);
+      this.applySynthesisCombo();
       return astral;
     }
 
@@ -451,7 +473,7 @@ export class GameState {
   }
 
   get currentSpawnIntervalMs(): number {
-    const base = ENEMY_SPAWN_INTERVAL_MS * this.spawnAccelMult;
+    const base = this.stageConfig.spawnIntervalBase * this.spawnAccelMult;
     if (this.overclockSeconds <= 0) return Math.max(OVERCLOCK_MIN_SPAWN_MS, base);
     return Math.max(OVERCLOCK_MIN_SPAWN_MS, base * Math.pow(OVERCLOCK_SPAWN_DECAY, this.overclockSeconds));
   }
@@ -466,6 +488,19 @@ export class GameState {
     const overclockMult = this.overclockSeconds > 0
       ? Math.pow(OVERCLOCK_SPEED_GROWTH, this.overclockSeconds) : 1;
     return ENEMY_BASE_SPEED * this.minuteSpeedMult * overclockMult;
+  }
+
+  private applySynthesisCombo(): void {
+    const inWindow = this.elapsedMs - this._lastSynthesisMs <= 30000;
+    this._synthesisComboCount = inWindow ? this._synthesisComboCount + 1 : 1;
+    this._lastSynthesisMs = this.elapsedMs;
+    if (this._synthesisComboCount >= 3) {
+      this.gold += 30;
+      this.pendingNotification = '💥 합성 콤보×3! +30G';
+    } else if (this._synthesisComboCount >= 2) {
+      this.gold += 15;
+      this.pendingNotification = '⚡ 합성 콤보! +15G';
+    }
   }
 
   formatTimer(): string {

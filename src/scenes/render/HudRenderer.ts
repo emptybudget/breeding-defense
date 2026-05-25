@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, SUMMON_MAX_COST } from '../../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { CENTER_X, SELL_ZONE_X, SELL_ZONE_Y } from '../constants';
 
@@ -16,12 +16,14 @@ export class HudRenderer {
   private summonBtn!: Phaser.GameObjects.Text;
   private popBtn!: Phaser.GameObjects.Text;
   private onPause: () => void;
+  private onRecipeBook: () => void;
 
-  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void) {
+  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void, onRecipeBook: () => void) {
     this.scene = scene;
     this.onSummon = onSummon;
     this.onPopUpgrade = onPopUpgrade;
     this.onPause = onPause;
+    this.onRecipeBook = onRecipeBook;
   }
 
   create(state: GameState): void {
@@ -43,11 +45,17 @@ export class HudRenderer {
       fontFamily: 'monospace', fontSize: '16px', color: '#aaffaa',
     }).setOrigin(1, 0).setDepth(6);
 
-    this.scene.add.text(CENTER_X, 44, ' ⏸ ', {
+    this.scene.add.text(CENTER_X - 26, 44, ' ⏸ ', {
       fontFamily: 'monospace', fontSize: '13px', color: '#cccccc',
       backgroundColor: '#333344', padding: { x: 7, y: 3 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => { this.onPause(); });
+
+    this.scene.add.text(CENTER_X + 26, 44, ' 📖 ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#cccccc',
+      backgroundColor: '#333344', padding: { x: 7, y: 3 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => { this.onRecipeBook(); });
 
     // Bottom bar
     this.scene.add.rectangle(0, GAME_HEIGHT - 76, GAME_WIDTH, 76, 0x111111).setOrigin(0, 0).setDepth(5);
@@ -72,12 +80,20 @@ export class HudRenderer {
 
   update(state: GameState): void {
     this.timerText.setText(state.formatTimer());
+    if (state.phase === 'playing') {
+      const remaining = VICTORY_TIME_MS - state.elapsedMs;
+      this.timerText.setColor(remaining <= 60000 ? '#ff4444' : remaining <= 180000 ? '#ffdd00' : '#ffffff');
+    } else {
+      this.timerText.setColor('#ffffff');
+    }
     this.countText.setText(`${state.enemyCount} / 50`);
     this.goldText.setText(`Gold: ${state.gold}`);
     this.unitText.setText(`Units: ${state.units.length}/${state.maxUnits}`);
     this.gemsText.setText(`Gem: ${state.gems}`);
+    const atCap = state.units.length >= state.maxUnits;
     const atMax = state.summonCost >= SUMMON_MAX_COST;
-    this.summonBtn.setText(atMax ? `소환 (MAX)` : `소환 (${state.summonCost}G)`);
+    this.summonBtn.setText(atCap ? '소환 (FULL)' : atMax ? '소환 (MAX)' : `소환 (${state.summonCost}G)`);
+    this.summonBtn.setStyle({ backgroundColor: atCap ? '#222222' : '#335533', color: atCap ? '#666666' : '#ffffff' });
     this.popBtn.setText(`사회성 (${state.populationUpgradeCost}G)`);
   }
 }

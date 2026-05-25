@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, UpgradeKey } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, STAGE_CONFIGS, StageId, UpgradeKey } from '../game/config';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y } from './constants';
 
@@ -28,39 +28,50 @@ export class StageSelectScene extends Phaser.Scene {
       fontFamily: 'monospace', fontSize: '11px', color: '#666666',
     }).setOrigin(0.5);
 
-    // Stage button
-    this.makeStageButton(CENTER_X, 148, 1);
+    // Stage buttons (stage 2 unlocks at 3⭐, stage 3 at 9⭐)
+    this.makeStageButton(CENTER_X, 140, 1, meta.stars, 0);
+    this.makeStageButton(CENTER_X, 200, 2, meta.stars, 3);
+    this.makeStageButton(CENTER_X, 260, 3, meta.stars, 9);
 
     // Divider
     const div = this.add.graphics();
     div.lineStyle(1, 0x333355, 1);
-    div.lineBetween(30, 192, GAME_WIDTH - 30, 192);
+    div.lineBetween(30, 292, GAME_WIDTH - 30, 292);
 
     // Shop header
-    this.add.text(CENTER_X, 212, '🛒 영구 강화', {
+    this.add.text(CENTER_X, 310, '🛒 영구 강화', {
       fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
     }).setOrigin(0.5);
 
-    // Upgrade rows (centers at y=258, 342, 426, 510)
+    // Upgrade rows (centers at y=348, 408, 468, 528)
     const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold'];
-    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 258 + i * 84));
+    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 348 + i * 58));
   }
 
-  private makeStageButton(x: number, y: number, stageId: number): void {
-    const btn = this.add.text(x, y, `  스테이지 ${stageId}  `, {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
-      backgroundColor: '#1e3d1e', padding: { x: 24, y: 14 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+  private makeStageButton(x: number, y: number, stageId: number, stars: number, requiredStars: number): void {
+    const cfg = STAGE_CONFIGS[stageId as StageId];
+    const unlocked = stars >= requiredStars;
+    const label = unlocked ? cfg.name : `🔒 ${cfg.name} (${requiredStars}⭐ 필요)`;
+    const bgColor = unlocked ? '#1e3d1e' : '#1a1a2a';
+    const textColor = unlocked ? '#ffffff' : '#666666';
 
-    btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#2e5e2e' }));
-    btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#1e3d1e' }));
-    btn.on('pointerdown', () => {
-      btn.disableInteractive();
-      this.cameras.main.fadeOut(300, 0, 0, 0);
-      this.cameras.main.once('camerafadeoutcomplete', () => {
-        this.scene.start('GameScene', { stageId });
+    const btn = this.add.text(x, y, `  ${label}  `, {
+      fontFamily: 'monospace', fontSize: '16px', color: textColor,
+      backgroundColor: bgColor, padding: { x: 16, y: 10 },
+    }).setOrigin(0.5);
+
+    if (unlocked) {
+      btn.setInteractive({ useHandCursor: true });
+      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#2e5e2e' }));
+      btn.on('pointerout', () => btn.setStyle({ backgroundColor: bgColor }));
+      btn.on('pointerdown', () => {
+        btn.disableInteractive();
+        this.cameras.main.fadeOut(300, 0, 0, 0);
+        this.cameras.main.once('camerafadeoutcomplete', () => {
+          this.scene.start('GameScene', { stageId });
+        });
       });
-    });
+    }
   }
 
   private makeUpgradeRow(meta: MetaProgress, key: UpgradeKey, y: number): void {
@@ -73,19 +84,19 @@ export class StageSelectScene extends Phaser.Scene {
     // Card background
     const cardColor = isMax ? 0x1a1a0a : 0x0e0e1e;
     const borderColor = isMax ? 0x887700 : 0x2a2a55;
-    this.add.rectangle(CENTER_X, y, 320, 72, cardColor)
+    this.add.rectangle(CENTER_X, y, 320, 50, cardColor)
       .setStrokeStyle(1, borderColor);
 
     // Left: name
-    this.add.text(30, y - 14, `${upg.emoji} ${upg.label}`, {
-      fontFamily: 'monospace', fontSize: '14px',
+    this.add.text(30, y - 10, `${upg.emoji} ${upg.label}`, {
+      fontFamily: 'monospace', fontSize: '13px',
       color: isMax ? '#ccaa00' : '#dddddd',
     }).setOrigin(0, 0.5);
 
     // Left: level + effect hint
     const levelStr = isMax ? 'MAX' : `Lv.${level}/${upg.maxLevel}`;
-    this.add.text(30, y + 12, `${levelStr}  ${upg.desc}`, {
-      fontFamily: 'monospace', fontSize: '11px', color: '#666688',
+    this.add.text(30, y + 10, `${levelStr}  ${upg.desc}`, {
+      fontFamily: 'monospace', fontSize: '10px', color: '#666688',
     }).setOrigin(0, 0.5);
 
     // Right: buy button or MAX badge

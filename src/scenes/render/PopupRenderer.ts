@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { HybridRace, Reward, Tier1Race, Tier3Race, UnitData } from '../../game/types';
-import { ASTRAL_GOD_RECIPE, getTier2Recipes, getTier3Recipes } from '../../game/unitHelpers';
+import { ASTRAL_GOD_RECIPE, HYBRID_RACES, TIER1_RACES, getTier2Recipes, getTier3Recipes } from '../../game/unitHelpers';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../constants';
 
 export class PopupRenderer {
@@ -20,6 +20,7 @@ export class PopupRenderer {
   private allRewards: Reward[] = [];
 
   private recipeContainer?: Phaser.GameObjects.Container;
+  private recipeBookContainer?: Phaser.GameObjects.Container;
   private pauseContainer?: Phaser.GameObjects.Container;
 
   constructor(
@@ -63,6 +64,12 @@ export class PopupRenderer {
       '다른 카테고리끼리 드래그하면',
       '🧬  합성  →  2티어 유닛 생성!',
       '예)  ⚔️+🐶=🐺  /  ⚔️+🦾=🧬',
+      '',
+      '2티어+2티어 합성 →  3티어!',
+      '3티어 3개 근처에 모으면 → 🌟 4티어!',
+      '',
+      '유닛 탭 → 레시피 확인',
+      '더블탭 → 🔒 잠금 토글',
       '',
       '🗑️  하단 드롭존에 드래그하면',
       '    유닛 판매  →  골드 환급!',
@@ -230,6 +237,78 @@ export class PopupRenderer {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
       align: 'center', lineSpacing: 6,
     }).setOrigin(0.5);
+
+    container.add([bg, closeBtn, content]);
+  }
+
+  // ── Recipe Book ───────────────────────────────────────────────────────────
+
+  showRecipeBook(onClose: () => void): void {
+    if (this.recipeBookContainer) return;
+
+    const dim = this.scene.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75)
+      .setDepth(20).setInteractive();
+
+    const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(21);
+    this.recipeBookContainer = container;
+
+    const close = () => {
+      container.destroy(); this.recipeBookContainer = undefined;
+      dim.destroy();
+      onClose();
+    };
+    dim.on('pointerdown', close);
+
+    // Build lines dynamically from recipe data
+    const tier1to2: string[] = [];
+    const seen2 = new Set<string>();
+    for (const race of TIER1_RACES) {
+      for (const { partner, result } of getTier2Recipes(race)) {
+        const key = [race, partner].sort().join('+');
+        if (!seen2.has(key)) {
+          seen2.add(key);
+          tier1to2.push(`${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`);
+        }
+      }
+    }
+
+    const tier2to3: string[] = [];
+    const seen3 = new Set<string>();
+    for (const race of HYBRID_RACES) {
+      for (const { partner, result } of getTier3Recipes(race)) {
+        const key = [race, partner].sort().join('+');
+        if (!seen3.has(key)) {
+          seen3.add(key);
+          tier2to3.push(`${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`);
+        }
+      }
+    }
+
+    const astralLine = `${ASTRAL_GOD_RECIPE.map(r => RACE_EMOJI[r]).join('+')} = 🌟 Astral_God`;
+
+    const lines = [
+      '📖  합성 레시피 북',
+      '─ 1티어 → 2티어 ─',
+      ...tier1to2,
+      '─ 2티어 → 3티어 ─',
+      ...tier2to3,
+      '─ 3티어 → 4티어 ─',
+      astralLine,
+    ];
+
+    const bgH = lines.length * 15 + 52;
+    const bg = this.scene.add.rectangle(0, 0, 270, bgH, 0x111133, 0.97);
+
+    const closeBtn = this.scene.add.text(110, -(bgH / 2) + 14, ' X ', {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      backgroundColor: '#443333', padding: { x: 6, y: 3 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    closeBtn.on('pointerdown', close);
+
+    const content = this.scene.add.text(-120, -(bgH / 2) + 30, lines.join('\n'), {
+      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
+      align: 'left', lineSpacing: 4,
+    }).setOrigin(0, 0);
 
     container.add([bg, closeBtn, content]);
   }

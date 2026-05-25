@@ -2,6 +2,7 @@ import { HYBRID_STATS, TIER1_STATS, TIER3_STATS, TIER4_STATS } from './config';
 import { HybridRace, Race, Tier1Race, Tier3Race, Tier4Race, UnitData, UnitRace } from './types';
 
 export const TIER1_RACES: Tier1Race[] = ['Warrior', 'Archer', 'Dog', 'Squirrel', 'Android', 'Cannon'];
+export const HYBRID_RACES: HybridRace[] = ['Bio_Wolf', 'Acorn_Girl', 'Falcon_Eye', 'Acorn_Hunter', 'Cyborg_Slasher', 'Cannon_Shooter', 'Laser_Sniper', 'Missile_Gunner', 'Blade_Hound', 'Gatling_Dog', 'Electric_Coon', 'Menhera_Squirrel'];
 
 const CATEGORY_MAP: Record<Tier1Race, Race> = {
   Warrior: 'Human', Archer: 'Human',

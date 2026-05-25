@@ -1,18 +1,29 @@
 import Phaser from 'phaser';
 import {
-  BOSS_HP_MULT,
   BOSS_KILL_REWARD,
   ENEMY_TYPES,
   GAME_HEIGHT,
   GAME_WIDTH,
   KILL_REWARD,
   TANK_KILL_REWARD,
-  TANK_SPAWN_PROBABILITY,
-  TANK_SPAWN_START_MS,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { EnemyType } from '../../game/types';
-type Enemy = Phaser.GameObjects.Rectangle & {
+import { SoundManager } from '../SoundManager';
+
+const ENEMY_EMOJI: Record<EnemyType, string> = {
+  NORMAL: '👾',
+  FAST:   '🐝',
+  TANK:   '🐢',
+};
+const ENEMY_FONT: Record<EnemyType, string> = {
+  NORMAL: '20px',
+  FAST:   '16px',
+  TANK:   '23px',
+};
+const BOSS_EMOJI = '👺';
+
+type Enemy = Phaser.GameObjects.Text & {
   id: number;
   hp: number;
   maxHp: number;
@@ -27,6 +38,7 @@ export class EnemyRenderer {
   private scene: Phaser.Scene;
   private state: GameState;
   private onBossKilled: () => void;
+  private sfx?: SoundManager;
 
   private enemies!: Phaser.GameObjects.Group;
   private enemyMap = new Map<number, Enemy>();
@@ -39,10 +51,12 @@ export class EnemyRenderer {
     scene: Phaser.Scene,
     state: GameState,
     onBossKilled: () => void,
+    sfx?: SoundManager,
   ) {
     this.scene = scene;
     this.state = state;
     this.onBossKilled = onBossKilled;
+    this.sfx = sfx;
   }
 
   create(): void {
@@ -61,8 +75,10 @@ export class EnemyRenderer {
   spawnBoss(): void {
     const wp = this.state.trackWaypoints[0];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
-    const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * BOSS_HP_MULT);
-    const boss = this.scene.add.rectangle(wp.x, wp.y, 32, 32, 0x0055ff) as Enemy;
+    const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * this.state.stageConfig.bossHpMult);
+    const boss = this.scene.add.text(wp.x, wp.y, BOSS_EMOJI, {
+      fontFamily: 'monospace', fontSize: '28px',
+    }).setOrigin(0.5) as unknown as Enemy;
     boss.id = this._nextEnemyId++;
     boss.hp = bossHp; boss.maxHp = bossHp;
     boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult;
@@ -95,21 +111,23 @@ export class EnemyRenderer {
     const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
     const wp = waypoints[wpIdx];
 
+    const { fastRatio, tankStartMs } = this.state.stageConfig;
     let type: EnemyType;
-    if (this.state.elapsedMs >= TANK_SPAWN_START_MS && Math.random() < TANK_SPAWN_PROBABILITY) {
+    if (this.state.elapsedMs >= tankStartMs && Math.random() < 0.15) {
       type = 'TANK';
     } else {
-      type = Math.random() < 0.5 ? 'NORMAL' : 'FAST';
+      type = Math.random() < fastRatio ? 'FAST' : 'NORMAL';
     }
 
     const def = ENEMY_TYPES[type];
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
     const hp = Math.ceil(def.hp * this.state.currentEnemyHp);
     const speed = def.speed * overclockSpeedMult;
-    const color = type === 'FAST' ? 0xffcc00 : type === 'TANK' ? 0x888888 : 0xff3344;
-    const size = type === 'FAST' ? 10 : type === 'TANK' ? 24 : 16;
     const killReward = type === 'TANK' ? TANK_KILL_REWARD : KILL_REWARD;
-    const enemy = this.scene.add.rectangle(wp.x, wp.y, size, size, color) as Enemy;
+
+    const enemy = this.scene.add.text(wp.x, wp.y, ENEMY_EMOJI[type], {
+      fontFamily: 'monospace', fontSize: ENEMY_FONT[type],
+    }).setOrigin(0.5) as unknown as Enemy;
     enemy.id = this._nextEnemyId++;
     enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
     enemy.waypointIndex = (wpIdx + 1) % waypoints.length;
@@ -141,7 +159,7 @@ export class EnemyRenderer {
       const barW = e.isBoss ? 44 : e.enemyType === 'TANK' ? 30 : 20;
       const barH = e.isBoss ? 5 : e.enemyType === 'TANK' ? 4 : 3;
       const bx = e.x - barW / 2;
-      const by = e.y - e.displayHeight / 2 - 5;
+      const by = e.y - (e.displayHeight / 2) - 5;
       this.hpBarGraphics.fillStyle(0x333333);
       this.hpBarGraphics.fillRect(bx, by, barW, barH);
       const pct = Math.max(0, e.hp / e.maxHp);
@@ -171,7 +189,6 @@ export class EnemyRenderer {
       if (enemy) enemy.hp = hp;
     }
 
-    // Gimmick: Cannon_Shooter — 넉백 적용
     for (const { id, dx, dy } of result.knockbacks) {
       const enemy = this.enemyMap.get(id);
       if (enemy) {
@@ -181,14 +198,17 @@ export class EnemyRenderer {
     }
 
     let bossKilled = false;
+    let hadKills = false;
     for (const id of result.killedIds) {
       const enemy = this.enemyMap.get(id);
       if (enemy) {
         if (enemy.isBoss) bossKilled = true;
+        hadKills = true;
         enemy.destroy();
         this.enemyMap.delete(id);
       }
     }
+    if (hadKills) this.sfx?.playSFX('kill');
     if (bossKilled && !this.state.isPaused) this.onBossKilled();
 
     if (result.attacks.length > 0) {
@@ -199,16 +219,20 @@ export class EnemyRenderer {
         this.flashGraphics.moveTo(atk.unitX, atk.unitY);
         this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
         this.flashGraphics.strokePath();
-        if (atk.isCrit) {
-          const critText = this.scene.add.text(atk.enemyX, atk.enemyY - 10, 'CRIT!', {
-            fontFamily: 'monospace', fontSize: '13px', color: '#ff2222',
-          }).setOrigin(0.5).setDepth(4);
+        if (atk.damage > 0) {
+          const jitter = Phaser.Math.Between(-5, 5);
+          const label = atk.isCrit ? `${atk.damage}!` : String(atk.damage);
+          const color = atk.isCrit ? '#ffaa22' : '#ffffff';
+          const fontSize = atk.isCrit ? '14px' : '11px';
+          const dmgText = this.scene.add.text(atk.enemyX + jitter, atk.enemyY - 8, label, {
+            fontFamily: 'monospace', fontSize, color,
+          }).setOrigin(0.5).setDepth(5);
           this.scene.tweens.add({
-            targets: critText,
-            y: atk.enemyY - 40,
+            targets: dmgText,
+            y: atk.enemyY - 38,
             alpha: 0,
-            duration: 700,
-            onComplete: () => critText.destroy(),
+            duration: 650,
+            onComplete: () => dmgText.destroy(),
           });
         }
       }

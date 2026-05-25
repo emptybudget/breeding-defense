@@ -1,9 +1,28 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-23 (P0 UX 3개 완료)
+> 마지막 갱신: 2026-05-25 (데미지 숫자 표기 + 보스 속전속결 + HUD 타이머 색 전환 + 합성 콤보 보너스)
 
 ## ✅ 최근 완료 작업
+
+### 2026-05-25 — 재미요소 4개 추가
+
+| 기능 | 구현 내용 | 파일 |
+|---|---|---|
+| 데미지 숫자 표기 | 적 피격 시 데미지 숫자 플로팅 (흰색/오렌지 크리티컬 `!`), 지터 오프셋으로 중첩 방지 | `types.ts`, `combat.ts`, `EnemyRenderer.ts` |
+| 보스 속전속결 보너스 | 2번째 보스부터 스테이지별 제한시간(S1:10s/S2:13s/S3:16s) 내 처치 → 카드+1장 + HUD 카운트다운 | `config.ts`, `GameState.ts`, `GameScene.ts` |
+| HUD 타이머 색 전환 | 남은 시간 3분 이하→노랑, 1분 이하→빨강 (playing 페이즈만) | `HudRenderer.ts` |
+| 합성 콤보 보너스 | 30초 내 2연속 합성 → +15G, 3연속 → +30G 알림 | `GameState.ts` |
+
+### 2026-05-25 — 배경음/효과음/적 이모지/스테이지 2,3
+
+| 기능 | 구현 내용 | 파일 |
+|---|---|---|
+| 배경음 (BGM) | Web Audio API 앰비언트 드론+코드 루프 (Am), LFO 트레몰로 | `SoundManager.ts` (신규) |
+| 효과음 (SFX) | 처치(pop), 합성(arpeggio), 교배(화음), 보스(경고음), 오버클록(surge), 게임오버(하강), 승리(팡파레) | `SoundManager.ts`, `EnemyRenderer.ts`, `DragController.ts`, `GameScene.ts` |
+| 적 이모지 다양화 | NORMAL 👾 / FAST 🐝 / TANK 🐢 / BOSS 👺 (사각형 → 이모지 Text 오브젝트) | `EnemyRenderer.ts` |
+| 스테이지 2 | 🏜️ FAST 65% / TANK 2분부터 / 보스HP×18 / 스폰주기 5.2초 — 별 3개 잠금해제 | `config.ts`, `StageSelectScene.ts` |
+| 스테이지 3 | 🌋 FAST 55% / TANK 1분부터 / 보스HP×22 / 스폰주기 4초 — 별 9개 잠금해제 | `config.ts`, `StageSelectScene.ts` |
 
 ### 재미 증대 1순위 3개
 
@@ -21,23 +40,20 @@
 | P0-2: 승리 결과 요약 | Victory 팝업에 ⭐⭐⭐ +3 별 강조 + 생존 시간 표시 | `PopupRenderer.ts` |
 | P0-3: 소환 비용 MAX 표시 | 30G 상한 도달 시 소환 버튼 `소환 (MAX)` 표시 | `HudRenderer.ts` |
 
-## 🚨 다음 작업 — P1 UX 기본 + 재미 증대 2순위
+## ✅ 완료 — P1 UX 기본 3개 (2026-05-25)
 
-### P1 (테스트 전 강력 권고)
+| # | 기능 | 구현 내용 | 파일 |
+|---|---|---|---|
+| P1-1 | 레시피 북 버튼 | 상단 HUD 📖 버튼 → 일시정지 + 전체 합성 트리 팝업 (1→2→3→4티어) | `HudRenderer.ts`, `PopupRenderer.ts`, `unitHelpers.ts` |
+| P1-2 | 합성 조건 튜토리얼 보완 | 튜토리얼에 2티어→3티어, 3티어→4티어, 유닛탭/더블탭 안내 추가 | `PopupRenderer.ts` |
+| P1-3 | 소환 FULL 비활성화 | units >= maxUnits 시 소환 버튼 회색 + '소환 (FULL)' 표시 | `HudRenderer.ts` |
 
-| # | 기능 | 파일 |
-|---|---|---|
-| P1-1 | **레시피 북 버튼** (전체 합성 트리 팝업, 탭 시 일시정지) | `HudRenderer.ts`, `PopupRenderer.ts` |
-| P1-2 | **2~4티어 합성 조건 튜토리얼** (튜토리얼 오버레이 보완) | `PopupRenderer.ts` |
-| P1-3 | **UNIT CAP 꽉 찼을 때 소환 버튼 시각적 비활성화** | `HudRenderer.ts` |
+### 2순위 재미 요소 (기존 후보 C/H/E ✅, D 보류)
 
-### 2순위 재미 요소 (기존 후보 C/H ✅, F/D/E 미완)
-
-| # | 기능 | 박자 |
-|---|---|---|
-| F | 잘못된 합성 시 "분해?" 팝업 → 골드 환급 | Grind |
-| D | 티어별 킬 카운터 + 보너스 골드 | Grind |
-| E | 보스 10초 내 처치 → 보상 카드 +1장 | Grind+Pop |
+| # | 기능 | 박자 | 상태 |
+|---|---|---|---|
+| E | 보스 속전속결 → 보상 카드 +1장 | Grind+Pop | ✅ 완료 |
+| D | 티어별 킬 카운터 + 보너스 골드 | Grind | 보류 (피드백 후) |
 
 ---
 
@@ -162,6 +178,7 @@ breeding-defense/
         │   ├── UnitRenderer.ts
         │   ├── PopupRenderer.ts
         │   └── NotificationRenderer.ts
+        ├── SoundManager.ts          # Web Audio API BGM + SFX (신규 2026-05-25)
         └── input/
             └── DragController.ts
 ```
@@ -314,7 +331,7 @@ breeding-defense/
 | SP / 스킬 | 추후 (사용 가능한 스킬 도입 시점에 같이) |
 | 시너지 | 도입 — 메뉴 영구 업그레이드로 해금 |
 | 메타프로그레션 | 메뉴 영구 업그레이드 트리 (시너지 / 패시브 / 유닛 해금) |
-| 스테이지 | 도입 필수 — 스테이지마다 다른 적/필드 (척추) — Stage 1만 구현됨 |
+| 스테이지 | Stage 1/2/3 구현 (2026-05-25). Stage2: FAST↑ TANK2분, Stage3: TANK1분/보스HP22× |
 | 고티어 선택권 | 부분 — 레시피 팝업으로 "어떤 조합이 뭐 되나" 공개 |
 
 ### 미결정 (다음 출퇴근 토픽 후보)
@@ -346,7 +363,6 @@ breeding-defense/
 |---|---|---|---|---|
 | C | ~~웨이브 예고창 (다음 BOSS 예고 1줄)~~ **✅ 완료** — 보스 5초 전 하단 알림 | 히랜디 | Plan | `GameState.ts`, `GameScene.ts` |
 | H | ~~킬 스트릭: 1초 내 5킬 → +10G~~ **✅ 완료** — 🔥 킬 스트릭! +10G 알림 | VS | Pop | `GameState.ts`, `GameScene.ts` |
-| F | 잘못된 합성 시 "분해?" 팝업 → 골드 일부 환급 | 히랜디 | Grind | 레시피 없는 조합 차단 → 분해 선택지로 교체 |
 | D | 티어별 킬 카운터 + 보너스 골드 (2티어 50킬 → +30G) | 히랜디 | Grind | 단순 HUD 1줄 |
 | E | 보스 10초 이내 처치 → 보상 카드 +1장 | 운빨존많겜 | Grind+Pop | 첫 보스는 타임 보너스 없이 |
 
@@ -364,7 +380,7 @@ breeding-defense/
 | # | 기능 | 출처 | 박자 | 비고 |
 |---|---|---|---|---|
 | M | 스테이지별 필드 기믹 (Stage 2 = 트랙 2줄 분기 등) | Legion TD | Plan+Loop | 스테이지 시스템 확장과 묶어서 |
-| N | 오버클록 진입 시 BGM 전환 | VS | Loop | 사운드 에셋 도입 후 1순위 |
+| N | ~~오버클록 진입 시 BGM 전환~~ **✅ 완료** — BGM+SFX 전체 시스템 구현 (Web Audio API) | VS | Loop | `SoundManager.ts` |
 | O | 유닛 공격 누적 → 레벨업 (dmg +20%) | Merge Mansion | Grind | UnitData 구조 변경 필요 |
 
 ---

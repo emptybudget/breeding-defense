@@ -64,7 +64,7 @@ export function runCombat(
       consumedMineIds.push(mine.id);
       const newHp = (liveHp.get(e.id) ?? e.hp) - mine.damage;
       liveHp.set(e.id, newHp);
-      attacks.push({ unitX: mine.x, unitY: mine.y, enemyX: e.x, enemyY: e.y, isCrit: false });
+      attacks.push({ unitX: mine.x, unitY: mine.y, enemyX: e.x, enemyY: e.y, isCrit: false, damage: mine.damage });
       if (newHp <= 0) { killedSet.add(e.id); killRewards.push(e.killReward); }
       break;
     }
@@ -111,7 +111,7 @@ export function runCombat(
       // Gimmick: Menhera_Squirrel — place mine at target position, no direct damage
       if (unit.race === 'Menhera_Squirrel') {
         newMinePositions.push({ x: target.x, y: target.y });
-        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit: false });
+        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit: false, damage: 0 });
         continue;
       }
 
@@ -125,7 +125,7 @@ export function runCombat(
         if (Math.random() < doubleAttackProbability) finalDmg *= 2;
         const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
         liveHp.set(target.id, newHp);
-        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit });
+        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit, damage: finalDmg });
         if (newHp <= 0) {
           killedSet.add(target.id);
           killRewards.push(target.killReward);
@@ -146,7 +146,7 @@ export function runCombat(
             if (Math.hypot(splash.x - target.x, splash.y - target.y) > GATLING_DOG_SPLASH_RADIUS) continue;
             const splashHp = (liveHp.get(splash.id) ?? splash.hp) - splashDmg;
             liveHp.set(splash.id, splashHp);
-            attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: splash.x, enemyY: splash.y, isCrit: false });
+            attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: splash.x, enemyY: splash.y, isCrit: false, damage: splashDmg });
             if (splashHp <= 0) { killedSet.add(splash.id); killRewards.push(splash.killReward); }
           }
         }
@@ -168,7 +168,7 @@ export function runCombat(
             chained.add(next.id);
             const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
             liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false });
+            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false, damage: chainDmg });
             if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
             chainSrc = next;
           }
@@ -191,7 +191,7 @@ export function runCombat(
             chained.add(next.id);
             const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
             liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false });
+            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: false, damage: chainDmg });
             if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1); }
             chainSrc = next;
           }
@@ -219,7 +219,7 @@ export function runCombat(
             chained.add(next.id);
             const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
             liveHp.set(next.id, chainHp);
-            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: true });
+            attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: true, damage: chainDmg });
             if (chainHp <= 0) { killedSet.add(next.id); killRewards.push(next.killReward); }
             chainSrc = next;
           }

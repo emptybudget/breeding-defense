@@ -12,6 +12,7 @@ import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../game/types';
 import { NotificationRenderer } from '../render/NotificationRenderer';
 import { PopupRenderer } from '../render/PopupRenderer';
 import { UnitRenderer } from '../render/UnitRenderer';
+import { SoundManager } from '../SoundManager';
 
 export class DragController {
   private scene: Phaser.Scene;
@@ -19,6 +20,7 @@ export class DragController {
   private unitRenderer: UnitRenderer;
   private notificationRenderer: NotificationRenderer;
   private popupRenderer: PopupRenderer;
+  private sfx?: SoundManager;
 
   private dragStartX = 0;
   private dragStartY = 0;
@@ -31,12 +33,14 @@ export class DragController {
     unitRenderer: UnitRenderer,
     notificationRenderer: NotificationRenderer,
     popupRenderer: PopupRenderer,
+    sfx?: SoundManager,
   ) {
     this.scene = scene;
     this.state = state;
     this.unitRenderer = unitRenderer;
     this.notificationRenderer = notificationRenderer;
     this.popupRenderer = popupRenderer;
+    this.sfx = sfx;
   }
 
   register(): void {
@@ -210,6 +214,7 @@ export class DragController {
         this.unitRenderer.removeStaleUnits(this.state.units.map(u => u.id));
         this.unitRenderer.addUnit(result);
         this.showSynthesisEffect(result.tier);
+        this.sfx?.playSFX('synth');
       } else if (this.state.pendingNotification) {
         this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;
@@ -229,6 +234,7 @@ export class DragController {
         this.unitRenderer.removeUnit(targetId);
         this.unitRenderer.addUnit(result);
         this.showSynthesisEffect(result.tier);
+        this.sfx?.playSFX('synth');
       } else if (this.state.pendingNotification) {
         this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;
@@ -249,13 +255,13 @@ export class DragController {
     if (sameCategory) {
       const started = this.state.startBreeding(droppedId, targetId);
       if (started) {
-        // Snap droppedUnit next to target (밀착 연출)
         const snapX = Math.min(this.state.unitZone.x2, targetUnit.x + 18);
         const snapY = targetUnit.y;
         this.state.moveUnit(droppedId, snapX, snapY);
         go.setPosition(snapX, snapY);
         this.unitRenderer.getRangeCircle(droppedId)?.setPosition(snapX, snapY);
         this.unitRenderer.startBreedingEffect(droppedId, targetId);
+        this.sfx?.playSFX('breed');
       }
     } else {
       const result = this.state.synthesize(droppedId, targetId);
@@ -263,6 +269,7 @@ export class DragController {
         this.unitRenderer.removeUnit(droppedId);
         this.unitRenderer.removeUnit(targetId);
         this.unitRenderer.addUnit(result);
+        this.sfx?.playSFX('synth');
       } else if (this.state.pendingNotification) {
         this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
         this.state.pendingNotification = null;

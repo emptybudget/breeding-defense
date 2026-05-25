@@ -157,3 +157,19 @@ export const BERSERK_SHAMAN_AURA_BUFF = 0.4;   // +40% attack speed
 export const ASTRAL_GOD_CHAIN_COUNT = 4;
 export const ASTRAL_GOD_CHAIN_MULT = 0.9;
 export const ASTRAL_GOD_CHAIN_RANGE = 160;
+
+// Stage system
+export type StageId = 1 | 2 | 3;
+export interface StageConfig {
+  name: string;
+  fastRatio: number;         // probability of spawning FAST over NORMAL
+  tankStartMs: number;       // when TANKs start appearing
+  bossHpMult: number;        // boss HP multiplier
+  spawnIntervalBase: number; // base enemy spawn interval (ms)
+  bossTimeLimitMs: number;   // fast-kill bonus time limit per stage
+}
+export const STAGE_CONFIGS: Record<StageId, StageConfig> = {
+  1: { name: '🌿 스테이지 1', fastRatio: 0.5,  tankStartMs: 3 * 60 * 1000, bossHpMult: 15, spawnIntervalBase: 6500, bossTimeLimitMs: 10000 },
+  2: { name: '🏜️ 스테이지 2', fastRatio: 0.65, tankStartMs: 2 * 60 * 1000, bossHpMult: 18, spawnIntervalBase: 5200, bossTimeLimitMs: 13000 },
+  3: { name: '🌋 스테이지 3', fastRatio: 0.55, tankStartMs: 60 * 1000,      bossHpMult: 22, spawnIntervalBase: 4000, bossTimeLimitMs: 16000 },
+};
