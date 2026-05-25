@@ -1,9 +1,31 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-25 (데미지 숫자 표기 + 보스 속전속결 + HUD 타이머 색 전환 + 합성 콤보 보너스)
+> 마지막 갱신: 2026-05-25 (소리 ON/OFF + 스폰 버그 수정 + 별→보석 통합)
 
 ## ✅ 최근 완료 작업
+
+### 2026-05-25 — 소리 ON/OFF + 스폰 버그 + 별→보석 통합
+
+| 기능 | 구현 내용 | 파일 |
+|---|---|---|
+| 소리 ON/OFF | `SoundManager.toggleMute()` + 일시정지 팝업 🔊/🔇 버튼 추가 | `SoundManager.ts`, `PopupRenderer.ts`, `GameScene.ts` |
+| 유닛 트랙 스폰 버그 | 소환 시 트랙 세그먼트 22px 이내면 최대 20회 재시도 (`_distToSeg` + `_onTrack`) | `GameState.ts` |
+| 별→보석 통합 | 승리 시 💎+1 (별 폐지), 스테이지3 해금 💎3 소비, 영구강화 💎1/Lv | `MetaProgress.ts`, `config.ts`, `StageSelectScene.ts`, `GameScene.ts`, `PopupRenderer.ts` |
+| 메타 마이그레이션 | `localStorage`의 `stars` 필드를 `gems`로 자동 변환 | `MetaProgress.ts` |
+
+### 2026-05-25 — 아르누보 × 도트게임 UI 스타일
+
+| 영역 | 변경 내용 | 파일 |
+|---|---|---|
+| 팔레트 + 헬퍼 | `AN` (hex 숫자) / `ANS` (hex 문자열) 상수, `drawHudBar` / `drawPanelAt` / `drawDivider` 함수 | `artnouveau.ts` (신규) |
+| HUD 바 | 검정→다크올리브, 3px 황금 상하 테두리, 덩굴(줄기+잎 원+금 버드) 양끝 장식 | `HudRenderer.ts` |
+| 팝업 전체 | 검정→딥포레스트, 3px 황금 외곽+1px 내부 보더, L자 코너 브라켓 장식 | `PopupRenderer.ts` |
+| 텍스트 | 흰색→크림 `#f0e8c8`, 회색→파치먼트 `#c8b97a`, 청록 보석, 바인 그린 유닛 수 | 전 씬 |
+| 타이틀 | 배경 딥포레스트, 타이틀 AN 패널 프레임, 바인 도트 장식 | `TitleScene.ts` |
+| 스테이지 선택 | 배경 딥포레스트, 금색 구분선, 버튼/카드 AN 배색 | `StageSelectScene.ts` |
+| 트랙 | `0x333333`→`0x2a2818` (다크 올리브 그레이) | `GameScene.ts` |
+| 배경 | `#060612`→`#0d0c08` (약간 따뜻한 다크) | `main.ts` |
 
 ### 2026-05-25 — 재미요소 4개 추가
 

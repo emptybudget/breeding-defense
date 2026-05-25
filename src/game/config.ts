@@ -130,13 +130,15 @@ export const VICTORY_TIME_MS = 7 * 60 * 1000; // 7:00
 export const CRIT_DAMAGE_MULT = 1.5;
 
 // Meta-progression shop
-export const META_STARS_PER_VICTORY = 3;
+export const META_GEMS_PER_VICTORY = 1;
+/** 스테이지 해금 보석 비용 (소비형) */
+export const STAGE_UNLOCK_GEM_COST: Record<number, number> = { 1: 0, 2: 0, 3: 3 };
 
 export const META_UPGRADES = {
-  startingGold: { maxLevel: 3, costs: [5, 8, 12], effectPer: 20, label: '시작 골드', emoji: '💰', desc: '+20G/Lv' },
-  summonCost:   { maxLevel: 2, costs: [6, 10],    effectPer: 1,  label: '소환 비용', emoji: '🔽', desc: '-1비용/Lv' },
-  unitCap:      { maxLevel: 2, costs: [8, 15],    effectPer: 1,  label: '유닛 한도', emoji: '🏠', desc: '+1칸/Lv' },
-  autoGold:     { maxLevel: 2, costs: [7, 12],    effectPer: 1,  label: '자동 골드', emoji: '⚡', desc: '+1/초/Lv' },
+  startingGold: { maxLevel: 3, costs: [1, 1, 1], effectPer: 20, label: '시작 골드', emoji: '💰', desc: '+20G/Lv' },
+  summonCost:   { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '소환 비용', emoji: '🔽', desc: '-1비용/Lv' },
+  unitCap:      { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '유닛 한도', emoji: '🏠', desc: '+1칸/Lv' },
+  autoGold:     { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '자동 골드', emoji: '⚡', desc: '+1/초/Lv' },
 };
 
 export type UpgradeKey = keyof typeof META_UPGRADES;

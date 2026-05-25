@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, META_STARS_PER_VICTORY } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y } from './constants';
@@ -71,7 +71,7 @@ export class GameScene extends Phaser.Scene {
 
     // Track (dynamic polygon each game)
     const g = this.add.graphics();
-    g.lineStyle(36, 0x333333, 1);
+    g.lineStyle(36, 0x2a2818, 1);
     const wp = this.state.trackWaypoints;
     g.beginPath();
     g.moveTo(wp[0].x, wp[0].y);
@@ -150,7 +150,7 @@ export class GameScene extends Phaser.Scene {
     if (this.isPhase('victory')) {
       if (!this.popupRenderer.hasVictoryPopup) {
         if (!this.starsAwarded) {
-          this.metaProgress.addStars(META_STARS_PER_VICTORY);
+          this.metaProgress.addGems(1);
           this.starsAwarded = true;
         }
         this.sfx.playSFX('victory');
@@ -245,6 +245,7 @@ export class GameScene extends Phaser.Scene {
     this.popupRenderer.showPause(
       () => { this.state.isPaused = false; },
       () => { this.scene.start('StageSelectScene'); },
+      { muted: () => this.sfx.muted, toggle: () => this.sfx.toggleMute() },
     );
   }
 

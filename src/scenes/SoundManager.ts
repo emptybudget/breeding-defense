@@ -27,10 +27,20 @@ const MELODY = [
   523.3, 392,   329.6, 261.6, // bar8: C G E C  ← resolve low
 ];
 
+const BGM_GAIN = 0.06;
+
 export class SoundManager {
   private ctx: AudioContext | null = null;
   private bgmMaster: GainNode | null = null;
   private bgmLoopTimeout: ReturnType<typeof setTimeout> | null = null;
+  private _muted = false;
+
+  get muted(): boolean { return this._muted; }
+
+  toggleMute(): void {
+    this._muted = !this._muted;
+    if (this.bgmMaster) this.bgmMaster.gain.value = this._muted ? 0 : BGM_GAIN;
+  }
 
   private getCtx(): AudioContext {
     if (!this.ctx) this.ctx = new AudioContext();
@@ -42,7 +52,7 @@ export class SoundManager {
     const ctx = this.getCtx();
     this.stopBGM();
     const master = ctx.createGain();
-    master.gain.value = 0.06;
+    master.gain.value = this._muted ? 0 : BGM_GAIN;
     master.connect(ctx.destination);
     this.bgmMaster = master;
     this.scheduleBGMLoop(ctx, master, ctx.currentTime + 0.05);
@@ -118,6 +128,7 @@ export class SoundManager {
   // ─── SFX ─────────────────────────────────────────────────────────────────
 
   playSFX(type: SFXType): void {
+    if (this._muted) return;
     try {
       const ctx = this.getCtx();
       switch (type) {

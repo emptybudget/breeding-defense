@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../game/co
 import { GameState } from '../../game/GameState';
 import { HybridRace, Reward, Tier1Race, Tier3Race, UnitData } from '../../game/types';
 import { ASTRAL_GOD_RECIPE, HYBRID_RACES, TIER1_RACES, getTier2Recipes, getTier3Recipes } from '../../game/unitHelpers';
+import { ANS, drawDivider, drawPanelAt } from '../artnouveau';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../constants';
 
 export class PopupRenderer {
@@ -80,7 +81,7 @@ export class PopupRenderer {
     const text = this.scene.add.text(CENTER_X, CENTER_Y - 10, lines.join('\n'), {
       fontFamily: 'monospace',
       fontSize: '14px',
-      color: '#ffffff',
+      color: ANS.CREAM,
       align: 'center',
       lineSpacing: 7,
     }).setOrigin(0.5).setDepth(31);
@@ -100,14 +101,23 @@ export class PopupRenderer {
 
   // ── Pause ─────────────────────────────────────────────────────────────────
 
-  showPause(onResume: () => void, onQuit: () => void): void {
+  showPause(
+    onResume: () => void,
+    onQuit: () => void,
+    sound: { muted: () => boolean; toggle: () => void },
+  ): void {
     if (this.pauseContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 290, 270, 0x000000, 0.92);
 
-    const title = this.scene.add.text(0, -110, '⏸  일시정지', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffffff',
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 290, 318);
+
+    const divGfx = this.scene.add.graphics();
+    drawDivider(divGfx, -120, -108, 240);
+
+    const title = this.scene.add.text(0, -130, '⏸  일시정지', {
+      fontFamily: 'monospace', fontSize: '20px', color: ANS.GOLD,
     }).setOrigin(0.5);
 
     const stats = [
@@ -118,14 +128,14 @@ export class PopupRenderer {
       `보유 보석 : 💎 ${this.state.gems}`,
     ].join('\n');
 
-    const statsText = this.scene.add.text(0, -30, stats, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#cccccc',
+    const statsText = this.scene.add.text(0, -48, stats, {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.PARCH,
       align: 'left', lineSpacing: 8,
     }).setOrigin(0.5);
 
-    const resumeBtn = this.scene.add.text(-68, 90, '  ▶ 계속하기  ', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 10, y: 8 },
+    const resumeBtn = this.scene.add.text(-68, 80, '  ▶ 계속하기  ', {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
+      backgroundColor: '#2a3a1e', padding: { x: 10, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     resumeBtn.on('pointerdown', () => {
       container.destroy();
@@ -133,9 +143,9 @@ export class PopupRenderer {
       onResume();
     });
 
-    const quitBtn = this.scene.add.text(72, 90, '  🚪 종료  ', {
+    const quitBtn = this.scene.add.text(72, 80, '  🚪 종료  ', {
       fontFamily: 'monospace', fontSize: '14px', color: '#ffaaaa',
-      backgroundColor: '#442222', padding: { x: 10, y: 8 },
+      backgroundColor: '#3a1a1a', padding: { x: 10, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     quitBtn.on('pointerdown', () => {
       container.destroy();
@@ -143,7 +153,18 @@ export class PopupRenderer {
       onQuit();
     });
 
-    container.add([bg, title, statsText, resumeBtn, quitBtn]);
+    // Sound toggle button
+    const muteLabel = () => sound.muted() ? '🔇 소리 OFF' : '🔊 소리 ON';
+    const muteBtn = this.scene.add.text(0, 130, muteLabel(), {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
+      backgroundColor: '#2a2418', padding: { x: 16, y: 8 },
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    muteBtn.on('pointerdown', () => {
+      sound.toggle();
+      muteBtn.setText(muteLabel());
+    });
+
+    container.add([bgGfx, divGfx, title, statsText, resumeBtn, quitBtn, muteBtn]);
     this.pauseContainer = container;
   }
 
@@ -225,20 +246,21 @@ export class PopupRenderer {
     }
 
     const bgH = 60 + lines.length * 22;
-    const bg = this.scene.add.rectangle(0, 0, 270, bgH, 0x111133, 0.97);
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 270, bgH);
 
     const closeBtn = this.scene.add.text(110, -(bgH / 2) + 14, ' X ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#443333', padding: { x: 6, y: 3 },
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+      backgroundColor: '#3a2020', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', close);
 
     const content = this.scene.add.text(0, 8, lines.join('\n'), {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
       align: 'center', lineSpacing: 6,
     }).setOrigin(0.5);
 
-    container.add([bg, closeBtn, content]);
+    container.add([bgGfx, closeBtn, content]);
   }
 
   // ── Recipe Book ───────────────────────────────────────────────────────────
@@ -259,7 +281,6 @@ export class PopupRenderer {
     };
     dim.on('pointerdown', close);
 
-    // Build lines dynamically from recipe data
     const tier1to2: string[] = [];
     const seen2 = new Set<string>();
     for (const race of TIER1_RACES) {
@@ -297,20 +318,21 @@ export class PopupRenderer {
     ];
 
     const bgH = lines.length * 15 + 52;
-    const bg = this.scene.add.rectangle(0, 0, 270, bgH, 0x111133, 0.97);
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 270, bgH);
 
     const closeBtn = this.scene.add.text(110, -(bgH / 2) + 14, ' X ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#443333', padding: { x: 6, y: 3 },
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+      backgroundColor: '#3a2020', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', close);
 
     const content = this.scene.add.text(-120, -(bgH / 2) + 30, lines.join('\n'), {
-      fontFamily: 'monospace', fontSize: '11px', color: '#ffffff',
+      fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
       align: 'left', lineSpacing: 4,
     }).setOrigin(0, 0);
 
-    container.add([bg, closeBtn, content]);
+    container.add([bgGfx, closeBtn, content]);
   }
 
   // ── Game Over ─────────────────────────────────────────────────────────────
@@ -319,37 +341,43 @@ export class PopupRenderer {
     if (this.gameOverContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 290, 280, 0x000000, 0.88);
+
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 290, 280);
+
+    const divGfx = this.scene.add.graphics();
+    drawDivider(divGfx, -120, -82, 240);
+
     const title = this.scene.add.text(0, -110, 'GAME OVER', {
       fontFamily: 'monospace', fontSize: '24px', color: '#ff5555',
     }).setOrigin(0.5);
 
-    const timeText = this.scene.add.text(0, -70, `생존 시간: ${this.state.formatTimer()}`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa',
+    const timeText = this.scene.add.text(0, -62, `생존 시간: ${this.state.formatTimer()}`, {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.PARCH,
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(0, -28, '  다시하기  ', {
-      fontFamily: 'monospace', fontSize: '15px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 14, y: 9 },
+    const restartBtn = this.scene.add.text(0, -20, '  다시하기  ', {
+      fontFamily: 'monospace', fontSize: '15px', color: ANS.CREAM,
+      backgroundColor: '#2a3a1e', padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.onRestart(); });
 
     const hasGems = this.state.gems > 0;
-    const gemBtn = this.scene.add.text(0, 38, `  보석(${this.state.gems})로 이어하기  `, {
+    const gemBtn = this.scene.add.text(0, 46, `  보석(${this.state.gems})로 이어하기  `, {
       fontFamily: 'monospace', fontSize: '14px',
-      color: hasGems ? '#ffffff' : '#666666',
-      backgroundColor: hasGems ? '#334455' : '#222222',
+      color: hasGems ? ANS.CREAM : ANS.DIM,
+      backgroundColor: hasGems ? '#1e3040' : '#1a1a14',
       padding: { x: 14, y: 9 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
     if (hasGems) gemBtn.on('pointerdown', () => { this.onGemContinue(); });
 
-    const stageBtn = this.scene.add.text(0, 105, '스테이지 선택으로 돌아가기', {
-      fontFamily: 'monospace', fontSize: '12px', color: '#aaaaaa',
-      backgroundColor: '#1a1a1a', padding: { x: 10, y: 7 },
+    const stageBtn = this.scene.add.text(0, 110, '스테이지 선택으로 돌아가기', {
+      fontFamily: 'monospace', fontSize: '12px', color: ANS.PARCH,
+      backgroundColor: '#1a1a0e', padding: { x: 10, y: 7 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     stageBtn.on('pointerdown', () => { this.onStageSelect(); });
 
-    container.add([bg, title, timeText, restartBtn, gemBtn, stageBtn]);
+    container.add([bgGfx, divGfx, title, timeText, restartBtn, gemBtn, stageBtn]);
     this.gameOverContainer = container;
   }
 
@@ -364,29 +392,38 @@ export class PopupRenderer {
     if (this.victoryContainer) return;
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
-    const bg = this.scene.add.rectangle(0, 0, 310, 270, 0x000000, 0.92);
-    const title = this.scene.add.text(0, -115, '🏆 VICTORY 🏆', {
-      fontFamily: 'monospace', fontSize: '22px', color: '#ffd700', align: 'center',
+
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 310, 270);
+
+    const divGfx = this.scene.add.graphics();
+    drawDivider(divGfx, -130, -82, 260);
+
+    const title = this.scene.add.text(0, -110, '🏆 VICTORY 🏆', {
+      fontFamily: 'monospace', fontSize: '22px', color: ANS.GOLD_TEXT, align: 'center',
     }).setOrigin(0.5);
-    const stars = this.scene.add.text(0, -78, '⭐⭐⭐  +3', {
-      fontFamily: 'monospace', fontSize: '20px', color: '#ffd700', align: 'center',
+
+    const gemReward = this.scene.add.text(0, -73, '💎 +1 보석 획득!', {
+      fontFamily: 'monospace', fontSize: '18px', color: ANS.TEAL, align: 'center',
     }).setOrigin(0.5);
-    const timeText = this.scene.add.text(0, -44, `생존 시간: ${this.state.formatTimer()}`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaaaaa', align: 'center',
+
+    const timeText = this.scene.add.text(0, -42, `생존 시간: ${this.state.formatTimer()}`, {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.PARCH, align: 'center',
     }).setOrigin(0.5);
-    const gemInfo = this.scene.add.text(0, -16, `보석 +1 획득! 현재 💎 ${this.state.gems}개`, {
-      fontFamily: 'monospace', fontSize: '14px', color: '#aaddff', align: 'center',
+
+    const gemInfo = this.scene.add.text(0, -16, `현재 💎 ${this.state.gems}개`, {
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.PARCH, align: 'center',
     }).setOrigin(0.5);
 
     const restartBtn = this.scene.add.text(-95, 42, ' 다시하기 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#334433', padding: { x: 8, y: 8 },
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+      backgroundColor: '#2a3a1e', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     restartBtn.on('pointerdown', () => { this.onRestart(); });
 
     const infiniteBtn = this.scene.add.text(0, 42, ' 무한 모드 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#334455', padding: { x: 8, y: 8 },
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+      backgroundColor: '#1e3040', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     infiniteBtn.on('pointerdown', () => {
       container.destroy();
@@ -395,12 +432,12 @@ export class PopupRenderer {
     });
 
     const menuBtn = this.scene.add.text(95, 42, ' 스테이지선택 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff',
-      backgroundColor: '#333355', padding: { x: 8, y: 8 },
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+      backgroundColor: '#202038', padding: { x: 8, y: 8 },
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     menuBtn.on('pointerdown', () => { this.onStageSelect(); });
 
-    container.add([bg, title, stars, timeText, gemInfo, restartBtn, infiniteBtn, menuBtn]);
+    container.add([bgGfx, divGfx, title, gemReward, timeText, gemInfo, restartBtn, infiniteBtn, menuBtn]);
     this.victoryContainer = container;
   }
 
@@ -417,23 +454,28 @@ export class PopupRenderer {
       .setDepth(15);
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(16);
-    const bg = this.scene.add.rectangle(0, 0, 326, 230, 0x111122, 0.96);
+
+    const bgGfx = this.scene.add.graphics();
+    drawPanelAt(bgGfx, 326, 230);
+
+    const divGfx = this.scene.add.graphics();
+    drawDivider(divGfx, -140, -68, 280);
 
     const title = this.scene.add.text(0, -95, '⚔️ 보스 처치!\n보상을 선택하세요', {
-      fontFamily: 'monospace', fontSize: '14px', color: '#ffd700', align: 'center',
+      fontFamily: 'monospace', fontSize: '14px', color: ANS.GOLD_TEXT, align: 'center',
     }).setOrigin(0.5);
 
     const rewards = this.allRewards.slice(0, count);
     const xPositions = count === 2 ? [-82, 82] : [-115, 0, 115];
 
     const cards = rewards.map((reward, i) => {
-      const card = this.scene.add.text(xPositions[i], 10, reward.label, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#ffffff',
-        backgroundColor: '#1a3355', padding: { x: 10, y: 16 },
+      const card = this.scene.add.text(xPositions[i], 16, reward.label, {
+        fontFamily: 'monospace', fontSize: '12px', color: ANS.CREAM,
+        backgroundColor: '#1e2840', padding: { x: 10, y: 16 },
         align: 'center',
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      card.on('pointerover', () => card.setStyle({ backgroundColor: '#2a5588' }));
-      card.on('pointerout', () => card.setStyle({ backgroundColor: '#1a3355' }));
+      card.on('pointerover', () => card.setStyle({ backgroundColor: '#2a3860' }));
+      card.on('pointerout', () => card.setStyle({ backgroundColor: '#1e2840' }));
       card.on('pointerdown', () => {
         this.state.applyReward(reward.type);
         this.closeReward();
@@ -441,12 +483,12 @@ export class PopupRenderer {
       return card;
     });
 
-    const items: Phaser.GameObjects.GameObject[] = [bg, title, ...cards];
+    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, ...cards];
 
     if (count === 2 && this.state.gems > 0) {
       const expandBtn = this.scene.add.text(0, 100, `💎 선택지 추가 (보석 ${this.state.gems}개)`, {
-        fontFamily: 'monospace', fontSize: '12px', color: '#aaddff',
-        backgroundColor: '#113344', padding: { x: 12, y: 8 },
+        fontFamily: 'monospace', fontSize: '12px', color: ANS.TEAL,
+        backgroundColor: '#102030', padding: { x: 12, y: 8 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
       expandBtn.on('pointerdown', () => {
         if (this.state.gems <= 0) return;

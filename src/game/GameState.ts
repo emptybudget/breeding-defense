@@ -146,6 +146,25 @@ export class GameState {
     return { x1: 68, y1: 132, x2: 292, y2: 480 };
   }
 
+  // Returns distance from point (px,py) to segment (ax,ay)-(bx,by)
+  private static _distToSeg(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+    const dx = bx - ax, dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
+    return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+  }
+
+  // True if (x,y) is too close to any track segment (track width=36px, margin=22px)
+  private _onTrack(x: number, y: number): boolean {
+    const wps = this.trackWaypoints;
+    for (let i = 0; i < wps.length; i++) {
+      const a = wps[i], b = wps[(i + 1) % wps.length];
+      if (GameState._distToSeg(x, y, a.x, a.y, b.x, b.y) < 22) return true;
+    }
+    return false;
+  }
+
   private overclockSeconds = 0;
   private minuteHpMult = 1;
   private minuteSpeedMult = 1;
@@ -336,8 +355,13 @@ export class GameState {
     this.gold -= this.summonCost;
     this.summonCost = Math.min(SUMMON_MAX_COST, this.summonCost + SUMMON_COST_INCREMENT);
     const race = TIER1_RACES[Math.floor(Math.random() * TIER1_RACES.length)];
-    const x = this.unitZone.x1 + Math.random() * (this.unitZone.x2 - this.unitZone.x1);
-    const y = this.unitZone.y1 + Math.random() * (this.unitZone.y2 - this.unitZone.y1);
+    const { x1, y1, x2, y2 } = this.unitZone;
+    let x: number, y: number, attempts = 0;
+    do {
+      x = x1 + Math.random() * (x2 - x1);
+      y = y1 + Math.random() * (y2 - y1);
+      attempts++;
+    } while (attempts < 20 && this._onTrack(x, y));
     const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
     this.units.push(unit);
     return unit;
