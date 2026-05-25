@@ -196,7 +196,7 @@ export class GameState {
       this.overclockSeconds = (this.elapsedMs - CLEAR_TIME_MS) / 1000;
     }
 
-    // Auto gold recovery (+2/sec)
+    // Auto gold recovery (GOLD_AUTO_RECOVERY_PER_SEC / sec)
     const currentSecond = Math.floor(this.elapsedMs / 1000);
     if (currentSecond > this.lastSecondCrossed) {
       this.gold += this.goldAutoRecovery * (currentSecond - this.lastSecondCrossed);

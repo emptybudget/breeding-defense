@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { ANS, drawHudBar } from '../artnouveau';
 import { CENTER_X, SELL_ZONE_X, SELL_ZONE_Y } from '../constants';
@@ -95,7 +95,7 @@ export class HudRenderer {
     } else {
       this.timerText.setColor(ANS.CREAM);
     }
-    this.countText.setText(`${state.enemyCount} / 50`);
+    this.countText.setText(`${state.enemyCount} / ${MAX_ENEMIES}`);
     this.goldText.setText(`Gold: ${state.gold}`);
     this.unitText.setText(`Units: ${state.units.length}/${state.maxUnits}`);
     this.gemsText.setText(`Gem: ${state.gems}`);

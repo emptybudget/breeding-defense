@@ -149,6 +149,12 @@ export const BLADE_HOUND_MAX_STACKS = 5;     // max berserk stacks (+20% speed e
 export const MINE_TRIGGER_RADIUS = 25;       // px — enemy must be within this to detonate
 export const MINE_DAMAGE = 3;               // flat damage per mine (no scaling)
 export const MINE_LIFETIME_MS = 10000;       // mine expires after 10s
+export const CANNON_SHOOTER_KB_DIST = 60;   // px knockback distance
+export const GATLING_DOG_SPLASH_RADIUS = 40; // px splash radius
+export const GATLING_DOG_SPLASH_MULT = 0.5; // 50% damage on splash
+export const ELECTRIC_COON_CHAIN_RANGE = 100; // px chain range
+export const ELECTRIC_COON_MAX_CHAINS = 2;   // max chain targets
+export const ELECTRIC_COON_CHAIN_MULT = 0.5; // 50% damage per chain hop
 
 // Phase E gimmick constants
 export const THUNDER_HAWK_CHAIN_COUNT = 3;

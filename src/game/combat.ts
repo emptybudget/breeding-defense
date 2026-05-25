@@ -3,16 +3,11 @@ import {
   THUNDER_HAWK_CHAIN_COUNT, THUNDER_HAWK_CHAIN_MULT, THUNDER_HAWK_CHAIN_RANGE,
   BERSERK_SHAMAN_AURA_RADIUS, BERSERK_SHAMAN_AURA_BUFF,
   ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_RANGE,
+  CANNON_SHOOTER_KB_DIST, GATLING_DOG_SPLASH_RADIUS, GATLING_DOG_SPLASH_MULT,
+  ELECTRIC_COON_CHAIN_RANGE, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_MULT,
 } from './config';
 import { AttackEvent, CombatResult, EnemySnapshot, Mine, UnitData } from './types';
 import { getUnitCombatStats } from './unitHelpers';
-
-const CANNON_SHOOTER_KB_DIST = 60;
-const GATLING_DOG_SPLASH_RADIUS = 40;
-const GATLING_DOG_SPLASH_MULT = 0.5;
-const ELECTRIC_COON_CHAIN_RANGE = 100;
-const ELECTRIC_COON_MAX_CHAINS = 2;
-const ELECTRIC_COON_CHAIN_MULT = 0.5;
 
 /** Chain-lightning helper: bounces damage from src through up to maxChains nearby enemies. */
 function applyChainLightning(

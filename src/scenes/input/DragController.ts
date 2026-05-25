@@ -5,6 +5,7 @@ import {
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
+  SELL_GOLD_TIER4,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { ASTRAL_GOD_RECIPE, getCategory, getTier3Recipes } from '../../game/unitHelpers';
@@ -169,7 +170,7 @@ export class DragController {
 
     // Sell zone (highest priority)
     if (this.isOnSellZone(go.x, go.y)) {
-      const sellGold = droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
+      const sellGold = droppedUnit.tier === 4 ? SELL_GOLD_TIER4 : droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
       this.state.sellUnit(droppedId);
       this.unitRenderer.removeUnit(droppedId);
       this.notificationRenderer.add(`💰 유닛 판매 +${sellGold}G`, '#ffd700');
