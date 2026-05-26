@@ -1,6 +1,15 @@
 import Phaser from 'phaser';
 import {
-  BOSS_KILL_REWARD,
+  BOSS_HP_PHASE_B_SCALAR,
+  BOSS_HP_PHASE_C_SCALAR,
+  BOSS_KILL_REWARD_PHASE_A,
+  BOSS_KILL_REWARD_PHASE_B,
+  BOSS_KILL_REWARD_PHASE_C,
+  BOSS_PHASE_B_START_MS,
+  BOSS_PHASE_C_START_MS,
+  BOSS_SPEED_PHASE_A,
+  BOSS_SPEED_PHASE_B,
+  BOSS_SPEED_PHASE_C,
   ENEMY_TYPES,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -44,6 +53,7 @@ export class EnemyRenderer {
   private enemyMap = new Map<number, Enemy>();
   private hpBarGraphics!: Phaser.GameObjects.Graphics;
   private flashGraphics!: Phaser.GameObjects.Graphics;
+  private bossAuraGraphics?: Phaser.GameObjects.Graphics;
   private spawnAccumulatorMs = 0;
   private _nextEnemyId = 0;
 
@@ -74,19 +84,37 @@ export class EnemyRenderer {
 
   spawnBoss(): void {
     const wp = this.state.trackWaypoints[0];
+    const ms = this.state.elapsedMs;
     const overclockSpeedMult = this.state.currentEnemySpeed / 40;
-    const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * this.state.stageConfig.bossHpMult);
-    const boss = this.scene.add.text(wp.x, wp.y, BOSS_EMOJI, {
-      fontFamily: 'monospace', fontSize: '28px',
+    const isPhaseC = ms >= BOSS_PHASE_C_START_MS;
+
+    const hpScalar = isPhaseC ? BOSS_HP_PHASE_C_SCALAR :
+                     ms >= BOSS_PHASE_B_START_MS ? BOSS_HP_PHASE_B_SCALAR : 1;
+    const speedMult = isPhaseC ? BOSS_SPEED_PHASE_C :
+                      ms >= BOSS_PHASE_B_START_MS ? BOSS_SPEED_PHASE_B : BOSS_SPEED_PHASE_A;
+    const killReward = isPhaseC ? BOSS_KILL_REWARD_PHASE_C :
+                       ms >= BOSS_PHASE_B_START_MS ? BOSS_KILL_REWARD_PHASE_B : BOSS_KILL_REWARD_PHASE_A;
+
+    const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * this.state.stageConfig.bossHpMult * hpScalar);
+    const bossEmoji = isPhaseC ? '👑' : BOSS_EMOJI;
+    const bossFontSize = isPhaseC ? '48px' : '28px';
+    const boss = this.scene.add.text(wp.x, wp.y, bossEmoji, {
+      fontFamily: 'monospace', fontSize: bossFontSize,
     }).setOrigin(0.5) as unknown as Enemy;
     boss.id = this._nextEnemyId++;
     boss.hp = bossHp; boss.maxHp = bossHp;
-    boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult;
+    boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult * speedMult;
     boss.waypointIndex = 1; boss.enemyType = 'NORMAL'; boss.isBoss = true;
-    boss.killReward = BOSS_KILL_REWARD;
+    boss.killReward = killReward;
     this.enemies.add(boss);
     this.enemyMap.set(boss.id, boss);
     this.state.registerSpawn();
+
+    // U9: Phase C boss aura
+    if (isPhaseC) {
+      this.bossAuraGraphics?.destroy();
+      this.bossAuraGraphics = this.scene.add.graphics().setDepth(0);
+    }
   }
 
   clearAll(): void {
@@ -94,6 +122,8 @@ export class EnemyRenderer {
     this.enemyMap.clear();
     this.enemies.clear(false, false);
     this.spawnAccumulatorMs = 0;
+    this.bossAuraGraphics?.destroy();
+    this.bossAuraGraphics = undefined;
   }
 
   private handleSpawning(deltaMs: number): void {
@@ -153,6 +183,20 @@ export class EnemyRenderer {
   }
 
   private drawHpBars(): void {
+    // U9: Phase C boss aura
+    if (this.bossAuraGraphics) {
+      this.bossAuraGraphics.clear();
+      const boss = [...this.enemyMap.values()].find(e => e.isBoss);
+      if (boss) {
+        this.bossAuraGraphics.lineStyle(6, 0xff2222, 0.65);
+        this.bossAuraGraphics.strokeCircle(boss.x, boss.y, 46);
+        this.bossAuraGraphics.lineStyle(3, 0xff6644, 0.35);
+        this.bossAuraGraphics.strokeCircle(boss.x, boss.y, 60);
+      } else {
+        this.bossAuraGraphics.destroy();
+        this.bossAuraGraphics = undefined;
+      }
+    }
     this.hpBarGraphics.clear();
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;

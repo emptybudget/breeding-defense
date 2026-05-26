@@ -9,8 +9,8 @@ export const ENEMY_BASE_SPEED = 30; // px/sec (overclock base)
 export const ENEMY_BASE_HP = 1;     // overclock multiplier base
 
 // Overclock scaling (applied per second after CLEAR_TIME_MS)
-export const OVERCLOCK_HP_GROWTH = 1.05;
-export const OVERCLOCK_SPEED_GROWTH = 1.03;
+export const OVERCLOCK_HP_GROWTH = 1.08;
+export const OVERCLOCK_SPEED_GROWTH = 1.05;
 export const OVERCLOCK_SPAWN_DECAY = 0.97;
 export const OVERCLOCK_MIN_SPAWN_MS = 200;
 
@@ -165,6 +165,28 @@ export const BERSERK_SHAMAN_AURA_BUFF = 0.4;   // +40% attack speed
 export const ASTRAL_GOD_CHAIN_COUNT = 4;
 export const ASTRAL_GOD_CHAIN_MULT = 0.9;
 export const ASTRAL_GOD_CHAIN_RANGE = 160;
+
+// U13: Boss 3-phase system
+export const BOSS_PHASE_B_START_MS = 150_000; // 2:30
+export const BOSS_PHASE_C_START_MS = 270_000; // 4:30
+export const BOSS_HP_PHASE_B_SCALAR = 25 / 15;
+export const BOSS_HP_PHASE_C_SCALAR = 50 / 15;
+export const BOSS_SPEED_PHASE_A = 0.8;
+export const BOSS_SPEED_PHASE_B = 0.7;
+export const BOSS_SPEED_PHASE_C = 0.55;
+export const BOSS_KILL_REWARD_PHASE_A = 50;
+export const BOSS_KILL_REWARD_PHASE_B = 80;
+export const BOSS_KILL_REWARD_PHASE_C = 150;
+
+// U14: Tier enhancement system
+export const BOSS_KILL_ENHANCE_POINT = 1;
+export const TIER1_ENHANCE_MAX = 5;
+export const TIER1_ENHANCE_COST = 1;
+export const TIER2_ENHANCE_MAX = 3;
+export const TIER2_ENHANCE_COST = 2;
+
+// Soul Shop: soul-summon cost starts at 1pt and increments by 1 per purchase
+export const SOUL_SUMMON_COST_START = 1;
 
 // Stage system
 export type StageId = 1 | 2 | 3;

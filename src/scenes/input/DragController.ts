@@ -152,6 +152,18 @@ export class DragController {
     }
   }
 
+  private findClearPos(x: number, y: number): { x: number; y: number } | null {
+    const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]] as const;
+    for (let step = 1; step <= 4; step++) {
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx * step * 30;
+        const ny = y + dy * step * 30;
+        if (this.isValidUnitPosition(nx, ny) && !this.state.isOnTrack(nx, ny)) return { x: nx, y: ny };
+      }
+    }
+    return null;
+  }
+
   private isOnSellZone(x: number, y: number): boolean {
     return x >= GAME_WIDTH - 70 && y >= GAME_HEIGHT - 76;
   }
@@ -188,8 +200,15 @@ export class DragController {
     if (targetId === null) {
       // Empty space — all tiers can move
       if (this.isValidUnitPosition(go.x, go.y)) {
-        this.state.moveUnit(droppedId, go.x, go.y);
-        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(go.x, go.y);
+        let dropX = go.x, dropY = go.y;
+        if (this.state.isOnTrack(dropX, dropY)) {
+          const cleared = this.findClearPos(dropX, dropY);
+          if (cleared) { dropX = cleared.x; dropY = cleared.y; }
+          else { go.setPosition(droppedUnit.x, droppedUnit.y); return; }
+        }
+        this.state.moveUnit(droppedId, dropX, dropY);
+        go.setPosition(dropX, dropY);
+        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(dropX, dropY);
         return;
       }
       go.setPosition(droppedUnit.x, droppedUnit.y);
@@ -234,6 +253,9 @@ export class DragController {
 
     if (sameCategory) {
       const started = this.state.startBreeding(droppedId, targetId);
+      if (!started && this.state.units.length >= this.state.maxUnits) {
+        this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
+      }
       if (started) {
         const snapX = Math.min(this.state.unitZone.x2, targetUnit.x + 18);
         const snapY = targetUnit.y;

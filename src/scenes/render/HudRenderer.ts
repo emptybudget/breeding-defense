@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { ANS, drawHudBar } from '../artnouveau';
-import { CENTER_X, SELL_ZONE_X, SELL_ZONE_Y } from '../constants';
+import { CENTER_X, SELL_ZONE_X } from '../constants';
 
 export class HudRenderer {
   private scene: Phaser.Scene;
@@ -16,15 +16,19 @@ export class HudRenderer {
   private gemsText!: Phaser.GameObjects.Text;
   private summonBtn!: Phaser.GameObjects.Text;
   private popBtn!: Phaser.GameObjects.Text;
+  private soulText!: Phaser.GameObjects.Text;
+  private unitPulseTween?: Phaser.Tweens.Tween;
   private onPause: () => void;
   private onRecipeBook: () => void;
+  private onSoulShop: () => void;
 
-  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void, onRecipeBook: () => void) {
+  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void, onRecipeBook: () => void, onSoulShop: () => void) {
     this.scene = scene;
     this.onSummon = onSummon;
     this.onPopUpgrade = onPopUpgrade;
     this.onPause = onPause;
     this.onRecipeBook = onRecipeBook;
+    this.onSoulShop = onSoulShop;
   }
 
   create(state: GameState): void {
@@ -69,22 +73,33 @@ export class HudRenderer {
     botGfx.setPosition(0, GAME_HEIGHT - 76);
     drawHudBar(botGfx, GAME_WIDTH, 76);
 
-    this.summonBtn = this.scene.add.text(80, GAME_HEIGHT - 52, '', {
+    // Bottom bar row 1: summon | pop upgrade | sell zone
+    this.summonBtn = this.scene.add.text(70, GAME_HEIGHT - 56, '', {
       fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
-      backgroundColor: '#2c3418', padding: { x: 10, y: 8 },
+      backgroundColor: '#2c3418', padding: { x: 10, y: 6 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.summonBtn.on('pointerdown', () => { this.onSummon(); });
 
-    this.popBtn = this.scene.add.text(230, GAME_HEIGHT - 52, '', {
+    this.popBtn = this.scene.add.text(210, GAME_HEIGHT - 56, '', {
       fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
-      backgroundColor: '#3d2810', padding: { x: 10, y: 8 },
+      backgroundColor: '#3d2810', padding: { x: 10, y: 6 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.popBtn.on('pointerdown', () => { this.onPopUpgrade(); });
 
-    // Sell zone
-    this.scene.add.text(SELL_ZONE_X, SELL_ZONE_Y, '🗑️', {
-      fontSize: '20px', backgroundColor: '#3d1a0a', padding: { x: 6, y: 4 },
+    this.scene.add.text(SELL_ZONE_X, GAME_HEIGHT - 56, '🗑️', {
+      fontSize: '20px', backgroundColor: '#3d1a0a', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setDepth(6);
+
+    // Bottom bar row 2: soul count | soul shop button
+    this.soulText = this.scene.add.text(80, GAME_HEIGHT - 22, '💀 영혼: 0', {
+      fontFamily: 'monospace', fontSize: '12px', color: '#cc88ff',
+    }).setOrigin(0.5).setDepth(6);
+
+    this.scene.add.text(255, GAME_HEIGHT - 22, ' 🔮 영혼 상점 ', {
+      fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
+      backgroundColor: '#1a0a2a', padding: { x: 8, y: 4 },
+    }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => { this.onSoulShop(); });
   }
 
   update(state: GameState): void {
@@ -107,6 +122,21 @@ export class HudRenderer {
       backgroundColor: atCap ? '#1a1a14' : '#2c3418',
       color: atCap ? ANS.DIM : ANS.CREAM,
     });
-    this.popBtn.setText(`사회성 (${state.populationUpgradeCost}G)`);
+    this.popBtn.setText(`한도+1 (${state.populationUpgradeCost}G)`);
+
+    // U1: pulse unitText when at capacity
+    if (atCap && !this.unitPulseTween) {
+      this.unitText.setColor('#ff8844');
+      this.unitPulseTween = this.scene.tweens.add({
+        targets: this.unitText, alpha: { from: 1, to: 0.3 },
+        duration: 400, yoyo: true, repeat: -1,
+      });
+    } else if (!atCap && this.unitPulseTween) {
+      this.unitPulseTween.stop();
+      this.unitPulseTween = undefined;
+      this.unitText.setAlpha(1).setColor(ANS.VINE);
+    }
+
+    this.soulText.setText(`💀 영혼: ${state.enhancePoints}`);
   }
 }

@@ -42,6 +42,11 @@ import {
   STAGE_CONFIGS,
   StageConfig,
   StageId,
+  SOUL_SUMMON_COST_START,
+  TIER1_ENHANCE_MAX,
+  TIER1_ENHANCE_COST,
+  TIER2_ENHANCE_MAX,
+  TIER2_ENHANCE_COST,
 } from './config';
 import {
   CombatResult,
@@ -93,6 +98,10 @@ export class GameState {
   globalDamageBonus = 0;
 
   mines: Mine[] = [];
+  enhancePoints = 0;
+  tier1AtkBonus = 0;
+  tier2AtkBonus = 0;
+  soulSummonCost = SOUL_SUMMON_COST_START;
 
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
@@ -156,6 +165,7 @@ export class GameState {
   }
 
   // True if (x,y) is too close to any track segment (track width=36px, margin=22px)
+  isOnTrack(x: number, y: number): boolean { return this._onTrack(x, y); }
   private _onTrack(x: number, y: number): boolean {
     const wps = this.trackWaypoints;
     for (let i = 0; i < wps.length; i++) {
@@ -475,6 +485,37 @@ export class GameState {
     return null;
   }
 
+  upgradeTier1Atk(): boolean {
+    if (this.tier1AtkBonus >= TIER1_ENHANCE_MAX || this.enhancePoints < TIER1_ENHANCE_COST) return false;
+    this.enhancePoints -= TIER1_ENHANCE_COST;
+    this.tier1AtkBonus += 1;
+    return true;
+  }
+
+  upgradeTier2Atk(): boolean {
+    if (this.tier2AtkBonus >= TIER2_ENHANCE_MAX || this.enhancePoints < TIER2_ENHANCE_COST) return false;
+    this.enhancePoints -= TIER2_ENHANCE_COST;
+    this.tier2AtkBonus += 1;
+    return true;
+  }
+
+  soulSummonUnit(race: Tier1Race): UnitData | null {
+    if (this.enhancePoints < this.soulSummonCost) return null;
+    if (this.units.length >= this.maxUnits) return null;
+    this.enhancePoints -= this.soulSummonCost;
+    this.soulSummonCost += 1;
+    const { x1, y1, x2, y2 } = this.unitZone;
+    let x: number, y: number, attempts = 0;
+    do {
+      x = x1 + Math.random() * (x2 - x1);
+      y = y1 + Math.random() * (y2 - y1);
+      attempts++;
+    } while (attempts < 20 && this._onTrack(x, y));
+    const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
+    this.units.push(unit);
+    return unit;
+  }
+
   processCombat(snapshots: EnemySnapshot[]): CombatResult {
     const { killRewards, newMinePositions, consumedMineIds, ...result } = runCombat(
       this.units,
@@ -484,6 +525,8 @@ export class GameState {
       this.doubleAttackProbability,
       this.globalDamageBonus,
       this.mines,
+      this.tier1AtkBonus,
+      this.tier2AtkBonus,
     );
     for (const reward of killRewards) this.registerKill(reward);
     for (const pos of newMinePositions) {

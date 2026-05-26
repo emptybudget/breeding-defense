@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH } from '../game/config';
+import { BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, GAME_HEIGHT, GAME_WIDTH } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y } from './constants';
@@ -49,6 +49,7 @@ export class GameScene extends Phaser.Scene {
       () => { this.state.upgradePopulation(); },
       () => { this.onPause(); },
       () => { this.onRecipeBook(); },
+      () => { this.onSoulShop(); },
     );
     this.popupRenderer = new PopupRenderer(
       this,
@@ -113,6 +114,7 @@ export class GameScene extends Phaser.Scene {
     if (this.state.pendingBossAlert) {
       this.state.pendingBossAlert = false;
       this.notificationRenderer.add('⚠️ 보스 출현 5초 전!', '#ff8800');
+      this.startBossPreAlert();
     }
 
     // Boss spawn triggered by tick()
@@ -217,17 +219,29 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBossKilled(): void {
+    const ms = this.state.elapsedMs;
     const isFastKill = this.state.bossCount > 1 &&
       this.state.bossSpawnedAtMs !== null &&
-      (this.state.elapsedMs - this.state.bossSpawnedAtMs) <= this.state.stageConfig.bossTimeLimitMs;
+      (ms - this.state.bossSpawnedAtMs) <= this.state.stageConfig.bossTimeLimitMs;
     this.state.bossSpawnedAtMs = null;
     this.bossTimerText?.destroy();
     this.bossTimerText = undefined;
-    if (isFastKill) {
-      this.notificationRenderer.add('⚡ 속전속결! 보상 +1', '#ffdd00');
-    }
+
+    // U5: Phase C boss kill cutscene
+    if (ms >= BOSS_PHASE_C_START_MS) this.showPhaseCKillEffect();
+
+    // Phase-based reward cards: Phase C always gets 3 cards (max 3)
+    const baseCards = ms >= BOSS_PHASE_C_START_MS ? 3 : 2;
+    const rewardCount = Math.min(isFastKill ? baseCards + 1 : baseCards, 3) as 2 | 3;
+
+    if (isFastKill) this.notificationRenderer.add('⚡ 속전속결! 보상 +1', '#ffdd00');
+
+    // Enhance point (보스의 영혼) on boss kill
+    this.state.enhancePoints += BOSS_KILL_ENHANCE_POINT;
+    const phaseLabel = ms >= BOSS_PHASE_C_START_MS ? '[진검] ' : ms >= BOSS_PHASE_B_START_MS ? '[시험] ' : '';
+    this.notificationRenderer.add(`💀 ${phaseLabel}영혼 +${BOSS_KILL_ENHANCE_POINT}`, '#cc88ff');
+
     this.state.isPaused = true;
-    const rewardCount = isFastKill ? 3 : 2;
     const rewards = this.state.generateRewards(rewardCount + 1);
     this.popupRenderer.showReward(rewardCount, rewards);
   }
@@ -237,6 +251,31 @@ export class GameScene extends Phaser.Scene {
     this.bossTimerText = this.add.text(CENTER_X, 500, '⚡ --초', {
       fontFamily: 'monospace', fontSize: '18px', color: '#ffdd00',
     }).setOrigin(0.5).setDepth(10);
+  }
+
+  private startBossPreAlert(): void {
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0xff2222, 0.12).setDepth(20);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 500, onComplete: () => flash.destroy() });
+    for (let i = 5; i >= 1; i--) {
+      this.time.delayedCall((5 - i) * 1000, () => {
+        const ct = this.add.text(CENTER_X, CENTER_Y - 60, `⚠️ ${i}`, {
+          fontFamily: 'monospace', fontSize: '40px', color: '#ff4444',
+          stroke: '#000000', strokeThickness: 4,
+        }).setOrigin(0.5).setDepth(20);
+        this.tweens.add({ targets: ct, alpha: 0, y: CENTER_Y - 90, duration: 900, onComplete: () => ct.destroy() });
+      });
+    }
+  }
+
+  private showPhaseCKillEffect(): void {
+    this.cameras.main.shake(300, 0.015);
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0xff0000, 0.25).setDepth(20);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 400, onComplete: () => flash.destroy() });
+    const text = this.add.text(CENTER_X, CENTER_Y - 50, '💀 BOSS DOWN! 💀', {
+      fontFamily: 'monospace', fontSize: '28px', color: '#ff4444',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(21);
+    this.tweens.add({ targets: text, y: CENTER_Y - 100, alpha: 0, duration: 1500, onComplete: () => text.destroy() });
   }
 
   private onPause(): void {
@@ -253,6 +292,15 @@ export class GameScene extends Phaser.Scene {
     if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
     this.state.isPaused = true;
     this.popupRenderer.showRecipeBook(() => { this.state.isPaused = false; });
+  }
+
+  private onSoulShop(): void {
+    if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
+    this.state.isPaused = true;
+    this.popupRenderer.showSoulShop(
+      (unit) => { this.unitRenderer.addUnit(unit); },
+      () => { this.state.isPaused = false; },
+    );
   }
 
   private gemContinue(): void {

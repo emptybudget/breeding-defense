@@ -59,6 +59,8 @@ export function runCombat(
   doubleAttackProbability: number,
   globalDamageBonus: number,
   mines: Mine[],
+  tier1AtkBonus = 0,
+  tier2AtkBonus = 0,
 ): CombatResult & { killRewards: number[]; newMinePositions: { x: number; y: number }[]; consumedMineIds: number[]; tierKillCounts: Map<number, number> } {
   const now = elapsedMs;
   const attacks: AttackEvent[] = [];
@@ -154,7 +156,8 @@ export function runCombat(
 
       for (let burst = 0; burst < burstCount; burst++) {
         if (killedSet.has(target.id)) break;
-        const baseDmg = stats.damage + globalDamageBonus;
+        const tierBonus = unit.tier === 1 ? tier1AtkBonus : unit.tier === 2 ? tier2AtkBonus : 0;
+        const baseDmg = stats.damage + globalDamageBonus + tierBonus;
         let finalDmg = baseDmg;
         const isCrit = unit.race === 'Astral_God' ||
           (criticalProbability > 0 && Math.random() < criticalProbability);
