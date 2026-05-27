@@ -17,18 +17,35 @@ export class HudRenderer {
   private summonBtn!: Phaser.GameObjects.Text;
   private popBtn!: Phaser.GameObjects.Text;
   private soulText!: Phaser.GameObjects.Text;
+  private speedBtn?: Phaser.GameObjects.Text;
   private unitPulseTween?: Phaser.Tweens.Tween;
   private onPause: () => void;
   private onRecipeBook: () => void;
   private onSoulShop: () => void;
+  private onToggleSpeed: () => void;
+  private getSpeedMult: () => number;
+  private speed2xUnlocked: boolean;
 
-  constructor(scene: Phaser.Scene, onSummon: () => void, onPopUpgrade: () => void, onPause: () => void, onRecipeBook: () => void, onSoulShop: () => void) {
+  constructor(
+    scene: Phaser.Scene,
+    onSummon: () => void,
+    onPopUpgrade: () => void,
+    onPause: () => void,
+    onRecipeBook: () => void,
+    onSoulShop: () => void,
+    onToggleSpeed: () => void,
+    getSpeedMult: () => number,
+    speed2xUnlocked: boolean,
+  ) {
     this.scene = scene;
     this.onSummon = onSummon;
     this.onPopUpgrade = onPopUpgrade;
     this.onPause = onPause;
     this.onRecipeBook = onRecipeBook;
     this.onSoulShop = onSoulShop;
+    this.onToggleSpeed = onToggleSpeed;
+    this.getSpeedMult = getSpeedMult;
+    this.speed2xUnlocked = speed2xUnlocked;
   }
 
   create(state: GameState): void {
@@ -67,6 +84,14 @@ export class HudRenderer {
       backgroundColor: '#2a2418', padding: { x: 7, y: 3 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => { this.onRecipeBook(); });
+
+    if (this.speed2xUnlocked) {
+      this.speedBtn = this.scene.add.text(CENTER_X + 64, 44, '1×', {
+        fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+        backgroundColor: '#2a2418', padding: { x: 6, y: 3 },
+      }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
+        .on('pointerdown', () => { this.onToggleSpeed(); });
+    }
 
     // Bottom HUD — Art Nouveau frame
     const botGfx = this.scene.add.graphics().setDepth(5);
@@ -138,5 +163,14 @@ export class HudRenderer {
     }
 
     this.soulText.setText(`💀 영혼: ${state.enhancePoints}`);
+
+    if (this.speedBtn) {
+      const mult = this.getSpeedMult();
+      this.speedBtn.setText(mult === 2 ? '2×' : '1×');
+      this.speedBtn.setStyle({
+        backgroundColor: mult === 2 ? '#3d3010' : '#2a2418',
+        color: mult === 2 ? ANS.GOLD_TEXT : ANS.CREAM,
+      });
+    }
   }
 }

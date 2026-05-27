@@ -44,8 +44,8 @@ export class StageSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Upgrade rows
-    const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold'];
-    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 348 + i * 58));
+    const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold', 'gameSpeed2x'];
+    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 336 + i * 52));
   }
 
   private makeStageButton(x: number, y: number, stageId: number, meta: MetaProgress): void {
@@ -100,7 +100,7 @@ export class StageSelectScene extends Phaser.Scene {
 
     const cardColor = isMax ? AN.BG_DARK : AN.BG_DEEP;
     const borderColor = isMax ? AN.GOLD_MID : AN.VINE_DARK;
-    this.add.rectangle(CENTER_X, y, 320, 50, cardColor)
+    this.add.rectangle(CENTER_X, y, 320, 46, cardColor)
       .setStrokeStyle(1, borderColor);
 
     this.add.text(30, y - 10, `${upg.emoji} ${upg.label}`, {

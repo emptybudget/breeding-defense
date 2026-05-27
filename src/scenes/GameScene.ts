@@ -28,6 +28,7 @@ export class GameScene extends Phaser.Scene {
   private sfx!: SoundManager;
   private overclockSfxPlayed = false;
   private bossTimerText?: Phaser.GameObjects.Text;
+  private speedMult: 1 | 2 = 1;
 
   constructor() {
     super('GameScene');
@@ -43,6 +44,7 @@ export class GameScene extends Phaser.Scene {
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
     this.unitRenderer = new UnitRenderer(this, this.state);
+    const speed2xUnlocked = this.metaProgress.getLevel('gameSpeed2x') > 0;
     this.hudRenderer = new HudRenderer(
       this,
       () => { const unit = this.state.summon(); if (unit) this.unitRenderer.addUnit(unit); },
@@ -50,6 +52,9 @@ export class GameScene extends Phaser.Scene {
       () => { this.onPause(); },
       () => { this.onRecipeBook(); },
       () => { this.onSoulShop(); },
+      () => { this.toggleSpeedMult(); },
+      () => this.speedMult,
+      speed2xUnlocked,
     );
     this.popupRenderer = new PopupRenderer(
       this,
@@ -104,7 +109,8 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     if (this.isPhase('gameover')) return;
 
-    this.state.tick(deltaMs);
+    const scaledDelta = deltaMs * this.speedMult;
+    this.state.tick(scaledDelta);
 
     // HUD always updates
     this.hudRenderer.update(this.state);
@@ -175,7 +181,7 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    this.enemyRenderer.update(deltaMs);
+    this.enemyRenderer.update(scaledDelta);
 
     if (this.isPhase('gameover')) {
       this.sfx.playSFX('gameover');
@@ -276,6 +282,13 @@ export class GameScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: text, y: CENTER_Y - 100, alpha: 0, duration: 1500, onComplete: () => text.destroy() });
+  }
+
+  private toggleSpeedMult(): void {
+    this.speedMult = this.speedMult === 2 ? 1 : 2;
+    // Also scale Phaser timers/tweens for consistent feel
+    this.time.timeScale = this.speedMult;
+    this.tweens.timeScale = this.speedMult;
   }
 
   private onPause(): void {

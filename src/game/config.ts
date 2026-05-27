@@ -139,6 +139,7 @@ export const META_UPGRADES = {
   summonCost:   { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '소환 비용', emoji: '🔽', desc: '-1비용/Lv' },
   unitCap:      { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '유닛 한도', emoji: '🏠', desc: '+1칸/Lv' },
   autoGold:     { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '자동 골드', emoji: '⚡', desc: '+1/초/Lv' },
+  gameSpeed2x:  { maxLevel: 1, costs: [3],       effectPer: 1,  label: '게임 2배속', emoji: '⏩', desc: '인게임 1×/2× 토글 해금' },
 };
 
 export type UpgradeKey = keyof typeof META_UPGRADES;

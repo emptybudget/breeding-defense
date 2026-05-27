@@ -1,9 +1,19 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-26 (영혼 시스템 + 영혼 상점 구현)
+> 마지막 갱신: 2026-05-27 (첫 적 5초 출현 + 게임 2배속 메타 업그레이드)
 
 ## ✅ 최근 완료 작업
+
+### 2026-05-27 — 첫 적 5초 출현 + 게임 2배속 메타
+
+| 항목 | 구현 내용 | 파일 |
+|---|---|---|
+| 첫 적 5초 출현 | `firstSpawnDone` 플래그로 stage interval과 무관하게 elapsedMs=5000ms에 첫 스폰 (이후는 stage interval) | `EnemyRenderer.ts` |
+| ⏩ 게임 2배속 메타 업그레이드 | StageSelectScene "🛒 영구 강화" 5번째 항목 — 💎3 / max1 / 인게임 1×/2× 토글 해금 | `config.ts`, `MetaProgress.ts`, `StageSelectScene.ts` |
+| 인게임 2배속 토글 | HUD 상단 📖 옆 `1×`/`2×` 버튼 (해금 시에만 표시), `speedMult`로 deltaMs + `time.timeScale` + `tweens.timeScale` 동시 스케일 | `HudRenderer.ts`, `GameScene.ts` |
+
+> 📝 **유닛별 공격 이펙트** — 미구현, 보류. 아래 "🚨 다음 작업"에 등재.
 
 ### 2026-05-26 — 보스의 영혼 시스템 + 영혼 상점
 
@@ -102,6 +112,30 @@
 | P1-3 | 소환 FULL 비활성화 | units >= maxUnits 시 소환 버튼 회색 + '소환 (FULL)' 표시 | `HudRenderer.ts` |
 
 > 참고: 위 P1-1은 통합 우선순위 표의 `L` 항목과 동일. P1-3은 `U1`의 소환 버튼 부분과 겹침(교배 차단 알림은 U1에 남음).
+
+---
+
+## 🎨 다음 작업 — 유닛별 공격 이펙트 (TODO)
+
+> 사용자 요청 2026-05-27. 이번 패치에서 메타 2배속만 구현하고 본 항목은 보류.
+
+**목표:** 현재 모든 공격이 동일한 노란 선(`flashGraphics.lineStyle(2, 0xffff00)`)으로 표시됨. 유닛별로 색/형태 차별화.
+
+**구현 스케치 (시작 시 참고):**
+
+1. `types.ts` `AttackEvent`에 `srcRace?: UnitRace` 추가
+2. `combat.ts`에서 모든 `attacks.push({...})` 호출에 `srcRace: unit.race` 채우기 (체인은 `applyChainLightning` 인자로 `srcRace` 추가 후 chain push에도 동일 race 사용; mine 폭발/Menhera는 `srcRace` 미설정 → 기본 스타일)
+3. `EnemyRenderer.handleCombat()`에서 race별 `{color, width, kind}` 매핑 테이블로 분기:
+   - `slash` — 짧은 굵은 선 + 작은 X 마크 (Warrior, Bio_Wolf, Cyborg_Slasher, Blade_Hound)
+   - `arrow` — 얇은 선 + 끝점 작은 삼각형 (Archer, Falcon_Eye, Acorn_Hunter)
+   - `beam` — 두꺼운 직선 (Android, Laser_Sniper, Griffin)
+   - `shell/splash` — 선 + 적 위치 반원/원 (Cannon, Cannon_Shooter, Gatling_Dog, Dino_Mecha, Chaos_Artillery)
+   - `chain` — 지그재그 (Electric_Coon, Thunder_Hawk)
+   - `magic` — 선 + 별 (Cyborg_Wizard, Acorn_Girl, Berserk_Shaman)
+   - `divine` — 무지개 굵은 선 (Astral_God)
+   - 기본 — 현재 노란 선 (지뢰 폭발 등)
+
+**주의:** `applyChainLightning`에 srcRace 인자 추가하면 호출부 4곳 (Electric_Coon / Thunder_Hawk / Astral_God) 갱신.
 
 ---
 

@@ -3,3 +3,10 @@ dist
 .vite
 .DS_Store
 *.local
+
+# Firebase secrets — never commit
+firebase-key.json
+.firebase/
+.firebaserc
+firebase.json
+.idx/

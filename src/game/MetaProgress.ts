@@ -13,6 +13,7 @@ const DEFAULT_LEVELS: Record<UpgradeKey, number> = {
   summonCost: 0,
   unitCap: 0,
   autoGold: 0,
+  gameSpeed2x: 0,
 };
 
 export class MetaProgress {

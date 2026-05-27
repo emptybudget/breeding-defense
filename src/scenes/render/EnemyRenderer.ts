@@ -55,6 +55,7 @@ export class EnemyRenderer {
   private flashGraphics!: Phaser.GameObjects.Graphics;
   private bossAuraGraphics?: Phaser.GameObjects.Graphics;
   private spawnAccumulatorMs = 0;
+  private firstSpawnDone = false;
   private _nextEnemyId = 0;
 
   constructor(
@@ -127,6 +128,15 @@ export class EnemyRenderer {
   }
 
   private handleSpawning(deltaMs: number): void {
+    // First enemy fires at exactly 5s of game time
+    if (!this.firstSpawnDone) {
+      if (this.state.elapsedMs >= 5000) {
+        this.firstSpawnDone = true;
+        this.spawnEnemy();
+        this.spawnAccumulatorMs = 0;
+      }
+      return;
+    }
     this.spawnAccumulatorMs += deltaMs;
     const interval = this.state.currentSpawnIntervalMs;
     while (this.spawnAccumulatorMs >= interval) {
