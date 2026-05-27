@@ -1,7 +1,15 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-27 (첫 적 5초 출현 + 게임 2배속 메타 업그레이드)
+> 마지막 갱신: 2026-05-27 (첫 적 5초 출현 + 게임 2배속 메타 업그레이드 / 보안 조치)
+
+## ⚠️ 미완료 조치
+
+| 항목 | 내용 |
+|---|---|
+| 🔑 Firebase 서비스 계정 키 폐기 필요 | `firebase-key.json`이 커밋 `5344fdc`에 실수로 포함됨. git 히스토리는 재작성 완료(원격 미전파), `.gitignore`에도 추가. **단, Firebase Console에서 해당 키를 수동 폐기해야 함** → [서비스 계정 페이지](https://console.firebase.google.com/project/breeding-defense/settings/serviceaccounts/adminsdk) |
+
+---
 
 ## ✅ 최근 완료 작업
 
