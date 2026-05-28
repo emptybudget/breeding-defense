@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-05-28 (대규모 정리 — 디자인 의뢰서 `docs/design-prompts.md`로 분리, PopupRenderer 분리, 완료 이력 압축)
+> 마지막 갱신: 2026-05-28 (스폰 주기 단축 + ELITE 적 추가)
 
 ## ⚠️ 미완료 조치 (실생활 액션 필요)
 
@@ -143,7 +143,7 @@ breeding-defense/
 | `MOBILE_SAFE_ZONE_TOP` / `_BOTTOM` | 24 / 16 | 노치/홈바 여백 |
 | `MAX_ENEMIES` | 50 | 초과 시 게임오버 |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 (오버클록 진입) |
-| `ENEMY_SPAWN_INTERVAL_MS` | **2500 (DEV, 출시 5000)** | 기본 스폰 주기 |
+| `ENEMY_SPAWN_INTERVAL_MS` | 6500 (미사용 — 실제는 STAGE_CONFIGS.spawnIntervalBase) | 레거시 상수 |
 | `VICTORY_TIME_MS` | **120000 (DEV 2분, 출시 420000=7분)** | 승리 조건 |
 | `ENEMY_BASE_SPEED` / `ENEMY_BASE_HP` | 40 / 1 | 오버클록 기준 |
 | `OVERCLOCK_HP_GROWTH` / `_SPEED_GROWTH` / `_SPAWN_DECAY` | 1.08 / 1.05 / 0.97 | 매초 |
@@ -247,6 +247,9 @@ breeding-defense/
 ## ✅ 완료 이력 (압축 요약)
 
 > 상세 history는 `git log`. 아래는 "이미 구현됨"을 빠르게 확인하기 위한 인벤토리.
+
+- ✅ 스폰 주기 단축 (S1: 6500→5500 / S2: 5200→4400 / S3: 4000→3500ms)
+- ✅ ELITE 적 💀 추가 — 45초 고정 타이머, 1:30 해금, HP=보스Phase A×0.3, 처치 +20G, 보라 HP바
 
 ### 게임 시스템
 

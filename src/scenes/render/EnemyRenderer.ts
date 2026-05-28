@@ -10,6 +10,11 @@ import {
   BOSS_SPEED_PHASE_A,
   BOSS_SPEED_PHASE_B,
   BOSS_SPEED_PHASE_C,
+  ELITE_BASE_SPEED,
+  ELITE_HP_BOSS_RATIO,
+  ELITE_KILL_REWARD,
+  ELITE_SPAWN_INTERVAL_MS,
+  ELITE_SPAWN_START_MS,
   ENEMY_TYPES,
   GAME_HEIGHT,
   GAME_WIDTH,
@@ -31,6 +36,8 @@ const ENEMY_FONT: Record<EnemyType, string> = {
   TANK:   '23px',
 };
 const BOSS_EMOJI = '👺';
+const ELITE_EMOJI = '💀';
+const ELITE_FONT  = '25px';
 
 type AttackKind = 'line' | 'slash' | 'beam' | 'shell' | 'chain' | 'magic' | 'divine';
 type AttackStyle = { color: number; width: number; kind: AttackKind };
@@ -72,7 +79,7 @@ type Enemy = Phaser.GameObjects.Text & {
   maxHp: number;
   speed: number;
   waypointIndex: number;
-  enemyType: EnemyType;
+  enemyType: EnemyType | 'ELITE';
   isBoss: boolean;
   killReward: number;
 };
@@ -90,6 +97,7 @@ export class EnemyRenderer {
   private bossAuraGraphics?: Phaser.GameObjects.Graphics;
   private spawnAccumulatorMs = 0;
   private firstSpawnDone = false;
+  private eliteTimerMs = 0;
   private _nextEnemyId = 0;
 
   constructor(
@@ -157,6 +165,7 @@ export class EnemyRenderer {
     this.enemyMap.clear();
     this.enemies.clear(false, false);
     this.spawnAccumulatorMs = 0;
+    this.eliteTimerMs = 0;
     this.bossAuraGraphics?.destroy();
     this.bossAuraGraphics = undefined;
   }
@@ -177,6 +186,15 @@ export class EnemyRenderer {
       this.spawnAccumulatorMs -= interval;
       this.spawnEnemy();
       if ((this.state.phase as string) === 'gameover') break;
+    }
+
+    // Elite: fixed 45s timer, unlocks at 1:30
+    if (this.state.elapsedMs >= ELITE_SPAWN_START_MS) {
+      this.eliteTimerMs += deltaMs;
+      while (this.eliteTimerMs >= ELITE_SPAWN_INTERVAL_MS) {
+        this.eliteTimerMs -= ELITE_SPAWN_INTERVAL_MS;
+        this.spawnElite();
+      }
     }
   }
 
@@ -208,6 +226,31 @@ export class EnemyRenderer {
     enemy.enemyType = type; enemy.isBoss = false; enemy.killReward = killReward;
     this.enemies.add(enemy);
     this.enemyMap.set(enemy.id, enemy);
+    this.state.registerSpawn();
+  }
+
+  private spawnElite(): void {
+    const waypoints = this.state.trackWaypoints;
+    const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
+    const wp = waypoints[wpIdx];
+
+    const overclockSpeedMult = this.state.currentEnemySpeed / 40;
+    const eliteHp = Math.ceil(
+      ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp *
+      this.state.stageConfig.bossHpMult * ELITE_HP_BOSS_RATIO
+    );
+
+    const elite = this.scene.add.text(wp.x, wp.y, ELITE_EMOJI, {
+      fontFamily: 'monospace', fontSize: ELITE_FONT,
+    }).setOrigin(0.5) as unknown as Enemy;
+    elite.id = this._nextEnemyId++;
+    elite.hp = eliteHp; elite.maxHp = eliteHp;
+    elite.speed = ELITE_BASE_SPEED * overclockSpeedMult;
+    elite.waypointIndex = (wpIdx + 1) % waypoints.length;
+    elite.enemyType = 'ELITE'; elite.isBoss = false;
+    elite.killReward = ELITE_KILL_REWARD;
+    this.enemies.add(elite);
+    this.enemyMap.set(elite.id, elite);
     this.state.registerSpawn();
   }
 
@@ -244,14 +287,17 @@ export class EnemyRenderer {
     this.hpBarGraphics.clear();
     this.enemies.getChildren().forEach((obj) => {
       const e = obj as Enemy;
-      const barW = e.isBoss ? 44 : e.enemyType === 'TANK' ? 30 : 20;
-      const barH = e.isBoss ? 5 : e.enemyType === 'TANK' ? 4 : 3;
+      const barW = e.isBoss ? 44 : e.enemyType === 'ELITE' ? 36 : e.enemyType === 'TANK' ? 30 : 20;
+      const barH = e.isBoss ? 5 : (e.enemyType === 'ELITE' || e.enemyType === 'TANK') ? 4 : 3;
       const bx = e.x - barW / 2;
       const by = e.y - (e.displayHeight / 2) - 5;
       this.hpBarGraphics.fillStyle(0x333333);
       this.hpBarGraphics.fillRect(bx, by, barW, barH);
       const pct = Math.max(0, e.hp / e.maxHp);
-      this.hpBarGraphics.fillStyle(pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xffcc00 : 0xff4444);
+      const barColor = e.enemyType === 'ELITE'
+        ? 0xaa44ff
+        : (pct > 0.5 ? 0x44cc44 : pct > 0.25 ? 0xffcc00 : 0xff4444);
+      this.hpBarGraphics.fillStyle(barColor);
       this.hpBarGraphics.fillRect(bx, by, barW * pct, barH);
     });
   }
@@ -291,6 +337,9 @@ export class EnemyRenderer {
       const enemy = this.enemyMap.get(id);
       if (enemy) {
         if (enemy.isBoss) bossKilled = true;
+        if (enemy.enemyType === 'ELITE') {
+          this.state.pendingNotification = `💀 ELITE DOWN! +${ELITE_KILL_REWARD}G`;
+        }
         hadKills = true;
         enemy.destroy();
         this.enemyMap.delete(id);
