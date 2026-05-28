@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import {
   GAME_HEIGHT,
   GAME_WIDTH,
+  MOBILE_SAFE_ZONE_BOTTOM,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
@@ -126,6 +127,10 @@ export class DragController {
     if (tier < 3) return;
     this.state.isPaused = true;
     this.scene.time.delayedCall(300, () => { this.state.isPaused = false; });
+    // Haptic: tier-4 = heavy triple, tier-3 = double pulse
+    if ('vibrate' in navigator) {
+      navigator.vibrate(tier === 4 ? [100, 50, 150, 50, 200] : [80, 40, 120]);
+    }
     const cx = GAME_WIDTH / 2;
     const cy = GAME_HEIGHT / 2;
     const isTier4 = tier === 4;
@@ -165,14 +170,14 @@ export class DragController {
   }
 
   private isOnSellZone(x: number, y: number): boolean {
-    return x >= GAME_WIDTH - 70 && y >= GAME_HEIGHT - 76;
+    return x >= GAME_WIDTH - 70 && y >= GAME_HEIGHT - 76 - MOBILE_SAFE_ZONE_BOTTOM;
   }
 
   private isValidUnitPosition(x: number, y: number): boolean {
     const z = this.state.unitZone;
     return (
       x >= z.x1 && x <= z.x2 &&
-      y >= z.y1 && y <= Math.min(z.y2, GAME_HEIGHT - 76)
+      y >= z.y1 && y <= Math.min(z.y2, GAME_HEIGHT - 76 - MOBILE_SAFE_ZONE_BOTTOM)
     );
   }
 
@@ -255,6 +260,7 @@ export class DragController {
       const started = this.state.startBreeding(droppedId, targetId);
       if (!started && this.state.units.length >= this.state.maxUnits) {
         this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
+        if ('vibrate' in navigator) navigator.vibrate(30);
       }
       if (started) {
         const snapX = Math.min(this.state.unitZone.x2, targetUnit.x + 18);

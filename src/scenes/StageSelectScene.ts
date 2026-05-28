@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, STAGE_CONFIGS, STAGE_UNLOCK_GEM_COST, StageId, UpgradeKey } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, STAGE_CONFIGS, STAGE_UNLOCK_GEM_COST, StageId, UpgradeKey, VICTORY_TIME_MS } from '../game/config';
 import { MetaProgress } from '../game/MetaProgress';
 import { AN, ANS, drawDivider } from './artnouveau';
 import { CENTER_X, CENTER_Y } from './constants';
@@ -53,6 +53,18 @@ export class StageSelectScene extends Phaser.Scene {
     const cost = STAGE_UNLOCK_GEM_COST[stageId] ?? 0;
     const isUnlocked = meta.isStageUnlocked(stageId);
     const canAfford = meta.gems >= cost;
+
+    // Best record label (shown for unlocked stages)
+    if (isUnlocked) {
+      const recMs = meta.getStageRecord(stageId);
+      if (recMs !== null) {
+        const isInfinite = recMs > VICTORY_TIME_MS;
+        const label = meta.formatRecord(recMs, isInfinite);
+        this.add.text(x, y + 24, label, {
+          fontFamily: 'monospace', fontSize: '11px', color: ANS.GOLD,
+        }).setOrigin(0.5);
+      }
+    }
 
     if (isUnlocked) {
       // Play button

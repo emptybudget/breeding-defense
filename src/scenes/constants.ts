@@ -1,11 +1,11 @@
-import { GAME_HEIGHT, GAME_WIDTH } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, MOBILE_SAFE_ZONE_BOTTOM } from '../game/config';
 import { UnitRace } from '../game/types';
 
 export const CENTER_X = GAME_WIDTH / 2;
 export const CENTER_Y = GAME_HEIGHT / 2;
 
 export const SELL_ZONE_X = GAME_WIDTH - 38;
-export const SELL_ZONE_Y = GAME_HEIGHT - 52;
+export const SELL_ZONE_Y = GAME_HEIGHT - 52 - MOBILE_SAFE_ZONE_BOTTOM;
 
 export const RACE_COLORS: Record<UnitRace, number> = {
   // Tier 1 — Human (blues)

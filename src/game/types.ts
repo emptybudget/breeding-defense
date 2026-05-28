@@ -59,6 +59,7 @@ export interface AttackEvent {
   isCrit: boolean;
   damage: number;
   srcRace?: UnitRace;
+  srcId?: number;
 }
 
 export interface CombatResult {

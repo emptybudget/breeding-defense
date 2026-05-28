@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
+import { GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, MOBILE_SAFE_ZONE_BOTTOM, MOBILE_SAFE_ZONE_TOP, SUMMON_MAX_COST, VICTORY_TIME_MS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { ANS, drawHudBar } from '../artnouveau';
 import { CENTER_X, SELL_ZONE_X } from '../constants';
@@ -49,78 +49,81 @@ export class HudRenderer {
   }
 
   create(state: GameState): void {
-    // Top HUD — Art Nouveau frame
-    const topGfx = this.scene.add.graphics().setDepth(5);
-    drawHudBar(topGfx, GAME_WIDTH, 76);
+    const TOP = MOBILE_SAFE_ZONE_TOP;
+    const BOT = MOBILE_SAFE_ZONE_BOTTOM;
 
-    this.timerText = this.scene.add.text(28, 8, '00:00', {
+    // Top HUD — Art Nouveau frame (taller to clear notch/dynamic island)
+    const topGfx = this.scene.add.graphics().setDepth(5);
+    drawHudBar(topGfx, GAME_WIDTH, 76 + TOP);
+
+    this.timerText = this.scene.add.text(28, 8 + TOP, '00:00', {
       fontFamily: 'monospace', fontSize: '20px', color: ANS.CREAM,
     }).setDepth(6);
 
-    this.gemsText = this.scene.add.text(CENTER_X, 8, 'Gem: 3', {
+    this.gemsText = this.scene.add.text(CENTER_X, 8 + TOP, 'Gem: 3', {
       fontFamily: 'monospace', fontSize: '16px', color: ANS.TEAL,
     }).setOrigin(0.5, 0).setDepth(6);
 
-    this.countText = this.scene.add.text(GAME_WIDTH - 28, 8, '0 / 50', {
+    this.countText = this.scene.add.text(GAME_WIDTH - 28, 8 + TOP, '0 / 50', {
       fontFamily: 'monospace', fontSize: '18px', color: ANS.RED_SOFT,
     }).setOrigin(1, 0).setDepth(6);
 
-    this.goldText = this.scene.add.text(28, 42, 'Gold: 100', {
+    this.goldText = this.scene.add.text(28, 42 + TOP, 'Gold: 100', {
       fontFamily: 'monospace', fontSize: '16px', color: ANS.GOLD_TEXT,
     }).setDepth(6);
 
-    this.unitText = this.scene.add.text(GAME_WIDTH - 28, 42, `Units: 0/${state.maxUnits}`, {
+    this.unitText = this.scene.add.text(GAME_WIDTH - 28, 42 + TOP, `Units: 0/${state.maxUnits}`, {
       fontFamily: 'monospace', fontSize: '16px', color: ANS.VINE,
     }).setOrigin(1, 0).setDepth(6);
 
-    this.scene.add.text(CENTER_X - 26, 44, ' ⏸ ', {
+    this.scene.add.text(CENTER_X - 26, 44 + TOP, ' ⏸ ', {
       fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
       backgroundColor: '#2a2418', padding: { x: 7, y: 3 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => { this.onPause(); });
 
-    this.scene.add.text(CENTER_X + 26, 44, ' 📖 ', {
+    this.scene.add.text(CENTER_X + 26, 44 + TOP, ' 📖 ', {
       fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
       backgroundColor: '#2a2418', padding: { x: 7, y: 3 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
       .on('pointerdown', () => { this.onRecipeBook(); });
 
     if (this.speed2xUnlocked) {
-      this.speedBtn = this.scene.add.text(CENTER_X + 64, 44, '1×', {
+      this.speedBtn = this.scene.add.text(CENTER_X + 64, 44 + TOP, '1×', {
         fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
         backgroundColor: '#2a2418', padding: { x: 6, y: 3 },
       }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })
         .on('pointerdown', () => { this.onToggleSpeed(); });
     }
 
-    // Bottom HUD — Art Nouveau frame
+    // Bottom HUD — Art Nouveau frame (taller to clear home bar)
     const botGfx = this.scene.add.graphics().setDepth(5);
-    botGfx.setPosition(0, GAME_HEIGHT - 76);
-    drawHudBar(botGfx, GAME_WIDTH, 76);
+    botGfx.setPosition(0, GAME_HEIGHT - 76 - BOT);
+    drawHudBar(botGfx, GAME_WIDTH, 76 + BOT);
 
     // Bottom bar row 1: summon | pop upgrade | sell zone
-    this.summonBtn = this.scene.add.text(70, GAME_HEIGHT - 56, '', {
+    this.summonBtn = this.scene.add.text(70, GAME_HEIGHT - 56 - BOT, '', {
       fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
       backgroundColor: '#2c3418', padding: { x: 10, y: 6 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.summonBtn.on('pointerdown', () => { this.onSummon(); });
 
-    this.popBtn = this.scene.add.text(210, GAME_HEIGHT - 56, '', {
+    this.popBtn = this.scene.add.text(210, GAME_HEIGHT - 56 - BOT, '', {
       fontFamily: 'monospace', fontSize: '14px', color: ANS.CREAM,
       backgroundColor: '#3d2810', padding: { x: 10, y: 6 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true });
     this.popBtn.on('pointerdown', () => { this.onPopUpgrade(); });
 
-    this.scene.add.text(SELL_ZONE_X, GAME_HEIGHT - 56, '🗑️', {
+    this.scene.add.text(SELL_ZONE_X, GAME_HEIGHT - 56 - BOT, '🗑️', {
       fontSize: '20px', backgroundColor: '#3d1a0a', padding: { x: 6, y: 3 },
     }).setOrigin(0.5).setDepth(6);
 
     // Bottom bar row 2: soul count | soul shop button
-    this.soulText = this.scene.add.text(80, GAME_HEIGHT - 22, '💀 영혼: 0', {
+    this.soulText = this.scene.add.text(80, GAME_HEIGHT - 22 - BOT, '💀 영혼: 0', {
       fontFamily: 'monospace', fontSize: '12px', color: '#cc88ff',
     }).setOrigin(0.5).setDepth(6);
 
-    this.scene.add.text(255, GAME_HEIGHT - 22, ' 🔮 영혼 상점 ', {
+    this.scene.add.text(255, GAME_HEIGHT - 22 - BOT, ' 🔮 영혼 상점 ', {
       fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
       backgroundColor: '#1a0a2a', padding: { x: 8, y: 4 },
     }).setOrigin(0.5).setDepth(6).setInteractive({ useHandCursor: true })

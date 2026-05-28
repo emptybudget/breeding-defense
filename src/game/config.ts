@@ -1,6 +1,10 @@
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 
+// Mobile safe zones (notch / home bar clearance)
+export const MOBILE_SAFE_ZONE_TOP = 24;
+export const MOBILE_SAFE_ZONE_BOTTOM = 16;
+
 export const MAX_ENEMIES = 50;
 export const CLEAR_TIME_MS = 10 * 60 * 1000; // 10:00
 export const ENEMY_SPAWN_INTERVAL_MS = 6500;

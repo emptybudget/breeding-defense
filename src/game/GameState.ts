@@ -58,6 +58,7 @@ import {
   Tier1Race,
   Tier3Race,
   UnitData,
+  UnitRace,
 } from './types';
 import { runCombat } from './combat';
 import {
@@ -102,6 +103,10 @@ export class GameState {
   tier1AtkBonus = 0;
   tier2AtkBonus = 0;
   soulSummonCost = SOUL_SUMMON_COST_START;
+
+  unitDamageMap: Map<number, { race: UnitRace; total: number }> = new Map();
+  adReviveUsed = false;
+  pendingCritHaptic = false;
 
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
@@ -310,6 +315,37 @@ export class GameState {
     this.enemyCount = 0;
     this.phase = this.phaseBeforeGameOver;
     return true;
+  }
+
+  useAdRevive(): boolean {
+    if (this.adReviveUsed) return false;
+    this.adReviveUsed = true;
+    this.enemyCount = 0;
+    this.phase = this.phaseBeforeGameOver;
+    return true;
+  }
+
+  getTopDamageDealers(n: number): { race: UnitRace; total: number }[] {
+    return [...this.unitDamageMap.values()]
+      .sort((a, b) => b.total - a.total)
+      .slice(0, n);
+  }
+
+  /** Shell for future save/load feature. */
+  serialize(): Record<string, unknown> {
+    return {
+      elapsedMs: this.elapsedMs,
+      gold: this.gold,
+      gems: this.gems,
+      phase: this.phase,
+      units: this.units,
+    };
+  }
+
+  /** Shell for future save/load feature. */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  deserialize(_data: Record<string, unknown>): void {
+    // TODO: implement full state restoration
   }
 
   generateRewards(count: number): Reward[] {
@@ -535,6 +571,15 @@ export class GameState {
     if (consumedMineIds.length > 0) {
       const consumed = new Set(consumedMineIds);
       this.mines = this.mines.filter(m => !consumed.has(m.id));
+    }
+    // Accumulate per-unit damage and detect crits
+    for (const atk of result.attacks) {
+      if (atk.srcId !== undefined && atk.srcRace !== undefined && atk.damage > 0) {
+        const entry = this.unitDamageMap.get(atk.srcId);
+        if (entry) entry.total += atk.damage;
+        else this.unitDamageMap.set(atk.srcId, { race: atk.srcRace, total: atk.damage });
+      }
+      if (atk.isCrit) this.pendingCritHaptic = true;
     }
     return result;
   }

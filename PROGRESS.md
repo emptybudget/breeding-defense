@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-28 (유닛별 공격 이펙트 구현)
+> 마지막 갱신: 2026-05-28 (모바일 상용 출시 마스터 패치)
 
 ## ⚠️ 미완료 조치
 
@@ -52,7 +52,6 @@
 | U13: 보스 3단 페이즈 | Phase A(0~2:30, ×15, 속도×0.8, +50G) / B(2:30~4:30, ×25, 속도×0.7, +80G) / C(4:30+, ×50, 속도×0.55, +150G, 카드3장) | `config.ts`, `EnemyRenderer.ts`, `GameScene.ts` |
 | U14: 티어 강화 시스템 | 보스처치 시 강화점+1 / 1티어 강화(1pt/+1dmg/max5) / 2티어 강화(2pt/+1dmg/max3) / HUD Row2 추가 | `config.ts`, `GameState.ts`, `combat.ts`, `HudRenderer.ts`, `GameScene.ts` |
 
-> U15 (분당 자동지급) 미구현 — 사용자 결정에 따라 보류
 
 ### 2026-05-25 — 소리 ON/OFF + 스폰 버그 + 별→보석 통합
 
@@ -123,6 +122,21 @@
 
 ---
 
+### 2026-05-28 — 모바일 상용 출시 마스터 패치 (8개 기능)
+
+| 항목 | 구현 내용 | 파일 |
+|---|---|---|
+| 📱 모바일 안전 영역 | `MOBILE_SAFE_ZONE_TOP=24` / `MOBILE_SAFE_ZONE_BOTTOM=16` 추가. HUD Top: +TOP 오프셋, Bottom: -BOT 오프셋. DragController 셀존/유효위치 판정 동기화 | `config.ts`, `HudRenderer.ts`, `DragController.ts`, `constants.ts` |
+| ⏸ 백그라운드 자동정지 | `blur` + `visibilitychange` 리스너 → playing/overclock 페이즈 시 자동 일시정지 | `GameScene.ts` |
+| 🏆 스테이지 기록 저장 | `MetaProgress.stageRecords` (localStorage 영속). `getStageRecord()` / `setStageRecord()` / `formatRecord()` 추가. `GameState` 셸 메서드 `serialize()` / `deserialize()` 추가 | `MetaProgress.ts`, `GameState.ts` |
+| 🏆 스테이지 선택 최고기록 표시 | 언락 스테이지 버튼 아래에 `최고 기록: MM:SS` 또는 `무한 MM:SS` 표시 | `StageSelectScene.ts` |
+| 📳 햅틱 피드백 | 3티어 합성 `[80,40,120]` / 4티어 `[100,50,150,50,200]` / 보스처치 `[60,30,80]` / FULL경고 `30ms` | `DragController.ts`, `GameScene.ts` |
+| 🎬 스테이지 인트로 + 보스 카메라 | 튜토리얼 후 스테이지명 400ms 페이드인+800ms 유지+500ms 아웃. 보스 스폰 시 흑색 플래시(alpha0.6→0) + `shake(200, 0.012)` | `GameScene.ts` |
+| ⚔️ DPS 미터 | `AttackEvent.srcId` 추가 → `GameState.unitDamageMap` 누적 → `getTopDamageDealers(n)`. Pause/GameOver/Victory 팝업에 Top3 🥇🥈🥉 딜 순위 표시 | `types.ts`, `combat.ts`, `GameState.ts`, `PopupRenderer.ts` |
+| 📺 광고 부활 시스템 | GameOver 팝업에 "광고 보고 부활하기" 버튼 (최대 1회/판). 1.5초 시뮬레이션 후 `state.useAdRevive()` → 적 전멸+페이즈 복귀. 패널 높이 동적 조정 (ad: 400, no-ad: 360) | `GameState.ts`, `GameScene.ts`, `PopupRenderer.ts` |
+
+---
+
 ### 2026-05-28 — 유닛별 공격 이펙트
 
 | 항목 | 구현 내용 | 파일 |
@@ -145,7 +159,6 @@
 |---|---|---|---|---|
 | ~~U13~~ | ~~보스 차별화~~ | ~~보스 3단 페이즈화~~ | — | **✅ 완료** (Phase A×15/B×25/C×50, 속도차등, 보상차등) |
 | ~~U14~~ | ~~인게임 결정~~ | ~~티어 강화 시스템~~ | — | **✅ 완료** (보스처치 강화점+1, 1티어5회/2티어3회, HUD Row2) |
-| **U15** | 인게임 결정 | **강화 점 분당 +1 자동 지급** (fail-safe) | Grind | 🟡 보류 (풀플레이 후 판단) |
 | ~~U1~~ | ~~UX 명확성~~ | ~~유닛 한도 풀 시 교배 차단 알림 + HUD 펄싱~~ | — | **✅ 완료** (알림 + 주황 펄싱 tween) |
 | ~~U2~~ | ~~UX 명확성~~ | ~~"사회성" → "한도+1" 라벨 변경~~ | — | **✅ 완료** (기확인, 이미 구현됨) |
 | ~~U10~~ | ~~UX 명확성~~ | ~~소환 위치 트랙 충돌 회피~~ | — | **✅ 완료** (스폰 버그 수정 — 22px 이내 20회 재시도, `GameState.ts`) |
@@ -156,7 +169,6 @@
 | ~~U8~~ | ~~무한모드~~ | ~~OVERCLOCK_HP_GROWTH 1.05→1.08, _SPEED_GROWTH 1.03→1.05~~ | — | **✅ 완료** |
 | ~~U9~~ | ~~페이싱~~ | ~~최종보스 거대화 (64×64, 빨간 오라, "👑 GREAT BOSS")~~ | — | **✅ 완료** (👑 48px + 이중 빨간 오라, Phase C 전용) |
 | ~~L~~ | ~~Plan~~ | ~~합성 레시피 북 버튼~~ | — | **✅ 완료** (P1-1, HUD 📖 버튼) |
-| F | Grind | 잘못된 합성 시 분해 팝업 → 골드 환급 | Grind | ⚪ P2 |
 | D | Grind | 티어별 킬 카운터 + 보너스 골드 | Grind | ⚪ P2 |
 | U4 | 폴리시 | Menhera 지뢰 시각 강화 (8→12px, 폭발 30→50px+셰이크) | Pop | ⚪ P2 |
 | ~~E~~ | ~~Grind+Pop~~ | ~~보스 10초 내 처치 → 보상 카드 +1장~~ | — | **✅ 완료** (보스 속전속결 보너스, S1:10s/S2:13s/S3:16s) |
@@ -165,7 +177,7 @@
 
 ### 🎯 권장 작업 순서
 
-1. **1차 패치 (한 커밋):** U13 + U14 + U15 — 페이싱 핵심
+1. **1차 패치 (한 커밋):** U13 + U14 — 페이싱 핵심
 2. **본인 7분 풀플레이** → 아래 검증 게이트 4개 확인
 3. **2차 패치 (한 커밋):** U1 + U2 + U10 — UX 명확성 P0
 4. **3차 패치:** U7 + U5 + U3 + U6 + U8 + U9 + L — 페이싱 미세조정 + P1
@@ -178,7 +190,7 @@
 |---|---|---|
 | 4티어 완성 평균 시점 | **4:00~5:00** | 너무 빠르면 U7 적용, 너무 늦으면 U15 자동지급 +2 |
 | Phase C 보스 처치 시간 | **3~5초** | 0.5초컷이면 BOSS_HP_MULT_PHASE_C 50→70, 10초+면 50→35 |
-| 강화 점 사용 패턴 | 1티어 평균 3/5, 2티어 2/3 | 1티어 풀강(5/5) 디폴트면 천장 5→3 |
+| 강화 점 사용 패턴 | 1티어 평균 3/5, 2티어 2/3 | 1티어 풀강(5/5) 디폴트면 1티어 천장 5→3 |
 | 7분 도달률 | **50~70%** | 90%+ 너무 쉬움, 30%- 너무 어려움 |
 
 ### 🔧 1차 패치 구체 수치 (U13 + U14 + U15)
@@ -203,16 +215,7 @@
 - HUD: 우측에 `[⚔️1 +N/5]` `[⚔️2 +N/3]` 버튼 2개 + `🔥 강화점 N` 카운터
 - 데미지 적용: `combat.ts`에서 unit.tier===1 ? +tier1AtkBonus 합산
 
-**U15: 강화 점 분당 +1 자동 지급 (fail-safe)**
-- `ENHANCE_POINT_AUTO_INTERVAL_MS = 60000`
-- 보스 14 + 자동 6 = 판당 총 **20점** (1티어 풀강 5 + 2티어 풀강 6 = 11점 → 9점 여유)
 
-### 🚨 브레이크 글래스 (1차 패치 풀플레이 후 즉시 조정)
-
-- "1티어 풀강해도 Phase C 못 깸" → 자동 지급 60s → 30s (분당 +2)
-- "1티어 풀강만 하고 합성 안 함" → 1티어 천장 5 → 3
-- "Phase C 너무 어렵다" → BOSS_HP_MULT_PHASE_C 50 → 35
-- "강화 점 너무 많이 남음" → 자동 지급 폐지, 보스만
 
 ### 🧠 코어 판타지 영향 분석 (디자이너 검증)
 
@@ -359,6 +362,7 @@ breeding-defense/
 | 상수 | 값 | 설명 |
 |---|---|---|
 | `GAME_WIDTH` / `GAME_HEIGHT` | 360 / 640 | 캔버스 크기 |
+| `MOBILE_SAFE_ZONE_TOP` / `_BOTTOM` | 24 / 16 | 노치/홈바 안전 여백 |
 | `MAX_ENEMIES` | 50 | 초과 시 게임 오버 |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 (오버클록 진입) |
 | `ENEMY_SPAWN_INTERVAL_MS` | **2500 (DEV, 출시 5000)** | 기본 스폰 주기 |
@@ -391,8 +395,8 @@ breeding-defense/
 > 4티어 Astral_God: range260/dmg10/300ms/8타겟/보장크리티컬/체인4. 레시피: Griffin+Thunder_Hawk+Cyborg_Wizard (100px 이내 3-way 합성).
 
 ## GameState API (src/game/GameState.ts)
-- **상태:** `phase` ('playing'|'clear'|'overclock'|'gameover'|'victory'), `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`, `isInfiniteMode`, `pendingNotification`, `trackWaypoints`, `unitZone`
-- **메서드:** `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward)`, `summon()`, `upgradePopulation()`, `moveUnit(id,x,y)`, `sellUnit(id)`, `toggleLock(id)`, `useGemContinue()`, `startBreeding()`, `completeBreeding()`, `synthesize()`, `processCombat(snapshots)`, `generateRewards(count)`, `applyReward(type)`
+- **상태:** `phase` ('playing'|'clear'|'overclock'|'gameover'|'victory'), `elapsedMs`, `enemyCount`, `gold`, `gems`, `units: UnitData[]`, `summonCost`, `maxUnits`, `populationUpgradeCost`, `pendingBossSpawn`, `criticalProbability`, `isInfiniteMode`, `pendingNotification`, `trackWaypoints`, `unitZone`, `unitDamageMap: Map<number,{race,total}>`, `adReviveUsed`, `pendingCritHaptic`
+- **메서드:** `tick(deltaMs)`, `enterOverclock()`, `registerSpawn()`, `registerKill(reward)`, `summon()`, `upgradePopulation()`, `moveUnit(id,x,y)`, `sellUnit(id)`, `toggleLock(id)`, `useGemContinue()`, `startBreeding()`, `completeBreeding()`, `synthesize()`, `processCombat(snapshots)`, `generateRewards(count)`, `applyReward(type)`, `useAdRevive()`, `getTopDamageDealers(n)`, `serialize()`, `deserialize(_data)`
 - **게터:** `currentSpawnIntervalMs`, `currentEnemyHp`, `currentEnemySpeed`, `formatTimer()`
 
 ## 타입 (src/game/types.ts)
@@ -404,7 +408,7 @@ breeding-defense/
 - `EnemyType`: NORMAL | FAST
 - `RewardType`: gem | gold | damage | maxUnits | twinProb | doubleAtk | crit
 - `UnitData`: id, race, tier(1|2|3|4), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs, isLocked
-- `EnemySnapshot`, `AttackEvent`, `CombatResult` (combat I/O)
+- `EnemySnapshot`, `AttackEvent` (srcRace?, srcId?), `CombatResult` (combat I/O)
 
 ## 구현 완료 (그룹별)
 

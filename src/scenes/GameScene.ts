@@ -29,6 +29,8 @@ export class GameScene extends Phaser.Scene {
   private overclockSfxPlayed = false;
   private bossTimerText?: Phaser.GameObjects.Text;
   private speedMult: 1 | 2 = 1;
+  private stageId = 1;
+  private _lastCritHapticMs = 0;
 
   constructor() {
     super('GameScene');
@@ -38,8 +40,8 @@ export class GameScene extends Phaser.Scene {
     this.metaProgress = new MetaProgress();
     this.starsAwarded = false;
     this.overclockSfxPlayed = false;
-    const stageId = ((this.scene.settings.data as Record<string, unknown>)?.stageId as number) ?? 1;
-    this.state = new GameState(this.metaProgress.getData(), stageId);
+    this.stageId = ((this.scene.settings.data as Record<string, unknown>)?.stageId as number) ?? 1;
+    this.state = new GameState(this.metaProgress.getData(), this.stageId);
     this.sfx = new SoundManager();
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
@@ -67,6 +69,7 @@ export class GameScene extends Phaser.Scene {
         this.state.isPaused = false;
       },
       () => { this.scene.start('StageSelectScene'); },
+      () => { this.adRevive(); },
     );
     this.enemyRenderer = new EnemyRenderer(
       this,
@@ -101,9 +104,37 @@ export class GameScene extends Phaser.Scene {
     this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.sfx);
     this.dragController.register();
 
-    // Show tutorial overlay and pause until dismissed
+    // Blur / visibility → auto-pause to prevent game-over during interruptions
+    this.game.events.on('blur', () => { this.autoPause(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') this.autoPause();
+    });
+
+    // Show tutorial → stage intro → start
     this.state.isPaused = true;
-    this.popupRenderer.showTutorial(() => { this.state.isPaused = false; });
+    this.popupRenderer.showTutorial(() => {
+      this.showStageIntro(() => { this.state.isPaused = false; });
+    });
+  }
+
+  private autoPause(): void {
+    if (this.state.phase === 'playing' || this.state.phase === 'overclock') {
+      if (!this.state.isPaused) this.onPause();
+    }
+  }
+
+  private showStageIntro(onDone: () => void): void {
+    const text = this.add.text(CENTER_X, CENTER_Y - 40, this.state.stageConfig.name, {
+      fontFamily: 'monospace', fontSize: '32px', color: '#ffd700',
+      stroke: '#000000', strokeThickness: 5, align: 'center',
+    }).setOrigin(0.5).setDepth(25).setAlpha(0);
+    this.tweens.add({ targets: text, alpha: 1, duration: 400, onComplete: () => {
+      this.time.delayedCall(800, () => {
+        this.tweens.add({ targets: text, alpha: 0, duration: 500,
+          onComplete: () => { text.destroy(); onDone(); }
+        });
+      });
+    }});
   }
 
   update(_time: number, deltaMs: number): void {
@@ -129,6 +160,10 @@ export class GameScene extends Phaser.Scene {
       this.enemyRenderer.spawnBoss();
       this.notificationRenderer.add('👹 보스가 등장했습니다!', '#ff6666');
       this.sfx.playSFX('boss');
+      // Boss spawn camera effect
+      this.cameras.main.shake(200, 0.012);
+      const bossFlash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.6).setDepth(18);
+      this.tweens.add({ targets: bossFlash, alpha: 0, duration: 300, onComplete: () => bossFlash.destroy() });
       // Show fast-kill countdown (skip first boss)
       if (this.state.bossCount > 1) {
         this.startBossCountdown();
@@ -161,10 +196,21 @@ export class GameScene extends Phaser.Scene {
           this.metaProgress.addGems(1);
           this.starsAwarded = true;
         }
+        const isNewRecord = this.metaProgress.setStageRecord(this.stageId, this.state.elapsedMs);
+        if (isNewRecord) this.notificationRenderer.add('🏆 최고 기록 갱신!', '#ffd700');
         this.sfx.playSFX('victory');
-        this.popupRenderer.showVictory();
+        this.popupRenderer.showVictory(isNewRecord);
       }
       return;
+    }
+
+    // Throttled crit haptic (max once per 1.5 sec)
+    if (this.state.pendingCritHaptic) {
+      this.state.pendingCritHaptic = false;
+      if (this.state.elapsedMs - this._lastCritHapticMs > 1500) {
+        this._lastCritHapticMs = this.state.elapsedMs;
+        if ('vibrate' in navigator) navigator.vibrate(30);
+      }
     }
 
     // Pause guard — skip all gameplay when reward popup is active
@@ -185,7 +231,8 @@ export class GameScene extends Phaser.Scene {
 
     if (this.isPhase('gameover')) {
       this.sfx.playSFX('gameover');
-      this.popupRenderer.showGameOver();
+      const isNewRecord = this.metaProgress.setStageRecord(this.stageId, this.state.elapsedMs);
+      this.popupRenderer.showGameOver(isNewRecord);
       return;
     }
 
@@ -225,6 +272,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBossKilled(): void {
+    if ('vibrate' in navigator) navigator.vibrate([60, 30, 80]);
     const ms = this.state.elapsedMs;
     const isFastKill = this.state.bossCount > 1 &&
       this.state.bossSpawnedAtMs !== null &&
@@ -318,6 +366,13 @@ export class GameScene extends Phaser.Scene {
 
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
+    this.enemyRenderer.clearAll();
+    this.banner?.destroy(); this.banner = undefined;
+    this.popupRenderer.hideGameOver();
+  }
+
+  private adRevive(): void {
+    if (!this.state.useAdRevive()) return;
     this.enemyRenderer.clearAll();
     this.banner?.destroy(); this.banner = undefined;
     this.popupRenderer.hideGameOver();
