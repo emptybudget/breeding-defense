@@ -6,7 +6,7 @@ import {
   CANNON_SHOOTER_KB_DIST, GATLING_DOG_SPLASH_RADIUS, GATLING_DOG_SPLASH_MULT,
   ELECTRIC_COON_CHAIN_RANGE, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_MULT,
 } from './config';
-import { AttackEvent, CombatResult, EnemySnapshot, Mine, UnitData } from './types';
+import { AttackEvent, CombatResult, EnemySnapshot, Mine, UnitData, UnitRace } from './types';
 import { getUnitCombatStats } from './unitHelpers';
 
 /** Chain-lightning helper: bounces damage from src through up to maxChains nearby enemies. */
@@ -24,6 +24,7 @@ function applyChainLightning(
   attacks: AttackEvent[],
   tierKillCounts: Map<number, number>,
   unitTier: number,
+  srcRace: UnitRace,
 ): void {
   let chainSrc = src;
   let chainDmg = baseDmg;
@@ -41,7 +42,7 @@ function applyChainLightning(
     chained.add(next.id);
     const chainHp = (liveHp.get(next.id) ?? next.hp) - chainDmg;
     liveHp.set(next.id, chainHp);
-    attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: isCritForChain, damage: chainDmg });
+    attacks.push({ unitX: chainSrc.x, unitY: chainSrc.y, enemyX: next.x, enemyY: next.y, isCrit: isCritForChain, damage: chainDmg, srcRace });
     if (chainHp <= 0) {
       killedSet.add(next.id);
       killRewards.push(next.killReward);
@@ -147,7 +148,7 @@ export function runCombat(
     const burstCount = unit.race === 'Acorn_Hunter' ? 3 : 1;
 
     for (const target of targets) {
-      // Gimmick: Menhera_Squirrel — place mine at target position, no direct damage
+      // Gimmick: Menhera_Squirrel — place mine at target position, no direct damage (no srcRace → default style)
       if (unit.race === 'Menhera_Squirrel') {
         newMinePositions.push({ x: target.x, y: target.y });
         attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit: false, damage: 0 });
@@ -165,7 +166,7 @@ export function runCombat(
         if (Math.random() < doubleAttackProbability) finalDmg *= 2;
         const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
         liveHp.set(target.id, newHp);
-        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit, damage: finalDmg });
+        attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit, damage: finalDmg, srcRace: unit.race });
         if (newHp <= 0) {
           killedSet.add(target.id);
           killRewards.push(target.killReward);
@@ -186,19 +187,19 @@ export function runCombat(
             if (Math.hypot(splash.x - target.x, splash.y - target.y) > GATLING_DOG_SPLASH_RADIUS) continue;
             const splashHp = (liveHp.get(splash.id) ?? splash.hp) - splashDmg;
             liveHp.set(splash.id, splashHp);
-            attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: splash.x, enemyY: splash.y, isCrit: false, damage: splashDmg });
+            attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: splash.x, enemyY: splash.y, isCrit: false, damage: splashDmg, srcRace: unit.race });
             if (splashHp <= 0) { killedSet.add(splash.id); killRewards.push(splash.killReward); }
           }
         }
 
         // Gimmick: Electric_Coon — 체인 라이트닝 (chains to up to 2 nearest enemies)
         if (unit.race === 'Electric_Coon' && !killedSet.has(target.id)) {
-          applyChainLightning(target, finalDmg, ELECTRIC_COON_CHAIN_MULT, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
+          applyChainLightning(target, finalDmg, ELECTRIC_COON_CHAIN_MULT, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier, unit.race);
         }
 
         // Gimmick: Thunder_Hawk — chain lightning (3 chains, 80% each)
         if (unit.race === 'Thunder_Hawk' && !killedSet.has(target.id)) {
-          applyChainLightning(target, finalDmg, THUNDER_HAWK_CHAIN_MULT, THUNDER_HAWK_CHAIN_COUNT, THUNDER_HAWK_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
+          applyChainLightning(target, finalDmg, THUNDER_HAWK_CHAIN_MULT, THUNDER_HAWK_CHAIN_COUNT, THUNDER_HAWK_CHAIN_RANGE, false, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier, unit.race);
         }
 
         // Gimmick: Chaos_Artillery — also plant mine at each hit location
@@ -208,7 +209,7 @@ export function runCombat(
 
         // Gimmick: Astral_God — chain lightning (4 chains, 90% each, crit)
         if (unit.race === 'Astral_God' && !killedSet.has(target.id)) {
-          applyChainLightning(target, finalDmg, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_RANGE, true, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier);
+          applyChainLightning(target, finalDmg, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_RANGE, true, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier, unit.race);
         }
       }
     }

@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달하세요. 매 갱신마다 최신화됩니다.
-> 마지막 갱신: 2026-05-27 (첫 적 5초 출현 + 게임 2배속 메타 업그레이드 / 보안 조치)
+> 마지막 갱신: 2026-05-28 (유닛별 공격 이펙트 구현)
 
 ## ⚠️ 미완료 조치
 
@@ -123,27 +123,13 @@
 
 ---
 
-## 🎨 다음 작업 — 유닛별 공격 이펙트 (TODO)
+### 2026-05-28 — 유닛별 공격 이펙트
 
-> 사용자 요청 2026-05-27. 이번 패치에서 메타 2배속만 구현하고 본 항목은 보류.
-
-**목표:** 현재 모든 공격이 동일한 노란 선(`flashGraphics.lineStyle(2, 0xffff00)`)으로 표시됨. 유닛별로 색/형태 차별화.
-
-**구현 스케치 (시작 시 참고):**
-
-1. `types.ts` `AttackEvent`에 `srcRace?: UnitRace` 추가
-2. `combat.ts`에서 모든 `attacks.push({...})` 호출에 `srcRace: unit.race` 채우기 (체인은 `applyChainLightning` 인자로 `srcRace` 추가 후 chain push에도 동일 race 사용; mine 폭발/Menhera는 `srcRace` 미설정 → 기본 스타일)
-3. `EnemyRenderer.handleCombat()`에서 race별 `{color, width, kind}` 매핑 테이블로 분기:
-   - `slash` — 짧은 굵은 선 + 작은 X 마크 (Warrior, Bio_Wolf, Cyborg_Slasher, Blade_Hound)
-   - `arrow` — 얇은 선 + 끝점 작은 삼각형 (Archer, Falcon_Eye, Acorn_Hunter)
-   - `beam` — 두꺼운 직선 (Android, Laser_Sniper, Griffin)
-   - `shell/splash` — 선 + 적 위치 반원/원 (Cannon, Cannon_Shooter, Gatling_Dog, Dino_Mecha, Chaos_Artillery)
-   - `chain` — 지그재그 (Electric_Coon, Thunder_Hawk)
-   - `magic` — 선 + 별 (Cyborg_Wizard, Acorn_Girl, Berserk_Shaman)
-   - `divine` — 무지개 굵은 선 (Astral_God)
-   - 기본 — 현재 노란 선 (지뢰 폭발 등)
-
-**주의:** `applyChainLightning`에 srcRace 인자 추가하면 호출부 4곳 (Electric_Coon / Thunder_Hawk / Astral_God) 갱신.
+| 항목 | 구현 내용 | 파일 |
+|---|---|---|
+| `AttackEvent.srcRace` 추가 | `types.ts` `AttackEvent`에 `srcRace?: UnitRace` 필드 추가 | `types.ts` |
+| combat.ts srcRace 전파 | 모든 `attacks.push`에 `srcRace: unit.race` 추가. `applyChainLightning`에 `srcRace` 인자 추가(3곳 호출부 갱신). 지뢰 폭발/Menhera는 미설정 → 기본 스타일 | `combat.ts` |
+| EnemyRenderer 스타일 테이블 | 8종 스타일 분기: slash(적주황+X), beam(청록굵은선), shell(주황+원), chain(노랑지그재그), magic(보라+별4개), divine(흰색+별6개), arrow(초록얇은선), 기본(노란선) | `EnemyRenderer.ts` |
 
 ---
 

@@ -17,7 +17,7 @@ import {
   TANK_KILL_REWARD,
 } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { EnemyType } from '../../game/types';
+import { EnemyType, UnitRace } from '../../game/types';
 import { SoundManager } from '../SoundManager';
 
 const ENEMY_EMOJI: Record<EnemyType, string> = {
@@ -31,6 +31,40 @@ const ENEMY_FONT: Record<EnemyType, string> = {
   TANK:   '23px',
 };
 const BOSS_EMOJI = '👺';
+
+type AttackKind = 'line' | 'slash' | 'beam' | 'shell' | 'chain' | 'magic' | 'divine';
+type AttackStyle = { color: number; width: number; kind: AttackKind };
+const ATTACK_STYLE: Partial<Record<UnitRace, AttackStyle>> = {
+  // slash — orange-red thick line + X mark
+  Warrior:         { color: 0xff4400, width: 3, kind: 'slash' },
+  Bio_Wolf:        { color: 0xff4400, width: 3, kind: 'slash' },
+  Cyborg_Slasher:  { color: 0xff4400, width: 3, kind: 'slash' },
+  Blade_Hound:     { color: 0xff4400, width: 3, kind: 'slash' },
+  // arrow — green thin line
+  Archer:          { color: 0x88ff44, width: 1, kind: 'line' },
+  Falcon_Eye:      { color: 0x88ff44, width: 1, kind: 'line' },
+  Acorn_Hunter:    { color: 0x88ff44, width: 1, kind: 'line' },
+  // beam — cyan thick line
+  Android:         { color: 0x00ddff, width: 3, kind: 'beam' },
+  Laser_Sniper:    { color: 0x00ddff, width: 3, kind: 'beam' },
+  Griffin:         { color: 0x00ddff, width: 3, kind: 'beam' },
+  // shell/splash — orange line + circle at target
+  Cannon:          { color: 0xff8800, width: 2, kind: 'shell' },
+  Cannon_Shooter:  { color: 0xff8800, width: 2, kind: 'shell' },
+  Gatling_Dog:     { color: 0xff8800, width: 2, kind: 'shell' },
+  Dino_Mecha:      { color: 0xff8800, width: 2, kind: 'shell' },
+  Chaos_Artillery: { color: 0xff8800, width: 2, kind: 'shell' },
+  // chain — yellow zigzag
+  Electric_Coon:   { color: 0xffee00, width: 2, kind: 'chain' },
+  Thunder_Hawk:    { color: 0xffee00, width: 2, kind: 'chain' },
+  // magic — purple line + star
+  Acorn_Girl:      { color: 0xdd44ff, width: 2, kind: 'magic' },
+  Cyborg_Wizard:   { color: 0xdd44ff, width: 2, kind: 'magic' },
+  Berserk_Shaman:  { color: 0xdd44ff, width: 2, kind: 'magic' },
+  // divine — white thick line + large star
+  Astral_God:      { color: 0xffffff, width: 4, kind: 'divine' },
+};
+const DEFAULT_ATTACK_STYLE: AttackStyle = { color: 0xffff00, width: 2, kind: 'line' };
 
 type Enemy = Phaser.GameObjects.Text & {
   id: number;
@@ -267,12 +301,54 @@ export class EnemyRenderer {
 
     if (result.attacks.length > 0) {
       this.flashGraphics.clear();
-      this.flashGraphics.lineStyle(2, 0xffff00, 1);
       for (const atk of result.attacks) {
-        this.flashGraphics.beginPath();
-        this.flashGraphics.moveTo(atk.unitX, atk.unitY);
-        this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
-        this.flashGraphics.strokePath();
+        const style = (atk.srcRace && ATTACK_STYLE[atk.srcRace]) ?? DEFAULT_ATTACK_STYLE;
+        this.flashGraphics.lineStyle(style.width, style.color, 1);
+
+        if (style.kind === 'chain') {
+          // zigzag: midpoint offset perpendicular to line
+          const mx = (atk.unitX + atk.enemyX) / 2;
+          const my = (atk.unitY + atk.enemyY) / 2;
+          const dx = atk.enemyX - atk.unitX;
+          const dy = atk.enemyY - atk.unitY;
+          const len = Math.hypot(dx, dy) || 1;
+          const ox = (-dy / len) * 8; const oy = (dx / len) * 8;
+          this.flashGraphics.beginPath();
+          this.flashGraphics.moveTo(atk.unitX, atk.unitY);
+          this.flashGraphics.lineTo(mx + ox, my + oy);
+          this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
+          this.flashGraphics.strokePath();
+        } else {
+          this.flashGraphics.beginPath();
+          this.flashGraphics.moveTo(atk.unitX, atk.unitY);
+          this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
+          this.flashGraphics.strokePath();
+
+          if (style.kind === 'slash') {
+            // X mark at target
+            const s = 6;
+            this.flashGraphics.beginPath();
+            this.flashGraphics.moveTo(atk.enemyX - s, atk.enemyY - s);
+            this.flashGraphics.lineTo(atk.enemyX + s, atk.enemyY + s);
+            this.flashGraphics.moveTo(atk.enemyX + s, atk.enemyY - s);
+            this.flashGraphics.lineTo(atk.enemyX - s, atk.enemyY + s);
+            this.flashGraphics.strokePath();
+          } else if (style.kind === 'shell') {
+            this.flashGraphics.strokeCircle(atk.enemyX, atk.enemyY, 10);
+          } else if (style.kind === 'magic' || style.kind === 'divine') {
+            // star spokes at target
+            const r = style.kind === 'divine' ? 9 : 6;
+            const spokes = style.kind === 'divine' ? 6 : 4;
+            for (let i = 0; i < spokes; i++) {
+              const angle = (i / spokes) * Math.PI;
+              this.flashGraphics.beginPath();
+              this.flashGraphics.moveTo(atk.enemyX - Math.cos(angle) * r, atk.enemyY - Math.sin(angle) * r);
+              this.flashGraphics.lineTo(atk.enemyX + Math.cos(angle) * r, atk.enemyY + Math.sin(angle) * r);
+              this.flashGraphics.strokePath();
+            }
+          }
+        }
+
         if (atk.damage > 0) {
           const jitter = Phaser.Math.Between(-5, 5);
           const label = atk.isCrit ? `${atk.damage}!` : String(atk.damage);
