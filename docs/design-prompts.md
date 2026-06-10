@@ -164,11 +164,17 @@ cape covering body, full body cloak,
 | **T3 (6종)** | tween + 그려진 이펙트 강화판 | "고생 끝 보상" 순간 — 이펙트 키워 존재감 |
 | **T4 Astral_God (1종)** | tween + 풀이펙트 + **attack 2프레임 (확정)** | 클라이맥스 1종 → attack 포즈 1장 추가 생성 확정 (2026-06-10) |
 
-### 공유 이펙트 (캐릭터 무관, 6~10종 공용)
+### 공유 이펙트 (캐릭터 무관, AI 생성 — 2026-06-10 확정)
 
-- 기존 코드의 도형 기반 이펙트 8종(slash/beam/shell/chain/magic/divine/arrow/기본)을 **무하 톤 그려진 PNG 이펙트로 교체**. "노란 직선 플래시" → "무하풍 금빛 슬래시 호"가 되면 같은 36px에서 타격감 급상승.
-- 우선순위: **슬래시 호 / 머즐 플래시 / 마법진 / 임팩트 스파크** 4종 먼저.
-- ⚠️ 이펙트는 **NovelAI 부적합**(투명배경 단발/시트 일관성 안 나옴) → 직접 그리기 / Effekseer / 단순 PNG로 별도 제작.
+- 기존 코드의 도형 기반 이펙트 8종(slash/beam/shell/chain/magic/divine/arrow/기본)을 **무하 톤 PNG 이펙트로 교체**. "노란 직선 플래시" → "무하풍 금빛 슬래시 호"가 되면 같은 36px에서 타격감 급상승.
+- 우선순위 4종: **슬래시 호 / 머즐 플래시 / 마법진 / 임팩트 스파크**.
+- **핵심 트릭 — 투명 알파 불필요.** 이펙트를 **검정(#000) 배경 + 밝은 빛**으로 그린 뒤 Phaser `BlendModes.ADD`(가산)로 합성 → 검정이 자동 투명. 누끼(rembg)·알파 후처리 전부 불필요(크롭만). → **이전 "NovelAI 부적합" 판단 수정: 검정배경+가산이면 NovelAI v4.5로 생성 가능, 캐릭터보다 쉬움**(얼굴·손가락 같은 틀리면 티 나는 디테일 없음).
+- **단발 1장씩 4장, 애니메이션은 100% Phaser tween** (시트 X — 20~36px에선 프레임 디테일 안 보이고 AI 프레임 일관성 최악).
+  - 슬래시(scale 0.3→1.2 + rotate, 0.2s) / 머즐(scale 0.5→1 + fade, 0.1s) / 마법진(scale 0→1 + rotate, 0.5s) / 스파크(scale 0.4→1.3 + fade, 0.15s)
+- 톤 통일: **색 고정(금 `#e8c84a` + 청록 `#4ab8b8`)이 주력**, Vibe Transfer(anchor=마법진, Str 0.3~0.4)는 보조.
+- ⚠️ 가산 한계: 어두운 이펙트(검은 연기/그림자)는 표현 불가 → Chaos_Artillery "검은 연기"는 별도/생략.
+- 안 풀리는 종만 Midjourney 1개월 임시($10). SDXL/ComfyUI 등 새 툴 학습은 비추(사용자 새 툴 부담 회피).
+- 프롬프트 전문 → §5-2. 파일명: `fx_slash_arc.png` / `fx_muzzle_flash.png` / `fx_magic_circle.png` / `fx_impact_spark.png` (→ `public/assets/fx/`)
 
 ### T4 Astral_God attack 포즈 토큰 (2프레임 적용 시)
 
@@ -184,6 +190,65 @@ clear silhouette still readable, same character same outfit same colors as idle
 - 네거티브에서 **이 컷만** `dynamic pose, action pose, swinging weapon, mid-attack` 제거(안 그러면 모델이 공격 포즈 거부). 나머지 네거티브 유지.
 - 파일명: `unit_astral_god_tier4_attack.png` (idle은 `_tier4.png` 그대로).
 - 검수: idle과 얼굴·왕관·후광·색 동일한가 / 36px에서 idle과 실루엣 구분되는가(앞으로 기움 + 팔 올림).
+
+## 5-2. 이펙트 4종 AI 프롬프트 (NovelAI v4.5, 검정배경+가산)
+
+**공통 설정:** NAI Diffusion V4.5 Full / 1024×1024 / Steps 28 / CFG 5.0 / Euler / Karras / **검정 배경 전제(투명 알파 X)**
+**Anchor:** 마법진 먼저 생성(NovelAI가 가장 잘 만듦) → `fx_anchor_magic_circle.png` 저장 + 시드 메모 → 나머지 3종에 Vibe Str 0.3~0.4.
+**기대치:** 마법진 A / 슬래시 B+ / 머즐·스파크 B (10장 뽑아 2~3장 선별 각오).
+
+**공통 네거티브 (4종 전부):**
+
+```
+character, person, human, hand, arm, weapon, sword, gun, face, eyes, creature, monster,
+text, letters, watermark, signature, logo, ui, frame, border ornament,
+white background, gray background, colored background, gradient background,
+realistic, photographic, 3d render, multiple objects, cluttered, busy,
+dark effect, black smoke, dull, low contrast, muddy
+```
+
+### 1. 슬래시 호 — `fx_slash_arc.png` (Seed `83002`)
+
+```
+{{glowing energy slash effect}}, single crescent sword arc, curved blade trail,
+bright golden light #e8c84a core fading to teal #4ab8b8 edge,
+sharp clean crescent shape, thin tapered tips, motion energy trail,
+radiant glow, sparks along the arc, art nouveau elegant curve,
+isolated effect on pure black background, additive glow, high contrast,
+centered, single arc only, no character
+```
+
+### 2. 머즐 플래시 — `fx_muzzle_flash.png` (Seed `83003`)
+
+```
+{{muzzle flash effect}}, radial burst of light from a single point,
+star-shaped flash, golden #e8c84a bright core, teal #4ab8b8 outer sparks,
+short radiating light spikes, small smoke-free flash, energy discharge,
+radiant bloom, isolated effect on pure black background, additive glow,
+high contrast, centered, single flash, no gun, no character
+```
+
+### 3. 마법진 — `fx_magic_circle.png` (Seed `83001`, anchor)
+
+```
+{{magic circle}}, ornate glowing summoning circle seen from above (top-down),
+concentric golden rings #e8c84a with art nouveau mucha filigree, intricate runes,
+teal #4ab8b8 glowing accents, blooming vine motifs, alphonse mucha decorative geometry,
+flat circular emblem, radiant inner glow, isolated on pure black background,
+additive glow, high contrast, perfectly centered circle, symmetric, no character
+```
+
+### 4. 임팩트 스파크 — `fx_impact_spark.png` (Seed `83004`)
+
+```
+{{impact spark effect}}, sharp burst of sparks on hit, radial scatter of small light shards,
+golden #e8c84a sparks with teal #4ab8b8 flecks, star-shaped impact flash at center,
+flying light particles, energy shatter, short jagged light rays,
+isolated effect on pure black background, additive glow, high contrast,
+centered burst, no character, no weapon
+```
+
+> 팁: NovelAI가 캐릭터를 끼워넣으면 프롬프트 맨 앞에 `no humans, no character,` 한 번 더 + `{{}}` 강조는 이펙트 명사에만.
 
 ## 6. Vibe Transfer 운용법 (캐릭터 25종 일관성 핵심)
 
@@ -406,6 +471,10 @@ text, letters, words, title, logo, game name, ui, hud, button, score, number, hp
 | `82002` | 스플래시 |
 | `82003` | Play 피처 그래픽 |
 | `82004` | 스크린샷 키비주얼 |
+| `83001` | 이펙트 마법진 (anchor) |
+| `83002` | 이펙트 슬래시 호 |
+| `83003` | 이펙트 머즐 플래시 |
+| `83004` | 이펙트 임팩트 스파크 |
 
 ## 11. 파일명/디렉토리 규칙
 
@@ -415,11 +484,17 @@ public/assets/
 │   ├── unit_warrior_tier1.png
 │   ├── unit_berserk_shaman_tier3.png
 │   ├── unit_chaos_artillery_tier3.png
-│   └── unit_astral_god_tier4.png
+│   ├── unit_astral_god_tier4.png
+│   └── unit_astral_god_tier4_attack.png   (T4 공격 2프레임)
 ├── backgrounds/
 │   ├── bg_ingame_main.png
 │   ├── bg_title.png
 │   └── bg_stage_select.png
+├── fx/                            (검정배경, Phaser BlendModes.ADD)
+│   ├── fx_slash_arc.png
+│   ├── fx_muzzle_flash.png
+│   ├── fx_magic_circle.png
+│   └── fx_impact_spark.png
 ├── ui/
 │   ├── popup_frame.png            (알파)
 │   ├── button_idle.png            (9-slice)
@@ -453,6 +528,7 @@ public/assets/
 □ T2 12종 (Str 0.4 + T1 베스트 Str 0.3)
 □ T3 6종 (Str 0.35 + T2 베스트 Str 0.3)
 □ T4 Astral_God (Str 0.25 + T3 베스트 Str 0.4, 20장 이상 선별)
+□ T4 Astral_God attack 포즈 (idle 동일 시드 + 완성 idle PNG Vibe Str 0.6, §5-1 토큰)
 
 [Phase 6 — 후처리 (rembg)]
 □ raw → rembg → cutout (rembg i input.png output.png)
@@ -468,11 +544,17 @@ public/assets/
 □ 4종 스토어 (시드 82001~82004)
 □ 각 자산 알파 처리 필요한 것만 후처리
 
+[Phase 8.5 — 이펙트 4종 (NovelAI, §5-2)]
+□ 마법진 anchor 먼저 (시드 83001) → 메모 → 나머지 3종 Vibe Str 0.3~0.4
+□ 검정배경 그대로, 정사각 크롭만 (누끼·알파 처리 안 함)
+□ public/assets/fx/ 배치
+
 [Phase 9 — Phaser 통합 (개발자 작업)]
 □ public/assets/ 배치
 □ idle bob / 공격 텔레그래프 / 피격 셰이크 tween 적용
 □ 타입별 공격 tween 프리셋 3종 (근접 lunge / 원거리 반동 / 마법 pulse)
-□ 이펙트 텍스처 교체 (슬래시 호 / 머즐 플래시 / 마법진 / 임팩트 스파크) — T3·T4 강화판
+□ 이펙트 4종 BlendModes.ADD 로드 + tween (슬래시/머즐/마법진/스파크) — T3·T4 강화판
+□ T4 attack 2프레임 교차 (idle↔attack)
 □ 64~96px 인게임 확인
 ```
 
@@ -484,4 +566,4 @@ public/assets/
 - [ ] 승리/패배 팝업: 한 장 + 톤 후처리 vs 두 장 별도 생성
 - [ ] 스크린샷 키비주얼: 6+1 합본 vs Astral_God 단독 (Vibe 강도 0.7)
 - [x] **T4 Astral_God attack 포즈 1장 추가 생성 — 확정** (2026-06-10, §5-1 토큰 사용)
-- [x] **이펙트 제작 = AI 생성으로 결정** (2026-06-10, 구체 방법 §5-1에 정리)
+- [x] **이펙트 제작 = NovelAI v4.5 검정배경+가산(ADD) 블렌드로 결정** (2026-06-10, 4종 단발+tween, 프롬프트 §5-2)
