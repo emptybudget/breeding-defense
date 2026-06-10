@@ -9,12 +9,13 @@
 - **분위기: 다크 판타지 + 골드 액센트** (UI `artnouveau.ts`와 동일 톤)
 - **생성 도구: NovelAI v4 메인** + Midjourney 보조 (타이틀/Astral_God 도감 일러스트)
 - 무하 액센트 단계별: T1 절제 → T2 중간 → T3 강조 → T4 만개 (Pop 서사 시각화)
+- **포즈/시점 (2026-06-10 확정): 3/4 좌향(살짝 왼쪽 바라봄) + 자연 idle(팔 내림).** 정면 대칭 T포즈 폐기 — 좌우 반전으로 적 방향(좌/우)을 구분하기 위함. 공격 모션 스프라이트 없음(정지 1컷, 공격 피드백은 인게임 플래시선·데미지 숫자가 담당).
 
 ## 캐릭터 원본 사양 (공통)
 
 - 1024×1024 PNG, **투명 배경 필수**, 정사각형
-- 정면 + 중앙 + 가장자리 100~150px 여백
-- 인게임 표시 64~96px 기준 → 다운스케일
+- **3/4 좌향(살짝 왼쪽 바라봄)** + 중앙 + 가장자리 100~150px 여백
+- 인게임 표시 64~96px 기준 → 다운스케일 (좌향 원본 → 좌우 반전으로 우향 생성)
 - 종족별 메인 컬러 통일 (아래 컬러 가이드)
 - 파일명 규칙: `unit_<race>_tier<N>.png`, `enemy_<type>.png`
 
@@ -36,9 +37,9 @@ NovelAI v4 Tags 영역에 그대로 붙여 넣음. 캐릭터별 토큰만 갈아
 {{masterpiece}}, {{best quality}}, very aesthetic, absurdres, year 2024,
 artist:ke-ta, artist:fkey, artist:wlop, artist:alphonse mucha,
 1character, solo, chibi, super deformed, head-body ratio 1:1.5, large expressive eyes,
-front view, facing viewer, symmetrical pose, full body, standing on ground,
-arms slightly away from torso, legs shoulder-width apart, relaxed T-pose variant,
-neutral idle stance, weapon held lowered or at side, not swinging, static portrait,
+three-quarter view, facing slightly to the left, body angled 30 degrees to the left, full body, standing on ground,
+arms relaxed down at sides, hands near hips, legs shoulder-width apart,
+natural idle stance, weapon held lowered or at side, not swinging, static portrait,
 clear silhouette, separable limbs, head torso arms legs clearly distinct,
 art nouveau accents, ornate golden filigree, mucha-style decorative curves,
 flowing vine motifs, subtle halo of botanical patterns behind character,
@@ -51,9 +52,10 @@ gold accent lines on costume edges, cream highlights,
 ```
 
 **핵심 의도:**
-- `relaxed T-pose variant` + `arms slightly away from torso` — 후속 Phaser tween 적용 위한 핵심
+- `three-quarter view, facing slightly to the left` — **좌우 반전으로 적 방향(좌/우) 구분**. 정면 대칭은 반전해도 동일해 방향 표현 불가. 모든 캐릭터 원본은 **좌향으로 통일** (인게임에서 우측 적 바라볼 땐 반전)
+- `arms relaxed down at sides` — T포즈/팔벌림 폐기. 자연스러운 대기 자세 (팔 줄여도 안 어색, 다운스케일 시 실루엣 깔끔)
 - `clear silhouette, separable limbs` — 64~96px 다운스케일 가독성
-- `weapon held lowered, not swinging` — 정지 컷 (모션 적용 시 어색함 방지)
+- `weapon held lowered, not swinging` — **정지 1컷, 공격 애니메이션 없음** (공격 피드백은 인게임 플래시선·데미지 숫자가 담당)
 
 ## 2. 캐릭터 공통 — 네거티브 프롬프트
 
@@ -64,11 +66,11 @@ signature, watermark, username, blurry,
 multiple characters, 2girls, 2boys, crowd, group,
 dynamic pose, action pose, motion blur, swinging weapon, mid-attack,
 running, jumping, sitting, lying down, leaning,
-arms crossed, arms behind back, arms touching torso, hands hidden,
+arms crossed, arms behind back, arms raised, arms spread wide, t-pose, hands hidden,
 realistic, photorealistic, 3d render, hyperrealistic skin,
 dark background, complex background, scenery, landscape, indoor, outdoor,
 shadow under feet, ground shadow, gradient background,
-asymmetric stance, side view, back view, three-quarter view,
+front view symmetrical, full side profile, side view, back view, facing right, facing away,
 extra limbs, missing limbs, fused limbs,
 oversaturated, neon glow overload, cluttered details, busy patterns on face,
 cape covering body, full body cloak,
@@ -152,7 +154,7 @@ cape covering body, full body cloak,
 
 **Step 1 — Anchor 제작 (Warrior 1종)**
 - 베이스 + 색상 + 토큰만으로 시드 여러 개 → 만족스러운 1장 확보
-- 검수: chibi 1:1.5 / 정면 / 팔 분리 / 골드 라인 절제 / 파랑 50%+
+- 검수: chibi 1:1.5 / **3/4 좌향(살짝 왼쪽)** / 팔 내림(벌림 X) / 골드 라인 절제 / 파랑 50%+
 - 저장: `anchor_warrior.png`
 
 **Step 2~5 — 강도 단계별**
@@ -408,7 +410,7 @@ public/assets/
 [Phase 1 — Warrior Anchor 제작]
 □ 베이스+네거티브+Warrior+Human 색상 입력
 □ 시드 미고정 6~10장 → 만족 컷 선별
-□ 검수: chibi 1:1.5 / 정면 / 팔 분리 / 파랑 50%+ / 골드 절제
+□ 검수: chibi 1:1.5 / 3/4 좌향(살짝 왼쪽) / 팔 내림(벌림 X) / 파랑 50%+ / 골드 절제
 □ anchor_warrior.png 저장 + 시드 번호 메모
 
 [Phase 2~5 — T1~T4 양산 (Vibe Transfer 강도 조절)]
@@ -423,6 +425,7 @@ public/assets/
 
 [Phase 7 — 인게임 검증]
 □ 96px 다운스케일 미리보기 → 종족색·실루엣 식별 확인
+□ 좌우 반전 미리보기 → 우향(반전) 시 무기/장식이 어색하지 않은지 확인
 □ final/로 이동, unit_<race>_tier<N>.png 규칙 적용
 
 [Phase 8 — 배경/UI/스토어 자산]
