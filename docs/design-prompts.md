@@ -9,7 +9,9 @@
 - **분위기: 다크 판타지 + 골드 액센트** (UI `artnouveau.ts`와 동일 톤)
 - **생성 도구: NovelAI v4 메인** + Midjourney 보조 (타이틀/Astral_God 도감 일러스트)
 - 무하 액센트 단계별: T1 절제 → T2 중간 → T3 강조 → T4 만개 (Pop 서사 시각화)
-- **포즈/시점 (2026-06-10 확정): 3/4 좌향(살짝 왼쪽 바라봄) + 자연 idle(팔 내림).** 정면 대칭 T포즈 폐기 — 좌우 반전으로 적 방향(좌/우)을 구분하기 위함. 공격 모션 스프라이트 없음(정지 1컷, 공격 피드백은 인게임 플래시선·데미지 숫자가 담당).
+- **포즈/시점 (2026-06-10 확정): 3/4 좌향(살짝 왼쪽 바라봄) + 자연 idle(팔 내림).** 정면 대칭 T포즈 폐기 — 좌우 반전으로 적 방향(좌/우)을 구분하기 위함.
+- **공격 모션 (2026-06-10 확정): NovelAI 추가 생성 없이 처리.** 인게임 표시 20~36px에선 캐릭터 내부 포즈 변화가 거의 안 보이고, **실루엣 전체 변형 + 캐릭터 앞 이펙트**가 공격감의 90%. → (1) Phaser tween 실루엣 모션(근접 lunge / 원거리 반동 / 마법 pulse + 상시 idle bob), (2) 공유 이펙트 오버레이(무하 톤 그려진 이펙트로 기존 도형 이펙트 교체). **T3·T4만 이펙트 강화, T4 Astral_God 1종만 attack 포즈 추가 생성 검토.** idle 원본은 1장 유지. 상세 → §5-1.
+- **생성 모델: NovelAI v4.5** (`{{masterpiece}}` 태그 v4.5 전용, `year 2025`로 최신 미감).
 
 ## 캐릭터 원본 사양 (공통)
 
@@ -34,7 +36,7 @@
 NovelAI v4 Tags 영역에 그대로 붙여 넣음. 캐릭터별 토큰만 갈아끼움.
 
 ```
-{{masterpiece}}, {{best quality}}, very aesthetic, absurdres, year 2024,
+{{masterpiece}}, {{best quality}}, very aesthetic, absurdres, year 2025,
 artist:ke-ta, artist:fkey, artist:wlop, artist:alphonse mucha,
 1character, solo, chibi, super deformed, head-body ratio 1:1.5, large expressive eyes,
 three-quarter view, facing slightly to the left, body angled 30 degrees to the left, full body, standing on ground,
@@ -55,7 +57,7 @@ gold accent lines on costume edges, cream highlights,
 - `three-quarter view, facing slightly to the left` — **좌우 반전으로 적 방향(좌/우) 구분**. 정면 대칭은 반전해도 동일해 방향 표현 불가. 모든 캐릭터 원본은 **좌향으로 통일** (인게임에서 우측 적 바라볼 땐 반전)
 - `arms relaxed down at sides` — T포즈/팔벌림 폐기. 자연스러운 대기 자세 (팔 줄여도 안 어색, 다운스케일 시 실루엣 깔끔)
 - `clear silhouette, separable limbs` — 64~96px 다운스케일 가독성
-- `weapon held lowered, not swinging` — **정지 1컷, 공격 애니메이션 없음** (공격 피드백은 인게임 플래시선·데미지 숫자가 담당)
+- `weapon held lowered, not swinging` — **idle 원본 1장 생성** (공격감은 코드 tween + 이펙트가 담당, 공격 포즈는 생성 안 함 — 예외: T4 §5-1)
 
 ## 2. 캐릭터 공통 — 네거티브 프롬프트
 
@@ -149,6 +151,39 @@ cape covering body, full body cloak,
 | # | 캐릭터 | 종족 | 추가 토큰 | 무기/소품 |
 |---|---|---|---|---|
 | 25 | Astral_God | (혼합/신성) | `divine astral deity youth, androgynous, prismatic golden robes with rainbow iridescence, six small angelic wings, glowing third eye, ornate crown, serene godly expression, full mucha halo with peacock feathers, blooming lotus, golden vines wrapping entire body, radiant constellation background ring` | crystalline scepter held vertically with both hands, suspended chains of gold |
+
+## 5-1. 공격 표현 방침 (비-NovelAI, 개발자/이펙트 영역)
+
+> 인게임 20~36px에선 캐릭터 그림을 더 그리는 것(2프레임·무기분리)은 가성비 최악 — 36px에서 포즈 차이는 거의 안 보임. 공격감의 정체는 **(1) 실루엣 전체 tween + (2) 캐릭터 앞 이펙트**. NovelAI 추가 생성은 0~1장으로 묶고, 작업은 코드+이펙트로 넘긴다.
+
+### 티어별 차등
+
+| 티어 | 모션 처리 | 비고 |
+|---|---|---|
+| **T1·T2 (18종)** | tween만 (타입별 프리셋 3종) | 추가 생성 0장. 근접 lunge / 원거리 반동(뒤로 kick) / 마법 pulse + 상시 idle bob(±2px) |
+| **T3 (6종)** | tween + 그려진 이펙트 강화판 | "고생 끝 보상" 순간 — 이펙트 키워 존재감 |
+| **T4 Astral_God (1종)** | tween + 풀이펙트 + (선택) attack 2프레임 | 클라이맥스 1종뿐 → attack 포즈 1장 추가는 ROI 충분 |
+
+### 공유 이펙트 (캐릭터 무관, 6~10종 공용)
+
+- 기존 코드의 도형 기반 이펙트 8종(slash/beam/shell/chain/magic/divine/arrow/기본)을 **무하 톤 그려진 PNG 이펙트로 교체**. "노란 직선 플래시" → "무하풍 금빛 슬래시 호"가 되면 같은 36px에서 타격감 급상승.
+- 우선순위: **슬래시 호 / 머즐 플래시 / 마법진 / 임팩트 스파크** 4종 먼저.
+- ⚠️ 이펙트는 **NovelAI 부적합**(투명배경 단발/시트 일관성 안 나옴) → 직접 그리기 / Effekseer / 단순 PNG로 별도 제작.
+
+### T4 Astral_God attack 포즈 토큰 (2프레임 적용 시)
+
+idle과 **동일 시드(+300) + 완성 idle PNG를 Vibe Transfer Info 1.0 / Str 0.6 / CFG 5.0**. 베이스의 idle 자세 라인(`arms relaxed down at sides ... not swinging, static portrait`)만 아래로 교체, 나머지(색·장식·시점·톤) 전부 고정:
+
+```
+both arms raised forward channeling power, scepter lifted overhead with both hands,
+divine light bursting from the scepter tip, body leaning slightly forward,
+mid-cast attack pose, radiant energy gathering, dramatic but balanced stance,
+clear silhouette still readable, same character same outfit same colors as idle
+```
+
+- 네거티브에서 **이 컷만** `dynamic pose, action pose, swinging weapon, mid-attack` 제거(안 그러면 모델이 공격 포즈 거부). 나머지 네거티브 유지.
+- 파일명: `unit_astral_god_tier4_attack.png` (idle은 `_tier4.png` 그대로).
+- 검수: idle과 얼굴·왕관·후광·색 동일한가 / 36px에서 idle과 실루엣 구분되는가(앞으로 기움 + 팔 올림).
 
 ## 6. Vibe Transfer 운용법 (캐릭터 25종 일관성 핵심)
 
@@ -436,6 +471,8 @@ public/assets/
 [Phase 9 — Phaser 통합 (개발자 작업)]
 □ public/assets/ 배치
 □ idle bob / 공격 텔레그래프 / 피격 셰이크 tween 적용
+□ 타입별 공격 tween 프리셋 3종 (근접 lunge / 원거리 반동 / 마법 pulse)
+□ 이펙트 텍스처 교체 (슬래시 호 / 머즐 플래시 / 마법진 / 임팩트 스파크) — T3·T4 강화판
 □ 64~96px 인게임 확인
 ```
 
@@ -446,3 +483,5 @@ public/assets/
 - [ ] `artnouveau.ts`에 `AN.BOSS_RED = 0xa83232` 추가 정의 (별도 코드 작업 요청 시)
 - [ ] 승리/패배 팝업: 한 장 + 톤 후처리 vs 두 장 별도 생성
 - [ ] 스크린샷 키비주얼: 6+1 합본 vs Astral_God 단독 (Vibe 강도 0.7)
+- [ ] T4 Astral_God attack 포즈 1장 추가 생성 여부 (2프레임 적용 — §5-1)
+- [ ] 이펙트 제작 도구 결정 (직접 그리기 / Effekseer / 단순 PNG)
