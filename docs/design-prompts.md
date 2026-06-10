@@ -162,7 +162,7 @@ cape covering body, full body cloak,
 |---|---|---|
 | **T1·T2 (18종)** | tween만 (타입별 프리셋 3종) | 추가 생성 0장. 근접 lunge / 원거리 반동(뒤로 kick) / 마법 pulse + 상시 idle bob(±2px) |
 | **T3 (6종)** | tween + 그려진 이펙트 강화판 | "고생 끝 보상" 순간 — 이펙트 키워 존재감 |
-| **T4 Astral_God (1종)** | tween + 풀이펙트 + (선택) attack 2프레임 | 클라이맥스 1종뿐 → attack 포즈 1장 추가는 ROI 충분 |
+| **T4 Astral_God (1종)** | tween + 풀이펙트 + **attack 2프레임 (확정)** | 클라이맥스 1종 → attack 포즈 1장 추가 생성 확정 (2026-06-10) |
 
 ### 공유 이펙트 (캐릭터 무관, 6~10종 공용)
 
@@ -483,5 +483,5 @@ public/assets/
 - [ ] `artnouveau.ts`에 `AN.BOSS_RED = 0xa83232` 추가 정의 (별도 코드 작업 요청 시)
 - [ ] 승리/패배 팝업: 한 장 + 톤 후처리 vs 두 장 별도 생성
 - [ ] 스크린샷 키비주얼: 6+1 합본 vs Astral_God 단독 (Vibe 강도 0.7)
-- [ ] T4 Astral_God attack 포즈 1장 추가 생성 여부 (2프레임 적용 — §5-1)
-- [ ] 이펙트 제작 도구 결정 (직접 그리기 / Effekseer / 단순 PNG)
+- [x] **T4 Astral_God attack 포즈 1장 추가 생성 — 확정** (2026-06-10, §5-1 토큰 사용)
+- [x] **이펙트 제작 = AI 생성으로 결정** (2026-06-10, 구체 방법 §5-1에 정리)
