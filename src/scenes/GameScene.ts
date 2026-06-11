@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, GAME_HEIGHT, GAME_WIDTH } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { MetaProgress } from '../game/MetaProgress';
-import { CENTER_X, CENTER_Y } from './constants';
+import { CENTER_X, CENTER_Y, CHARACTER_ASSETS, unitTextureKey } from './constants';
 import { DragController } from './input/DragController';
 import { EnemyRenderer } from './render/EnemyRenderer';
 import { HudRenderer } from './render/HudRenderer';
@@ -34,6 +34,15 @@ export class GameScene extends Phaser.Scene {
 
   constructor() {
     super('GameScene');
+  }
+
+  preload(): void {
+    for (const { race, tier } of CHARACTER_ASSETS) {
+      const key = unitTextureKey(race, tier);
+      if (!this.textures.exists(key)) {
+        this.load.image(key, `assets/characters/${key}.png`);
+      }
+    }
   }
 
   create(): void {
@@ -76,6 +85,7 @@ export class GameScene extends Phaser.Scene {
       this.state,
       () => { this.onBossKilled(); },
       this.sfx,
+      (srcId, kind, dirX, dirY) => { this.unitRenderer.playAttackMotion(srcId, kind, dirX, dirY); },
     );
 
     // Track (dynamic polygon each game)

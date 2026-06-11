@@ -7,6 +7,24 @@ export const CENTER_Y = GAME_HEIGHT / 2;
 export const SELL_ZONE_X = GAME_WIDTH - 38;
 export const SELL_ZONE_Y = GAME_HEIGHT - 52 - MOBILE_SAFE_ZONE_BOTTOM;
 
+// 캐릭터 스프라이트 (public/assets/characters/) — 아트 드랍 완료된 유닛만 등록.
+// 등록된 유닛은 이미지로, 미등록 유닛은 이모지로 렌더링된다.
+export const CHARACTER_ASSETS: Array<{ race: UnitRace; tier: 1 | 2 | 3 | 4 }> = [
+  { race: 'Warrior',  tier: 1 },
+  { race: 'Archer',   tier: 1 },
+  { race: 'Dog',      tier: 1 },
+  { race: 'Squirrel', tier: 1 },
+  { race: 'Android',  tier: 1 },
+  { race: 'Cannon',   tier: 1 },
+];
+
+export function unitTextureKey(race: UnitRace, tier: number): string {
+  return `unit_${race.toLowerCase()}_tier${tier}`;
+}
+
+// 인게임 스프라이트 표시 크기 (px, 정사각)
+export const UNIT_SPRITE_SIZE: Record<1 | 2 | 3 | 4, number> = { 1: 32, 2: 40, 3: 48, 4: 58 };
+
 export const RACE_COLORS: Record<UnitRace, number> = {
   // Tier 1 — Human (blues)
   Warrior:          0x4488ff,

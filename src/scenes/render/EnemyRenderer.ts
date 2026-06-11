@@ -39,7 +39,7 @@ const BOSS_EMOJI = '👺';
 const ELITE_EMOJI = '💀';
 const ELITE_FONT  = '25px';
 
-type AttackKind = 'line' | 'slash' | 'beam' | 'shell' | 'chain' | 'magic' | 'divine';
+export type AttackKind = 'line' | 'slash' | 'beam' | 'shell' | 'chain' | 'magic' | 'divine';
 type AttackStyle = { color: number; width: number; kind: AttackKind };
 const ATTACK_STYLE: Partial<Record<UnitRace, AttackStyle>> = {
   // slash — orange-red thick line + X mark
@@ -89,6 +89,7 @@ export class EnemyRenderer {
   private state: GameState;
   private onBossKilled: () => void;
   private sfx?: SoundManager;
+  private onUnitAttack?: (srcId: number, kind: AttackKind, dirX: number, dirY: number) => void;
 
   private enemies!: Phaser.GameObjects.Group;
   private enemyMap = new Map<number, Enemy>();
@@ -105,11 +106,13 @@ export class EnemyRenderer {
     state: GameState,
     onBossKilled: () => void,
     sfx?: SoundManager,
+    onUnitAttack?: (srcId: number, kind: AttackKind, dirX: number, dirY: number) => void,
   ) {
     this.scene = scene;
     this.state = state;
     this.onBossKilled = onBossKilled;
     this.sfx = sfx;
+    this.onUnitAttack = onUnitAttack;
   }
 
   create(): void {
@@ -352,6 +355,9 @@ export class EnemyRenderer {
       this.flashGraphics.clear();
       for (const atk of result.attacks) {
         const style = (atk.srcRace && ATTACK_STYLE[atk.srcRace]) ?? DEFAULT_ATTACK_STYLE;
+        if (atk.srcId !== undefined) {
+          this.onUnitAttack?.(atk.srcId, style.kind, atk.enemyX - atk.unitX, atk.enemyY - atk.unitY);
+        }
         this.flashGraphics.lineStyle(style.width, style.color, 1);
 
         if (style.kind === 'chain') {

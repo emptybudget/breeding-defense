@@ -52,6 +52,7 @@ export class DragController {
       this.dragStartX = ptr.x;
       this.dragStartY = ptr.y;
       const unitId = label.getData('unitId') as number;
+      this.unitRenderer.setDragging(unitId, true);
       this.unitRenderer.getRangeCircle(unitId)?.setVisible(true);
       const draggedUnit = this.state.units.find(u => u.id === unitId);
       if (draggedUnit) this.unitRenderer.setHighlights(this.getValidPartners(draggedUnit));
@@ -69,6 +70,7 @@ export class DragController {
       const label = go as Phaser.GameObjects.Text;
       label.setDepth(1);
       const unitId = label.getData('unitId') as number;
+      this.unitRenderer.setDragging(unitId, false);
       this.unitRenderer.getRangeCircle(unitId)?.setVisible(false);
       this.unitRenderer.clearHighlights();
 

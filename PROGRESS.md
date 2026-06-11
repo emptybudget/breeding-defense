@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-11 (UI 겹침 2건 수정)
+> 마지막 갱신: 2026-06-11 (T1 캐릭터 스프라이트 6종 인게임 적용 + 공격모션 tween)
 
 ## ⚠️ 미완료 조치 (실생활 액션 필요)
 
@@ -100,6 +100,7 @@ breeding-defense/
 ├── docs/
 │   └── design-prompts.md    # NovelAI 의뢰서 (분리됨 — 토큰 절약)
 ├── .claude/agents/          # brainstormer, game-designer, designer, refactor-expert
+├── public/assets/characters/ # 캐릭터 스프라이트 (unit_<race>_tier<N>.png, 256px 투명 PNG)
 ├── index.html
 └── src/
     ├── main.ts              # Phaser.Game 부트
@@ -273,6 +274,8 @@ breeding-defense/
 
 ### UX/시각
 
+- ✅ T1 캐릭터 스프라이트 6종 인게임 적용 (2026-06-11) — `public/assets/characters/unit_<race>_tier1.png` (raw는 `docs/tier1.zip`, 흰배경 제거+크롭+256px 후처리). `CHARACTER_ASSETS`(constants.ts)에 등록된 유닛만 이미지, 나머지는 이모지 폴백. 표시 크기 `UNIT_SPRITE_SIZE` (T1 32px~T4 58px)
+- ✅ 공격모션 tween (§5-1 확정안) — 근접 lunge(slash) / 원거리 반동(line·beam·shell·chain) / 마법 pulse(magic·divine) + 상시 idle bob ±2px. T4 attack 2프레임 교차는 attack PNG 생성 후 추가 예정
 - ✅ 아르누보 × 도트 UI 스타일 (`artnouveau.ts`)
 - ✅ TitleScene → StageSelectScene → GameScene 루프
 - ✅ 가변 트랙 (매판 ±10~20px 노이즈)
