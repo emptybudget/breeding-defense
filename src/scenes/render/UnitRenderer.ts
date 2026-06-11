@@ -129,20 +129,24 @@ export class UnitRenderer {
     this.draggingId = dragging ? id : (this.draggingId === id ? null : this.draggingId);
   }
 
-  // §5-1 공격 모션 프리셋: 근접 lunge / 원거리 반동 / 마법 pulse
+  // 공격 모션: 근접 lunge / 원거리 반동 / 마법·체인 pulse
+  // T2+는 이동 거리·스케일 배율이 더 크다
   playAttackMotion(id: number, kind: AttackKind, dirX: number, dirY: number): void {
     if (this.motionTweens.has(id) || id === this.draggingId) return;
     const go = this.unitObjects.get(id);
     const unit = this.state.units.find(u => u.id === id);
     if (!go || !unit) return;
 
-    if (kind === 'magic' || kind === 'divine') {
+    const tier = unit.tier;
+
+    if (kind === 'magic' || kind === 'divine' || kind === 'chain') {
       const baseScaleX = go.scaleX, baseScaleY = go.scaleY;
-      const mult = kind === 'divine' ? 1.25 : 1.15;
+      const mult = kind === 'divine' ? 1.28 : tier >= 2 ? 1.22 : 1.15;
+      const dur = kind === 'chain' ? 70 : 90;
       this.motionTweens.set(id, this.scene.tweens.add({
         targets: go,
         scaleX: baseScaleX * mult, scaleY: baseScaleY * mult,
-        duration: 90, yoyo: true, ease: 'Quad.easeOut',
+        duration: dur, yoyo: true, ease: 'Quad.easeOut',
         onComplete: () => {
           this.motionTweens.delete(id);
           go.setScale(baseScaleX, baseScaleY);
@@ -152,13 +156,14 @@ export class UnitRenderer {
     }
 
     const len = Math.hypot(dirX, dirY) || 1;
-    // slash = 적 방향으로 lunge, 그 외(원거리) = 반대 방향 반동
-    const dist = kind === 'slash' ? 7 : -4;
+    const isSlash = kind === 'slash';
+    const dist = isSlash ? (tier >= 2 ? 10 : 7) : -(tier >= 2 ? 6 : 4);
     this.motionTweens.set(id, this.scene.tweens.add({
       targets: go,
       x: unit.x + (dirX / len) * dist,
       y: unit.y + (dirY / len) * dist,
-      duration: kind === 'slash' ? 80 : 60, yoyo: true, ease: 'Quad.easeOut',
+      duration: isSlash ? (tier >= 2 ? 90 : 80) : 60,
+      yoyo: true, ease: 'Quad.easeOut',
       onComplete: () => {
         this.motionTweens.delete(id);
         go.setPosition(unit.x, unit.y);

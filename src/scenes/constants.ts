@@ -9,12 +9,26 @@ export const SELL_ZONE_X = GAME_WIDTH - 38;
 // 캐릭터 스프라이트 (public/assets/characters/) — 아트 드랍 완료된 유닛만 등록.
 // 등록된 유닛은 이미지로, 미등록 유닛은 이모지로 렌더링된다.
 export const CHARACTER_ASSETS: Array<{ race: UnitRace; tier: 1 | 2 | 3 | 4 }> = [
-  { race: 'Warrior',  tier: 1 },
-  { race: 'Archer',   tier: 1 },
-  { race: 'Dog',      tier: 1 },
-  { race: 'Squirrel', tier: 1 },
-  { race: 'Android',  tier: 1 },
-  { race: 'Cannon',   tier: 1 },
+  // Tier 1
+  { race: 'Warrior',          tier: 1 },
+  { race: 'Archer',           tier: 1 },
+  { race: 'Dog',              tier: 1 },
+  { race: 'Squirrel',         tier: 1 },
+  { race: 'Android',          tier: 1 },
+  { race: 'Cannon',           tier: 1 },
+  // Tier 2
+  { race: 'Bio_Wolf',         tier: 2 },
+  { race: 'Acorn_Girl',       tier: 2 },
+  { race: 'Falcon_Eye',       tier: 2 },
+  { race: 'Acorn_Hunter',     tier: 2 },
+  { race: 'Cyborg_Slasher',   tier: 2 },
+  { race: 'Cannon_Shooter',   tier: 2 },
+  { race: 'Laser_Sniper',     tier: 2 },
+  { race: 'Missile_Gunner',   tier: 2 },
+  { race: 'Blade_Hound',      tier: 2 },
+  { race: 'Gatling_Dog',      tier: 2 },
+  { race: 'Electric_Coon',    tier: 2 },
+  { race: 'Menhera_Squirrel', tier: 2 },
 ];
 
 export function unitTextureKey(race: UnitRace, tier: number): string {

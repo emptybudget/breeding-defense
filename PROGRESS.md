@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-11 (NovelAI T2 12종 실루엣 차별화 v2 — `docs/novelai-prompt.md` 본문 12종 매트릭스 반영 완료 + T1 Archer 개정)
+> 마지막 갱신: 2026-06-12 (T2 12종 + Archer T1 스프라이트 인게임 적용 — `docs/archor_tier2.zip` 추출·처리·등록 완료)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -265,7 +265,8 @@ breeding-defense/
 ### UX/시각
 
 - ✅ T1 캐릭터 스프라이트 6종 인게임 적용 (2026-06-11) — `public/assets/characters/unit_<race>_tier1.png` (raw는 `docs/tier1.zip`, 흰배경 제거+크롭+256px 후처리). `CHARACTER_ASSETS`(constants.ts)에 등록된 유닛만 이미지, 나머지는 이모지 폴백. 표시 크기 `UNIT_SPRITE_SIZE` (T1 40px~T4 62px). 다운스케일 선명도: main.ts `mipmapFilter: LINEAR_MIPMAP_LINEAR`
-- ✅ 공격모션 tween (§5-1 확정안) — 근접 lunge(slash) / 원거리 반동(line·beam·shell·chain) / 마법 pulse(magic·divine) + 상시 idle bob ±2px. T4 attack 2프레임 교차는 attack PNG 생성 후 추가 예정
+- ✅ T2 12종 + Archer T1 스프라이트 인게임 적용 (2026-06-12) — `docs/archor_tier2.zip` → 흰배경 BFS 제거+크롭+256px → `unit_<race>_tier2.png`. `CHARACTER_ASSETS`에 T2 12종 추가 등록. raw는 `docs/archor_tier2.zip` 보존.
+- ✅ 공격모션 tween — 근접 lunge(slash) / 원거리 반동(line·beam·shell) / 마법·체인 pulse(magic·divine·chain) + 상시 idle bob ±2px. T2+는 더 큰 모션(slash +10px / recoil -6px / pulse ×1.22). T4 attack 2프레임 교차는 attack PNG 생성 후 추가 예정
 - ✅ 아르누보 × 도트 UI 스타일 (`artnouveau.ts`)
 - ✅ TitleScene → StageSelectScene → GameScene 루프
 - ✅ 가변 트랙 (매판 ±10~20px 노이즈)
