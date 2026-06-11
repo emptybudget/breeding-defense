@@ -130,29 +130,29 @@ export class GameState {
     const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
     const pt = (bx: number, by: number, dx = 18, dy = 18) => ({
       x: clamp(n(bx, dx), 18, 342),
-      y: clamp(n(by, dy), 90, 525),
+      y: clamp(n(by, dy), 120, 525),
     });
 
     // 5 distinct track layouts — pick one at random each game
     const pick = Math.floor(Math.random() * 5);
     switch (pick) {
       case 0: // Rectangle (classic)
-        return [pt(30,100), pt(330,100), pt(330,510), pt(30,510)];
+        return [pt(30,120), pt(330,120), pt(330,510), pt(30,510)];
 
       case 1: // S-snake — zigzag crosses through center
-        return [pt(30,100), pt(330,100), pt(330,305), pt(30,305), pt(30,510), pt(330,510)];
+        return [pt(30,120), pt(330,120), pt(330,305), pt(30,305), pt(30,510), pt(330,510)];
 
       case 2: // Hexagon / V-top — symmetric, closes cleanly on left edge
-        return [pt(30,145), pt(180,100,20,12), pt(330,145), pt(330,475), pt(180,505,20,12), pt(30,475)];
+        return [pt(30,145), pt(180,120,20,12), pt(330,145), pt(330,475), pt(180,505,20,12), pt(30,475)];
 
       case 3: // Kite / arrowhead-right — 5 pts, clean left-edge close
-        return [pt(30,100), pt(330,100), pt(265,310,15,15), pt(105,310,15,15), pt(30,510)];
+        return [pt(30,120), pt(330,120), pt(265,310,15,15), pt(105,310,15,15), pt(30,510)];
 
       case 4: // W-arch — arch in the middle of right side
-        return [pt(30,100), pt(330,100), pt(330,280), pt(195,170,20,20), pt(30,280), pt(30,510), pt(330,510)];
+        return [pt(30,120), pt(330,120), pt(330,280), pt(195,175,20,20), pt(30,280), pt(30,510), pt(330,510)];
     }
     // fallback
-    return [pt(30,100), pt(330,100), pt(330,510), pt(30,510)];
+    return [pt(30,120), pt(330,120), pt(330,510), pt(30,510)];
   }
 
   private computeUnitZone(_wp: { x: number; y: number }[]) {

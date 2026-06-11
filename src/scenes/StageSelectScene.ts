@@ -45,7 +45,7 @@ export class StageSelectScene extends Phaser.Scene {
 
     // Upgrade rows
     const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold', 'gameSpeed2x'];
-    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 336 + i * 52));
+    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 348 + i * 52));
   }
 
   private makeStageButton(x: number, y: number, stageId: number, meta: MetaProgress): void {
