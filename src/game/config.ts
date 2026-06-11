@@ -7,7 +7,6 @@ export const MOBILE_SAFE_ZONE_BOTTOM = 16;
 
 export const MAX_ENEMIES = 50;
 export const CLEAR_TIME_MS = 10 * 60 * 1000; // 10:00
-export const ENEMY_SPAWN_INTERVAL_MS = 6500;
 
 export const ENEMY_BASE_SPEED = 30; // px/sec (overclock base)
 export const ENEMY_BASE_HP = 1;     // overclock multiplier base
@@ -80,11 +79,8 @@ export const ENEMY_TYPES = {
 } as const;
 
 export const TANK_KILL_REWARD = 12;
-export const TANK_SPAWN_START_MS = 3 * 60 * 1000; // 3분 이후 등장
-export const TANK_SPAWN_PROBABILITY = 0.15;        // 전체 스폰의 15%
 
 // Boss
-export const BOSS_HP_MULT = 15;
 export const BOSS_KILL_REWARD = 50;
 
 // Population upgrade
@@ -134,7 +130,6 @@ export const VICTORY_TIME_MS = 7 * 60 * 1000; // 7:00
 export const CRIT_DAMAGE_MULT = 1.5;
 
 // Meta-progression shop
-export const META_GEMS_PER_VICTORY = 1;
 /** 스테이지 해금 보석 비용 (소비형) */
 export const STAGE_UNLOCK_GEM_COST: Record<number, number> = { 1: 0, 2: 0, 3: 3 };
 

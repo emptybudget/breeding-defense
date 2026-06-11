@@ -1,11 +1,10 @@
-import { GAME_HEIGHT, GAME_WIDTH, MOBILE_SAFE_ZONE_BOTTOM } from '../game/config';
+import { GAME_HEIGHT, GAME_WIDTH } from '../game/config';
 import { UnitRace } from '../game/types';
 
 export const CENTER_X = GAME_WIDTH / 2;
 export const CENTER_Y = GAME_HEIGHT / 2;
 
 export const SELL_ZONE_X = GAME_WIDTH - 38;
-export const SELL_ZONE_Y = GAME_HEIGHT - 52 - MOBILE_SAFE_ZONE_BOTTOM;
 
 // 캐릭터 스프라이트 (public/assets/characters/) — 아트 드랍 완료된 유닛만 등록.
 // 등록된 유닛은 이미지로, 미등록 유닛은 이모지로 렌더링된다.

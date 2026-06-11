@@ -1,15 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-11 (T1 스프라이트 적용 + 공격모션 tween + 디자인 후보 R/B/U4확장 추가)
-
-## ⚠️ 미완료 조치 (실생활 액션 필요)
-
-| 항목 | 내용 |
-|---|---|
-| 🔑 Firebase 서비스 계정 키 폐기 | `firebase-key.json`이 커밋 `5344fdc`에 실수로 포함됨. git 히스토리 재작성 완료(원격 미전파), `.gitignore` 추가됨. **Firebase Console에서 해당 키 수동 폐기 필요** → [서비스 계정 페이지](https://console.firebase.google.com/project/breeding-defense/settings/serviceaccounts/adminsdk) |
-
----
+> 마지막 갱신: 2026-06-11 (미사용 상수·export 정리)
 
 ## 🚨 다음 작업
 
@@ -21,15 +13,6 @@
 | Phase C 보스 처치 시간 | **3~5초** | 0.5초컷이면 `BOSS_HP_MULT_PHASE_C` 50→70, 10초+면 50→35 |
 | 강화 점 사용 패턴 | 1티어 평균 3/5, 2티어 2/3 | 1티어 풀강(5/5) 디폴트면 1티어 천장 5→3 |
 | 7분 도달률 | **50~70%** | 90%+ 너무 쉬움, 30%- 너무 어려움 |
-
-### 5월 마일스톤 (2026-05-31): 친구 클로즈 테스트
-
-| # | 항목 | 상태 |
-|---|---|---|
-| 5 | 7분 풀플레이 → 미친 수치 1~2개 즉시 조정 | ✅ |
-| 6 | Firebase Hosting 배포 + 공유 URL | ⏳ |
-| 7 | 사전 테스트 (본인 폰 + 친구 1명) → 치명 버그 픽스 | ⏳ |
-| 8 | 친구 본격 공유 (2~5명, 피드백 수집) | ⏳ |
 
 ### 남은 후보 (우선순위)
 
@@ -146,7 +129,7 @@ breeding-defense/
 | `MOBILE_SAFE_ZONE_TOP` / `_BOTTOM` | 24 / 16 | 노치/홈바 여백 |
 | `MAX_ENEMIES` | 50 | 초과 시 게임오버 |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 (오버클록 진입) |
-| `ENEMY_SPAWN_INTERVAL_MS` | 6500 (미사용 — 실제는 STAGE_CONFIGS.spawnIntervalBase) | 레거시 상수 |
+| ~~`ENEMY_SPAWN_INTERVAL_MS`~~ | 삭제 — STAGE_CONFIGS.spawnIntervalBase로 대체됨 | 레거시 상수 제거됨 |
 | `VICTORY_TIME_MS` | **120000 (DEV 2분, 출시 420000=7분)** | 승리 조건 |
 | `ENEMY_BASE_SPEED` / `ENEMY_BASE_HP` | 40 / 1 | 오버클록 기준 |
 | `OVERCLOCK_HP_GROWTH` / `_SPEED_GROWTH` / `_SPAWN_DECAY` | 1.08 / 1.05 / 0.97 | 매초 |
