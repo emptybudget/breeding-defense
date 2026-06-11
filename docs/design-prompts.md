@@ -250,6 +250,188 @@ centered burst, no character, no weapon
 
 > 팁: NovelAI가 캐릭터를 끼워넣으면 프롬프트 맨 앞에 `no humans, no character,` 한 번 더 + `{{}}` 강조는 이펙트 명사에만.
 
+## 5-3. T2 완성 프롬프트 (12종)
+
+> **사용법:** §1 베이스 프롬프트 끝에 아래 각 블록을 이어 붙이기. 네거티브는 §2 그대로. 설정은 §7.  
+> **T2 공통:** `moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders`  
+> **시드:** Warrior anchor 시드 기준 +100~+111 (순서대로).
+
+각 블록 = **색상 태그 + T2 무하 강도 + 캐릭터 토큰 + 무기 서술**
+
+---
+
+### 7. Bio_Wolf
+**종족:** Human_Beast | **색상:** `#ff44aa` | **파일명:** `unit_bio_wolf_tier2.png` | **Seed:** anchor+100
+
+```
+hot pink, magenta, fuchsia accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+werewolf knight youth, wolf ears perked alert, bushy silver wolf tail, pink-trimmed plate armor with claw-mark scratches on chest,
+fanged grin, compact muscular chibi build, silver fur tufts on forearms and neck,
+right iron clawed gauntlet resting at side, no sword, left hand near waist
+```
+
+---
+
+### 8. Acorn_Girl
+**종족:** Human_Beast | **색상:** `#ff44aa` | **파일명:** `unit_acorn_girl_tier2.png` | **Seed:** anchor+101
+
+```
+hot pink, magenta, fuchsia accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+squirrel-eared girl knight, large fluffy squirrel tail wrapped around waist, pink frilly dress under light chest armor,
+golden acorn clip in side bun hair, warm cheerful smile, tiny leather boots, rosy pink cheeks,
+acorn-capped short mace held low in right hand, resting against leg
+```
+
+---
+
+### 9. Falcon_Eye
+**종족:** Human_Beast | **색상:** `#ff44aa` | **파일명:** `unit_falcon_eye_tier2.png` | **Seed:** anchor+102
+
+```
+hot pink, magenta, fuchsia accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+falcon-winged archer girl, small feathered wings on upper back, hawk-sharp golden eyes, pink-tinted feather cloak over leather vest,
+brown hair with pink-tipped feather ornaments, serene focused expression, falcon talon anklets,
+composite recurve bow held vertically in left hand, arrow quiver on back
+```
+
+---
+
+### 10. Acorn_Hunter
+**종족:** Human_Beast | **색상:** `#ff44aa` | **파일명:** `unit_acorn_hunter_tier2.png` | **Seed:** anchor+103
+
+```
+hot pink, magenta, fuchsia accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+squirrel-tailed hunter boy, fluffy brown tail, pink-accented leather duster coat, olive headband,
+cheeky grin, three mini arrows peeking from belt pouch, nimble lightweight build, freckles,
+compact crossbow with pink trim held downward in right hand, bolt loaded
+```
+
+---
+
+### 11. Cyborg_Slasher
+**종족:** Human_Robot | **색상:** `#00eeff` | **파일명:** `unit_cyborg_slasher_tier2.png` | **Seed:** anchor+104
+
+```
+cyan, turquoise, electric teal accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+cybernetic swordsman youth, half-organic half-machine body, cyan glowing visor slit,
+mechanical left arm with teal circuit line engravings, sleek dark bodysuit with cyan trim panels,
+calm confident expression, visible seam between organic right side and mech left side,
+energy katana sheathed at left hip, right human hand resting on hilt
+```
+
+---
+
+### 12. Cannon_Shooter
+**종족:** Human_Robot | **색상:** `#00eeff` | **파일명:** `unit_cannon_shooter_tier2.png` | **Seed:** anchor+105
+
+```
+cyan, turquoise, electric teal accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+cyborg gunner boy, large cyan-plated shoulder cannon mounted on right shoulder, mechanical targeting monocle eye glowing cyan,
+reinforced half-plate torso armor, confident smirk, knuckle reinforcement armor on both hands,
+left arm cannon held low at hip level, barrel pointing diagonally down
+```
+
+---
+
+### 13. Laser_Sniper
+**종족:** Human_Robot | **색상:** `#00eeff` | **파일명:** `unit_laser_sniper_tier2.png` | **Seed:** anchor+106
+
+```
+cyan, turquoise, electric teal accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+cyborg sniper girl, sleek black bodysuit with cyan hex-pattern panels, scope visor over left eye glowing cyan,
+long silver braid tied with teal ribbon, precision mechanical left arm, elegant composed expression, slender agile build,
+sleek laser rifle slung over right shoulder, barrel angled downward
+```
+
+---
+
+### 14. Missile_Gunner
+**종족:** Human_Robot | **색상:** `#00eeff` | **파일명:** `unit_missile_gunner_tier2.png` | **Seed:** anchor+107
+
+```
+cyan, turquoise, electric teal accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+cyborg heavy gunner boy, bulky cyan plate torso with reinforced shoulder pauldrons,
+dual compact missile pod launchers mounted on both shoulders, full-visor tactical helmet with cyan HUD strip,
+serious determined expression, ammo counter display on chest plate,
+both missile pod launchers on shoulders in closed idle position, arms at sides
+```
+
+---
+
+### 15. Blade_Hound
+**종족:** Beast_Robot | **색상:** `#ff7700` | **파일명:** `unit_blade_hound_tier2.png` | **Seed:** anchor+108
+
+```
+bright orange, amber, tangerine accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+mecha-dog warrior, anthropomorphic dog face with orange armored plating, exposed hydraulic joints on elbows and knees,
+glowing orange optical sensors, robotic reinforced legs, loyal determined expression, compact powerful build,
+short antenna tail, retractable wrist blade housings on both forearms in closed idle position, paws at sides
+```
+
+---
+
+### 16. Gatling_Dog
+**종족:** Beast_Robot | **색상:** `#ff7700` | **파일명:** `unit_gatling_dog_tier2.png` | **Seed:** anchor+109
+
+```
+bright orange, amber, tangerine accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+cyber shiba inu mecha, shiba inu face with orange armored cheeks, tongue happily sticking out,
+chunky orange-plated round body, carefree goofy energy, stubby mechanical feet, wagging mech tail,
+oversized multi-barrel rotary gatling cannon mounted on back visible over shoulder, both small mech arms relaxed at sides
+```
+
+---
+
+### 17. Electric_Coon
+**종족:** Beast_Robot | **색상:** `#ff7700` | **파일명:** `unit_electric_coon_tier2.png` | **Seed:** anchor+110
+
+```
+bright orange, amber, tangerine accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+raccoon mecha boy, masked raccoon face with tech overlay visor, orange-and-black striped body armor,
+sparking antenna on head emitting small electric sparks, ringed mechanical tail, mischievous wide grin,
+coiled spring-loaded digitigrade legs, circuit engravings along arms,
+taser baton in right hand held downward, electrode tip faintly crackling
+```
+
+---
+
+### 18. Menhera_Squirrel
+**종족:** Beast_Robot | **색상:** `#ff7700` | **파일명:** `unit_menhera_squirrel_tier2.png` | **Seed:** anchor+111
+
+```
+bright orange, amber, tangerine accents, dominates 50% of character palette,
+gold accent lines on costume edges, cream highlights,
+moderate art nouveau trim, golden curves on costume edges, small decorative motif behind shoulders,
+squirrel mecha girl, fluffy twin ponytails with mechanical orange ribbons, orange utility jumpsuit with black patch repairs,
+small plasters on both cheeks, vacant dreamy expression with faint heart pupils, mechanical squirrel tail with side hatch panels,
+tool pouches on belt, tiny bolts and screws decorating hair,
+compact ground-drill tool with spinning bit held at right side, round mine canisters clipped to belt
+```
+
+---
+
 ## 6. Vibe Transfer 운용법 (캐릭터 25종 일관성 핵심)
 
 **Step 1 — Anchor 제작 (Warrior 1종)**

@@ -22,7 +22,7 @@ export function unitTextureKey(race: UnitRace, tier: number): string {
 }
 
 // 인게임 스프라이트 표시 크기 (px, 정사각)
-export const UNIT_SPRITE_SIZE: Record<1 | 2 | 3 | 4, number> = { 1: 32, 2: 40, 3: 48, 4: 58 };
+export const UNIT_SPRITE_SIZE: Record<1 | 2 | 3 | 4, number> = { 1: 40, 2: 46, 3: 52, 4: 62 };
 
 export const RACE_COLORS: Record<UnitRace, number> = {
   // Tier 1 — Human (blues)

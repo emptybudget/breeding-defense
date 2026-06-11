@@ -16,8 +16,6 @@ import {
   ELITE_SPAWN_INTERVAL_MS,
   ELITE_SPAWN_START_MS,
   ENEMY_TYPES,
-  GAME_HEIGHT,
-  GAME_WIDTH,
   KILL_REWARD,
   TANK_KILL_REWARD,
 } from '../../game/config';
@@ -328,10 +326,15 @@ export class EnemyRenderer {
 
     for (const { id, dx, dy } of result.knockbacks) {
       const enemy = this.enemyMap.get(id);
-      if (enemy) {
-        enemy.x = Phaser.Math.Clamp(enemy.x + dx, 10, GAME_WIDTH - 10);
-        enemy.y = Phaser.Math.Clamp(enemy.y + dy, 80, GAME_HEIGHT - 80);
-      }
+      if (!enemy) continue;
+      // 방사형으로 밀면 트랙 밖으로 벗어나므로, 진행 경로의 반대 방향으로 밀어낸다 (크기만 사용)
+      const kbDist = Math.hypot(dx, dy);
+      const wp = waypoints[enemy.waypointIndex];
+      const tx = wp.x - enemy.x;
+      const ty = wp.y - enemy.y;
+      const tlen = Math.hypot(tx, ty) || 1;
+      enemy.x -= (tx / tlen) * kbDist;
+      enemy.y -= (ty / tlen) * kbDist;
     }
 
     let bossKilled = false;

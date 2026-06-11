@@ -1,7 +1,12 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-11 (미사용 상수·export 정리)
+> 마지막 갱신: 2026-06-11 (스프라이트 선명도/크기 패스 + Pause DPS 잘림·넉백 트랙이탈 수정 + 임시 에러 오버레이)
+
+## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
+
+- `main.ts`에 런타임 에러 화면 표시 오버레이(`#fatal-error`) 삽입됨 — 인게임 프리징(보스 처치 시점 의심) 원인 추적용. 프리징 재발 없으면 제거.
+- `scripts/sim-freeze.ts` — 순수 데이터 레이어 3분 시뮬레이션 (프리징 진단용, 순수 레이어 무죄 확인 완료). 함께 제거 가능.
 
 ## 🚨 다음 작업
 
@@ -259,7 +264,7 @@ breeding-defense/
 
 ### UX/시각
 
-- ✅ T1 캐릭터 스프라이트 6종 인게임 적용 (2026-06-11) — `public/assets/characters/unit_<race>_tier1.png` (raw는 `docs/tier1.zip`, 흰배경 제거+크롭+256px 후처리). `CHARACTER_ASSETS`(constants.ts)에 등록된 유닛만 이미지, 나머지는 이모지 폴백. 표시 크기 `UNIT_SPRITE_SIZE` (T1 32px~T4 58px)
+- ✅ T1 캐릭터 스프라이트 6종 인게임 적용 (2026-06-11) — `public/assets/characters/unit_<race>_tier1.png` (raw는 `docs/tier1.zip`, 흰배경 제거+크롭+256px 후처리). `CHARACTER_ASSETS`(constants.ts)에 등록된 유닛만 이미지, 나머지는 이모지 폴백. 표시 크기 `UNIT_SPRITE_SIZE` (T1 40px~T4 62px). 다운스케일 선명도: main.ts `mipmapFilter: LINEAR_MIPMAP_LINEAR`
 - ✅ 공격모션 tween (§5-1 확정안) — 근접 lunge(slash) / 원거리 반동(line·beam·shell·chain) / 마법 pulse(magic·divine) + 상시 idle bob ±2px. T4 attack 2프레임 교차는 attack PNG 생성 후 추가 예정
 - ✅ 아르누보 × 도트 UI 스타일 (`artnouveau.ts`)
 - ✅ TitleScene → StageSelectScene → GameScene 루프

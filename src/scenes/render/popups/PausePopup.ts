@@ -78,7 +78,7 @@ export class PausePopup {
     });
 
     const pauseItems: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, statsText, resumeBtn, quitBtn, muteBtn];
-    appendDpsMeter(this.scene, this.state, pauseItems, 162);
+    appendDpsMeter(this.scene, this.state, pauseItems, 152); // 마지막 줄이 패널 내부 테두리(+224) 안에 들어오도록
     container.add(pauseItems);
     this.container = container;
   }
