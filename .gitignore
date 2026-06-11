@@ -5,6 +5,8 @@ dist
 *.local
 
 # Firebase secrets — never commit
+breeding-defense-firebase-adminsdk-*.json
+*.json.local
 firebase-key.json
 .firebase/
 .firebaserc
