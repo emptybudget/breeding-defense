@@ -24,7 +24,7 @@
 | 박자 | # | 항목 | 비고 |
 |---|---|---|---|
 | Plan/Grind | R | 보상 카드 풀 교체 — `DOUBLE_ATK_PROB_INC` 0.02→0.05 / `CRIT_PROB_INC` 0.10→0.07 / `TWIN_PROB_INC` 0.02→0.05 / gem 카드→강화점+1 카드 | **P1 — 클로즈 테스트 전 권장** (크리 지배 전략 → 테스트 데이터 오염) |
-| Loop | W | **월드 구조 설계·구현** — 월드 1/2/3 × 스테이지 5개씩(총 15). 월드 1은 시간 단축+단계별 기능 해금(튜토리얼 구조), 월드 2·3은 현행 Stage 1·2·3 기반 난이도 재배치. StageSelectScene 월드 탭 UI 추가 | **P1** — 현재 Stage 1/2/3 STAGE_CONFIGS 재구성 필요 |
+| Loop | W | **월드 구조 구현** — 아래 설계대로. StageSelectScene 월드 탭(W1/W2/W3) + 스테이지 5개 그리드. config.ts WORLD_CONFIGS 추가. GameState feature-flag 수신. GameScene UI 잠금/해제 | **P1** — 현재 STAGE_CONFIGS 재구성 필요 |
 | Grind | V | **5분 이후 적 강화** — 5분(300,000ms) 경과 시 HP·Speed 추가 곱(예: ×1.5) 1회 적용. 현재 `MINUTE_HP_MULT`만으론 후반 압박 부족 | **P1** — 상수 `FIVE_MIN_SURGE_MULT` 추가, `tick()` 한 번만 발동 플래그 |
 | Art | ART | **이모지 폴백 제거** — NovelAI 확정에 따라 `CHARACTER_ASSETS` 미등록 유닛의 이모지 렌더 경로 제거. T3·T4 스프라이트 생성 후 적용 | P2 — T3 스프라이트 확보 선행 |
 | Plan | B | 스테이지 위협 브리핑 — StageSelect 카드에 적 구성 3줄 (예: "벌 65% · 탱크 2:00부터"). 적 행동 서술만, 유닛 추천 금지 | P2 — 3줄 상한, STAGE_CONFIGS 데이터 그대로 노출 |
@@ -37,6 +37,64 @@
 | Pop | U11 | Astral_God 보이스 SFX (BGM/SFX는 구현됨) | P3 — 6월 사운드 폴리시 |
 | Plan/Loop | M | 스테이지별 필드 기믹 (Stage 2 트랙 분기 등) | 장기 |
 | Grind | O | 유닛 공격 누적 → 레벨업 (dmg +20%) | 장기 — UnitData 구조 변경 필요 |
+
+---
+
+## 🗺️ 월드·스테이지 설계 (확정)
+
+### 월드 1 — 튜토리얼 (UI 잠금 해제 순서)
+
+| 스테이지 | 제한시간 | 새로 해금되는 UI | 적 구성 | 보스 |
+|---|---|---|---|---|
+| W1-1 | 2분 | 소환만 | NORMAL 100% | 없음 |
+| W1-2 | 2분 | 교배 버튼 | NORMAL 100% | 없음 |
+| W1-3 | 3분 | 합성·판매존 | NORMAL 80% / FAST 20% | 없음 |
+| W1-4 | 3분 | 잠금(더블탭)·영혼상점 | NORMAL 60% / FAST 30% / TANK 10% | Phase A |
+| W1-5 | 4분 | 레시피북·메타업그레이드 전부 | NORMAL 50% / FAST 35% / TANK 15% | Phase A·B |
+
+- 숨겨진 버튼/존은 완전히 안 보임 (disabled가 아니라 invisible)
+- 5분 강화 미적용 (어차피 최장 4분)
+
+### 월드 2 — 본게임 (현행 Stage 1·2 기반)
+
+| 스테이지 | 제한시간 | 적 구성 | 특이사항 |
+|---|---|---|---|
+| W2-1 | 7분 | NORMAL 70% / FAST 30% | Stage 1 현행과 동일 |
+| W2-2 | 7분 | NORMAL 60% / FAST 40% | spawnInterval 단축 |
+| W2-3 | 7분 | NORMAL 55% / FAST 30% / TANK 15% | Stage 2 현행과 동일 |
+| W2-4 | 7분 | NORMAL 50% / FAST 25% / TANK 25% | TANK 비율 상승 |
+| W2-5 | 7분 | NORMAL 45% / FAST 30% / TANK 25% | ELITE 등장, 보스HP×1.5 |
+
+### 월드 3 — 하드 (현행 Stage 3 기반)
+
+| 스테이지 | 제한시간 | 적 구성 | 특이사항 |
+|---|---|---|---|
+| W3-1 | 7분 | NORMAL 40% / FAST 35% / TANK 25% | Stage 3 현행과 동일 |
+| W3-2 | 7분 | NORMAL 35% / FAST 35% / TANK 30% | spawnInterval 단축 |
+| W3-3 | 7분 | NORMAL 30% / FAST 30% / TANK 40% | TANK 고밀도 |
+| W3-4 | 7분 | NORMAL 25% / FAST 40% / TANK 35% | ELITE 45s→30s |
+| W3-5 | 7분 | NORMAL 20% / FAST 40% / TANK 40% | 보스HP×1.5 + 5분 강화 ×2.0 |
+
+### 잠금 정책
+
+- 개발 중: `DEV_UNLOCK_ALL_WORLDS = true` → 전부 선택 가능
+- 출시: W1 5스테이지 전부 클리어 → W2 해금 / W2 전부 클리어 → W3 해금
+
+### 5분 강화 (`FIVE_MIN_SURGE_MULT`)
+
+- 월드 2·3에만 적용
+- 300,000ms 경과 시 적 HP·Speed에 `×1.5` 1회 즉시 적용 (`fiveMinSurgeApplied` 플래그로 중복 방지)
+- `GameState.tick()` 내부 처리
+
+### 구현 변경 파일
+
+| 파일 | 변경 내용 |
+|---|---|
+| `src/game/config.ts` | `STAGE_CONFIGS` → `WORLD_CONFIGS[world][stage]` 재구성. `FIVE_MIN_SURGE_MULT`, `DEV_UNLOCK_ALL_WORLDS` 추가 |
+| `src/game/types.ts` | `StageFeatures` 타입(summon/breed/synthesize/sell/lock/soulShop/recipe/meta). `WorldStageConfig` 타입 |
+| `src/game/GameState.ts` | 생성자에 `features: StageFeatures` 수신. `fiveMinSurgeApplied` 플래그. `tick()`에 surge 로직 |
+| `src/scenes/StageSelectScene.ts` | 월드 탭(W1/W2/W3) + 스테이지 5개 그리드. 잠금 표시(🔒) |
+| `src/scenes/GameScene.ts` | `features` 기반 UI 조건부 표시 (summonBtn, breedBtn, sellZone, soulShopBtn, recipeBtn 등) |
 
 ---
 
@@ -62,7 +120,7 @@
 | 종족 선택 소환 | 철회 — 랜덤 묘미 유지 |
 | 시너지 | 메뉴 영구 업그레이드로 해금 |
 | 메타프로그레션 | 영구 강화 4종 + 보석 화폐 (Phase F 완료) |
-| 스테이지 | 월드 1/2/3 × 5스테이지(총 15). 월드 1: 짧은 제한시간 + 단계별 기능 해금(튜토리얼). 현행 Stage 1/2/3은 월드 2·3으로 재배치 예정 |
+| 스테이지 | 월드 1/2/3 × 5스테이지(총 15). **월드 1 = 튜토리얼 전용** (짧은 제한시간 + UI 잠금 해제 순서). 현행 Stage 1/2/3은 월드 2·3으로 재배치. 월드 2·3 잠금: 출시=W1 클리어 후 해금, 현재 개발=전부 선택 가능(`DEV_UNLOCK_ALL_WORLDS=true`). 5분 강화(`FIVE_MIN_SURGE_MULT`)는 월드 2·3에만 적용 |
 | 아트 방향 | **NovelAI 확정** — 이모지 폴백 단계적 제거. T3·T4 스프라이트 생성 후 `CHARACTER_ASSETS` 완전 등록 |
 | 고티어 선택권 | 부분 — 레시피 팝업으로 "어떤 조합이 뭐 되나" 공개 |
 
