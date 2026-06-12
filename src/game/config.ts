@@ -5,7 +5,7 @@ export const GAME_HEIGHT = 640;
 export const MOBILE_SAFE_ZONE_TOP = 24;
 export const MOBILE_SAFE_ZONE_BOTTOM = 16;
 
-export const MAX_ENEMIES = 50;
+export const MAX_ENEMIES = 40;
 export const CLEAR_TIME_MS = 10 * 60 * 1000; // 10:00
 
 export const ENEMY_BASE_SPEED = 30; // px/sec (overclock base)

@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-12 (config.ts 완료 — WORLD_CONFIGS 15스테이지 / StageFeatures / FIVE_MIN_SURGE_MULT)
+> 마지막 갱신: 2026-06-12 (게임 디자인 신규 과제 G1~G5 P0 등록 / MAX_ENEMIES 50→40 하향)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -9,6 +9,19 @@
 - `scripts/sim-freeze.ts` — 순수 데이터 레이어 3분 시뮬레이션 (프리징 진단용, 순수 레이어 무죄 확인 완료). 함께 제거 가능.
 
 ## 🚨 다음 작업
+
+### 🥇 P0 — 게임 디자인 신규 과제 (2026-06-12 확정, 투입 순서대로)
+
+> HRD(히어로즈 랜덤 디펜스)·뱀파이어 서바이벌 벤치마킹. game-designer 분석 + 사용자 승인 완료.
+> **G1·G2는 풀플레이 측정 무영향 → 즉시 투입. G4·G5는 밸런스 영향 → 풀플레이 검증 게이트 측정 후.**
+
+| # | 항목 | 내용 | 난이도 | 시점 |
+|---|---|---|---|---|
+| G1 | **적 한계 게이지 바** (HRD) | HudRenderer에 `enemyCount/MAX_ENEMIES` 채움 바 (높이 4px). 60%(24)→노랑 / 80%(32)→빨강(기존 테두리 맥동과 동기). ✅ 선행: `MAX_ENEMIES` 50→40 하향 + danger 임계 `MAX_ENEMIES*0.8` 연동 (완료) | 소 | 즉시 |
+| G2 | **잭팟 소환** (HRD) — **💎 메타 상점 해금** | 메타 상점에 "잭팟 소환" 해금 아이템 추가(💎2 제안). 구매 후 `summon()` 4% 확률(`JACKPOT_TIER2_PROB=0.04`)로 2티어 12종 랜덤 직접 등장 + ULTIMATE 축소 연출(플래시+셰이크 80ms). W1 튜토리얼 미적용. 5% 초과 금지(교배 우회 방지) | 소~중 | 즉시 |
+| G3 | **유닛 도감 + 마일스톤** (HRD/VS) | `MetaProgress.discovered: string[]` — 첫 제작 시 기록. RecipePopup에 미제작 유닛 회색+뱃지. 마일스톤: 10종=💎1 / 18종=💎2 / 25종=💎3 (합계 6, 묶음 한정 — 인플레 방지) | 중 | 즉시~측정 전후 무관 |
+| G4 | **스크립트 웨이브 타임라인** (VS) | `WorldStageConfig.scriptedWaves?: {atMs, type, count}[]`. 예: W2-4 3:00 FAST 8마리 러시. **5초 텔레그래프 필수**(보스 예고 패턴 재사용). 스폰 시 `count=min(설정, MAX_ENEMIES-enemyCount-10)` 안전 마진. 스테이지당 1~2개, W1 제외. P2 후보 B(위협 브리핑)와 한 세트 | 중 | **풀플레이 측정 후** |
+| G5 | **라스트 스탠드 피날레** (VS) | `victoryTimeMs-60s`에 "FINAL WAVE" 배너 + 스폰 간격 ×0.6 (5분 surge와 동일 tick 플래그 패턴). **HP/속도 추가 금지 — 밀도만** (surge와 중첩 방지) | 소 | **측정 후, 7분 도달률 70%+ 시 난이도 보강 수단으로** |
 
 ### 풀플레이 검증 게이트 (1차 패치 후 측정)
 
@@ -25,10 +38,10 @@
 |---|---|---|---|
 | Plan/Grind | R | 보상 카드 풀 교체 — `DOUBLE_ATK_PROB_INC` 0.02→0.05 / `CRIT_PROB_INC` 0.10→0.07 / `TWIN_PROB_INC` 0.02→0.05 / gem 카드→강화점+1 카드 | **P1 — 클로즈 테스트 전 권장** (크리 지배 전략 → 테스트 데이터 오염) |
 | — | W1 | ✅ **config.ts** — `WORLD_CONFIGS` 15스테이지 / `StageFeatures` / `FIVE_MIN_SURGE_MULT` / `DEV_UNLOCK_ALL_WORLDS` 추가 완료 | **완료** |
-| — | W2 | **types.ts** — `StageFeatures`, `WorldStageConfig` 타입 export (config.ts에 이미 정의, scene 레이어에서 import 가능한지 확인 및 정리) | **🔴 P0 다음** |
-| — | W3 | **GameState.ts** — 생성자에 `WorldStageConfig` 수신, `features` 저장, `fiveMinSurgeApplied` 플래그 + `tick()` surge 로직, `VICTORY_TIME_MS` → `config.victoryTimeMs` 교체, `STAGE_CONFIGS` 의존 제거 | **🔴 P0** |
-| — | W4 | **StageSelectScene.ts** — 월드 탭(W1/W2/W3) + 스테이지 5개 그리드 UI. `DEV_UNLOCK_ALL_WORLDS` 기반 잠금(🔒) 표시. 선택 시 `{world, stage}` 전달 | **🔴 P0** |
-| — | W5 | **GameScene.ts** — `features` 기반 UI 조건부 표시 (summonBtn 항상 표시, breed/sell/lock/soulShop/recipe는 feature 플래그로). W1 튜토리얼 안내 텍스트 | **🔴 P0** |
+| — | W2 | ✅ **types.ts** — config.ts에서 이미 export, scene 레이어에서 직접 import 가능 확인 | **완료** |
+| — | W3 | ✅ **GameState.ts** — `WorldStageConfig` 수신, `features` 저장, `fiveMinSurgeApplied`+`pendingSurge`+`_surgeMult`, `victoryTimeMs` 교체, `STAGE_CONFIGS` 의존 제거, `maxBossPhase===0` 시 보스 스폰 억제 | **완료** |
+| — | W4 | ✅ **StageSelectScene.ts** — 월드 탭(W1/W2/W3) + 스테이지 5개 그리드. `DEV_UNLOCK_ALL_WORLDS` 기반 잠금. `{world, stage}` 전달 | **완료** |
+| — | W5 | ✅ **GameScene.ts** — `features` 기반 UI 조건부 표시(recipe/soulShop/sell/breed/synthesize/lock). W1 튜토리얼 힌트 텍스트. surge 처리. 기록 키 `world*10+stage` | **완료** |
 | Grind | V | **5분 이후 적 강화** — 5분(300,000ms) 경과 시 HP·Speed 추가 곱(예: ×1.5) 1회 적용. 현재 `MINUTE_HP_MULT`만으론 후반 압박 부족 | **P1** — 상수 `FIVE_MIN_SURGE_MULT` 추가, `tick()` 한 번만 발동 플래그 |
 | Art | ART | **이모지 폴백 제거** — NovelAI 확정에 따라 `CHARACTER_ASSETS` 미등록 유닛의 이모지 렌더 경로 제거. T3·T4 스프라이트 생성 후 적용 | P2 — T3 스프라이트 확보 선행 |
 | Plan | B | 스테이지 위협 브리핑 — StageSelect 카드에 적 구성 3줄 (예: "벌 65% · 탱크 2:00부터"). 적 행동 서술만, 유닛 추천 금지 | P2 — 3줄 상한, STAGE_CONFIGS 데이터 그대로 노출 |
@@ -196,7 +209,7 @@ breeding-defense/
 |---|---|---|
 | `GAME_WIDTH` / `GAME_HEIGHT` | 360 / 640 | 캔버스 |
 | `MOBILE_SAFE_ZONE_TOP` / `_BOTTOM` | 24 / 16 | 노치/홈바 여백 |
-| `MAX_ENEMIES` | 50 | 초과 시 게임오버 |
+| `MAX_ENEMIES` | 40 | 초과 시 게임오버 (2026-06-12 50→40 하향) |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 (오버클록 진입) |
 | ~~`ENEMY_SPAWN_INTERVAL_MS`~~ | 삭제 — STAGE_CONFIGS.spawnIntervalBase로 대체됨 | 레거시 상수 제거됨 |
 | `VICTORY_TIME_MS` | **120000 (DEV 2분, 출시 420000=7분)** | 승리 조건 |
@@ -340,7 +353,7 @@ breeding-defense/
 - ✅ 드래그 시 사거리 원, 합성 가능 유닛 청록 펄싱
 - ✅ 데미지 숫자 플로팅, 크리티컬 오렌지 `!`
 - ✅ ULTIMATE 연출(3티어) / ASTRAL GOD(4티어) — 0.3초 프리즈 + 플래시 + 셰이크
-- ✅ 적 40↑ 화면 테두리 붉은 맥동
+- ✅ 적 한계 80%↑ 화면 테두리 붉은 맥동 (`MAX_ENEMIES*0.8` 연동)
 - ✅ 보스 5초 예고 (빨간 오라 + ⚠️5→1 카운트다운)
 - ✅ Phase C 보스 처치 컷인 (💀 BOSS DOWN! + 셰이크 + 플래시)
 - ✅ 보스 거대화 (Phase C 👑 48px + 이중 빨간 오라)
