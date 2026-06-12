@@ -54,7 +54,6 @@ export class RewardPopup {
       card.on('pointerout', () => card.setStyle({ backgroundColor: '#1e2840' }));
       card.on('pointerdown', () => {
         this.state.applyReward(reward.type);
-        if (reward.type === 'gem') this.onGemChange(1);
         this.close();
       });
       return card;

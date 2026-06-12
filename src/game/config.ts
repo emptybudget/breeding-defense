@@ -109,12 +109,13 @@ export const TIER4_STATS = {
 } as const;
 
 // Probabilistic upgrades (boss rewards)
+// R(2026-06-12): 크리 지배 전략 완화 — 크리 증분 하향, 쌍둥이/더블어택 상향
 export const TWIN_INIT_PROB = 0.10;
-export const TWIN_PROB_INC = 0.02;
+export const TWIN_PROB_INC = 0.05;
 export const DOUBLE_ATK_INIT_PROB = 0.10;
-export const DOUBLE_ATK_PROB_INC = 0.02;
+export const DOUBLE_ATK_PROB_INC = 0.05;
 export const CRIT_INIT_PROB = 0.20;
-export const CRIT_PROB_INC = 0.10;
+export const CRIT_PROB_INC = 0.07;
 
 // 30-second spawn acceleration
 export const SPAWN_ACCEL_INTERVAL_MS = 30000;

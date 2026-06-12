@@ -12,7 +12,7 @@ export type UnitRace = Tier1Race | HybridRace | Tier3Race | Tier4Race;
 
 export type EnemyType = 'NORMAL' | 'FAST' | 'TANK';
 
-export type RewardType = 'gem' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk' | 'crit';
+export type RewardType = 'enhance' | 'gold' | 'damage' | 'maxUnits' | 'twinProb' | 'doubleAtk' | 'crit';
 
 export interface Reward {
   type: RewardType;

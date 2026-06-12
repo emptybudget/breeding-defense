@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-12 (G1 적 한계 게이지 / G2 잭팟 소환 / G3 유닛 도감+마일스톤 구현 완료 — G4·G5는 풀플레이 측정 게이트 대기)
+> 마지막 갱신: 2026-06-12 (R 보상 카드 풀 교체 완료 / V 5분 강화는 이미 구현 확인 → 완료 처리. 다음: 풀플레이 측정 → G4·G5)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -36,13 +36,13 @@
 
 | 박자 | # | 항목 | 비고 |
 |---|---|---|---|
-| Plan/Grind | R | 보상 카드 풀 교체 — `DOUBLE_ATK_PROB_INC` 0.02→0.05 / `CRIT_PROB_INC` 0.10→0.07 / `TWIN_PROB_INC` 0.02→0.05 / gem 카드→강화점+1 카드 | **P1 — 클로즈 테스트 전 권장** (크리 지배 전략 → 테스트 데이터 오염) |
+| Plan/Grind | R | ✅ **보상 카드 풀 교체** — `DOUBLE_ATK_PROB_INC` 0.02→0.05 / `CRIT_PROB_INC` 0.10→0.07 / `TWIN_PROB_INC` 0.02→0.05 / gem 카드→💀 강화점+1 카드(`RewardType` 'gem'→'enhance'). 카드 라벨 % 상수 연동 | **완료 (2026-06-12)** |
 | — | W1 | ✅ **config.ts** — `WORLD_CONFIGS` 15스테이지 / `StageFeatures` / `FIVE_MIN_SURGE_MULT` / `DEV_UNLOCK_ALL_WORLDS` 추가 완료 | **완료** |
 | — | W2 | ✅ **types.ts** — config.ts에서 이미 export, scene 레이어에서 직접 import 가능 확인 | **완료** |
 | — | W3 | ✅ **GameState.ts** — `WorldStageConfig` 수신, `features` 저장, `fiveMinSurgeApplied`+`pendingSurge`+`_surgeMult`, `victoryTimeMs` 교체, `STAGE_CONFIGS` 의존 제거, `maxBossPhase===0` 시 보스 스폰 억제 | **완료** |
 | — | W4 | ✅ **StageSelectScene.ts** — 월드 탭(W1/W2/W3) + 스테이지 5개 그리드. `DEV_UNLOCK_ALL_WORLDS` 기반 잠금. `{world, stage}` 전달 | **완료** |
 | — | W5 | ✅ **GameScene.ts** — `features` 기반 UI 조건부 표시(recipe/soulShop/sell/breed/synthesize/lock). W1 튜토리얼 힌트 텍스트. surge 처리. 기록 키 `world*10+stage` | **완료** |
-| Grind | V | **5분 이후 적 강화** — 5분(300,000ms) 경과 시 HP·Speed 추가 곱(예: ×1.5) 1회 적용. 현재 `MINUTE_HP_MULT`만으론 후반 압박 부족 | **P1** — 상수 `FIVE_MIN_SURGE_MULT` 추가, `tick()` 한 번만 발동 플래그 |
+| Grind | V | ✅ **5분 이후 적 강화** — W3 작업에서 이미 구현 확인 (2026-06-12). `FIVE_MIN_SURGE_MULT=1.5`, `tick()` 1회 발동, `enemyRenderer.applySurge()`로 기존 적 포함 적용, 월드 2·3 전용 | **완료** |
 | Art | ART | **이모지 폴백 제거** — NovelAI 확정에 따라 `CHARACTER_ASSETS` 미등록 유닛의 이모지 렌더 경로 제거. T3·T4 스프라이트 생성 후 적용 | P2 — T3 스프라이트 확보 선행 |
 | Plan | B | 스테이지 위협 브리핑 — StageSelect 카드에 적 구성 3줄 (예: "벌 65% · 탱크 2:00부터"). 적 행동 서술만, 유닛 추천 금지 | P2 — 3줄 상한, STAGE_CONFIGS 데이터 그대로 노출 |
 | Grind | U7 | 분당 곱 1.25→1.35 (Phase C 너무 쉬우면) | 풀플레이 후 결정 |
@@ -212,7 +212,7 @@ breeding-defense/
 | `MAX_ENEMIES` | 40 | 초과 시 게임오버 (2026-06-12 50→40 하향) |
 | `CLEAR_TIME_MS` | 600000 (10분) | 1차 클리어 (오버클록 진입) |
 | ~~`ENEMY_SPAWN_INTERVAL_MS`~~ | 삭제 — STAGE_CONFIGS.spawnIntervalBase로 대체됨 | 레거시 상수 제거됨 |
-| `VICTORY_TIME_MS` | **120000 (DEV 2분, 출시 420000=7분)** | 승리 조건 |
+| ~~`VICTORY_TIME_MS`~~ | 스테이지별 `victoryTimeMs`로 대체 (W1 2~4분 / W2·W3 7분) | 승리 조건 — 레거시 상수는 미사용 |
 | `ENEMY_BASE_SPEED` / `ENEMY_BASE_HP` | 40 / 1 | 오버클록 기준 |
 | `OVERCLOCK_HP_GROWTH` / `_SPEED_GROWTH` / `_SPAWN_DECAY` | 1.08 / 1.05 / 0.97 | 매초 |
 | `MINUTE_HP_MULT` / `_SPEED_MULT` | 1.25 / 1.2 | 1분마다 누적 |
@@ -306,7 +306,7 @@ breeding-defense/
 - `Tier4Race`: Astral_God
 - `UnitRace`: Tier1Race | HybridRace | Tier3Race | Tier4Race
 - `EnemyType`: NORMAL | FAST | TANK
-- `RewardType`: gem | gold | damage | maxUnits | twinProb | doubleAtk | crit
+- `RewardType`: enhance | gold | damage | maxUnits | twinProb | doubleAtk | crit
 - `UnitData`: id, race, tier(1|2|3|4), x, y, lastAttackedAtMs, isBreeding, breedingEndMs, isExhausted, exhaustEndMs, isLocked
 - `AttackEvent`: srcRace?, srcId?
 
@@ -340,6 +340,7 @@ breeding-defense/
 - ✅ 한도+1 업그레이드 50G+10G
 - ✅ 💎 이어하기 1소모 + 적 전멸
 - ✅ 보스 처치 보상 카드 (2~3장, 💎로 3장 확장)
+- ✅ 보상 카드 풀 교체 (2026-06-12) — 크리 증분 10%→7%, 쌍둥이/더블어택 증분 2%→5%, 💎 카드 → 💀 강화점+1
 
 ### UX/시각
 

@@ -374,13 +374,13 @@ export class GameState {
 
   generateRewards(count: number): Reward[] {
     const pool: Reward[] = [
-      { type: 'gem',      label: '💎 보석 +1' },
+      { type: 'enhance',  label: '💀 강화점 +1' },
       { type: 'gold',     label: `💰 골드 +${REWARD_GOLD_AMOUNT}` },
       { type: 'damage',   label: '⚔️ 공격력 +1' },
       { type: 'maxUnits', label: '🏠 유닛 한도 +1' },
-      { type: 'twinProb', label: this.twinProbability === 0 ? '👶 쌍둥이 10%' : `👶 쌍둥이 +2% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
-      { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? '⚡ 더블어택 10%' : `⚡ 더블어택 +2% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
-      { type: 'crit', label: this.criticalProbability === 0 ? '🎯 치명타 20%' : `🎯 치명타 +10% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
+      { type: 'twinProb', label: this.twinProbability === 0 ? `👶 쌍둥이 ${(TWIN_INIT_PROB * 100).toFixed(0)}%` : `👶 쌍둥이 +${(TWIN_PROB_INC * 100).toFixed(0)}% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
+      { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? `⚡ 더블어택 ${(DOUBLE_ATK_INIT_PROB * 100).toFixed(0)}%` : `⚡ 더블어택 +${(DOUBLE_ATK_PROB_INC * 100).toFixed(0)}% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
+      { type: 'crit', label: this.criticalProbability === 0 ? `🎯 치명타 ${(CRIT_INIT_PROB * 100).toFixed(0)}%` : `🎯 치명타 +${(CRIT_PROB_INC * 100).toFixed(0)}% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
     ];
     for (let i = pool.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -397,7 +397,7 @@ export class GameState {
 
   applyReward(type: RewardType): void {
     switch (type) {
-      case 'gem':      this.gems += 1; break;
+      case 'enhance':  this.enhancePoints += 1; break;
       case 'gold':     this.gold += REWARD_GOLD_AMOUNT; break;
       case 'damage':   this.globalDamageBonus += 1; break;
       case 'maxUnits': this.maxUnits += 1; break;
