@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-12 (방향 결정 — NovelAI 아트 확정 / 월드 3×5 구조 / 5분 이후 적 강화 추가)
+> 마지막 갱신: 2026-06-12 (config.ts 완료 — WORLD_CONFIGS 15스테이지 / StageFeatures / FIVE_MIN_SURGE_MULT)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -24,7 +24,11 @@
 | 박자 | # | 항목 | 비고 |
 |---|---|---|---|
 | Plan/Grind | R | 보상 카드 풀 교체 — `DOUBLE_ATK_PROB_INC` 0.02→0.05 / `CRIT_PROB_INC` 0.10→0.07 / `TWIN_PROB_INC` 0.02→0.05 / gem 카드→강화점+1 카드 | **P1 — 클로즈 테스트 전 권장** (크리 지배 전략 → 테스트 데이터 오염) |
-| Loop | W | **월드 구조 구현** — 아래 설계대로. StageSelectScene 월드 탭(W1/W2/W3) + 스테이지 5개 그리드. config.ts WORLD_CONFIGS 추가. GameState feature-flag 수신. GameScene UI 잠금/해제 | **P1** — 현재 STAGE_CONFIGS 재구성 필요 |
+| — | W1 | ✅ **config.ts** — `WORLD_CONFIGS` 15스테이지 / `StageFeatures` / `FIVE_MIN_SURGE_MULT` / `DEV_UNLOCK_ALL_WORLDS` 추가 완료 | **완료** |
+| — | W2 | **types.ts** — `StageFeatures`, `WorldStageConfig` 타입 export (config.ts에 이미 정의, scene 레이어에서 import 가능한지 확인 및 정리) | **🔴 P0 다음** |
+| — | W3 | **GameState.ts** — 생성자에 `WorldStageConfig` 수신, `features` 저장, `fiveMinSurgeApplied` 플래그 + `tick()` surge 로직, `VICTORY_TIME_MS` → `config.victoryTimeMs` 교체, `STAGE_CONFIGS` 의존 제거 | **🔴 P0** |
+| — | W4 | **StageSelectScene.ts** — 월드 탭(W1/W2/W3) + 스테이지 5개 그리드 UI. `DEV_UNLOCK_ALL_WORLDS` 기반 잠금(🔒) 표시. 선택 시 `{world, stage}` 전달 | **🔴 P0** |
+| — | W5 | **GameScene.ts** — `features` 기반 UI 조건부 표시 (summonBtn 항상 표시, breed/sell/lock/soulShop/recipe는 feature 플래그로). W1 튜토리얼 안내 텍스트 | **🔴 P0** |
 | Grind | V | **5분 이후 적 강화** — 5분(300,000ms) 경과 시 HP·Speed 추가 곱(예: ×1.5) 1회 적용. 현재 `MINUTE_HP_MULT`만으론 후반 압박 부족 | **P1** — 상수 `FIVE_MIN_SURGE_MULT` 추가, `tick()` 한 번만 발동 플래그 |
 | Art | ART | **이모지 폴백 제거** — NovelAI 확정에 따라 `CHARACTER_ASSETS` 미등록 유닛의 이모지 렌더 경로 제거. T3·T4 스프라이트 생성 후 적용 | P2 — T3 스프라이트 확보 선행 |
 | Plan | B | 스테이지 위협 브리핑 — StageSelect 카드에 적 구성 3줄 (예: "벌 65% · 탱크 2:00부터"). 적 행동 서술만, 유닛 추천 금지 | P2 — 3줄 상한, STAGE_CONFIGS 데이터 그대로 노출 |
