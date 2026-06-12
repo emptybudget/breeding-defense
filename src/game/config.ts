@@ -210,3 +210,167 @@ export const ELITE_SPAWN_START_MS    = 90 * 1000; // unlocks at 1:30
 export const ELITE_HP_BOSS_RATIO     = 0.3;   // HP = 30% of Phase A boss HP
 export const ELITE_BASE_SPEED        = 30;    // px/s (between NORMAL 40 and TANK 25)
 export const ELITE_KILL_REWARD       = 20;
+
+// --- World/Stage system ---
+// DEV: 전 월드 즉시 선택 가능. 출시 전 false로 전환.
+export const DEV_UNLOCK_ALL_WORLDS = true;
+
+// 5분 경과 시 1회 적용되는 HP·Speed 급강화 (월드 2·3 전용)
+export const FIVE_MIN_SURGE_MULT = 1.5;
+
+export interface StageFeatures {
+  breed: boolean;      // 교배 버튼
+  synthesize: boolean; // 합성 (드래그 오버랩)
+  sell: boolean;       // 판매존
+  lock: boolean;       // 더블탭 잠금
+  soulShop: boolean;   // 영혼상점
+  recipe: boolean;     // 레시피북
+}
+
+export const ALL_FEATURES: StageFeatures = {
+  breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: true,
+};
+
+export interface WorldStageConfig extends StageConfig {
+  victoryTimeMs: number;
+  features: StageFeatures;
+  fiveMinSurge: boolean;        // FIVE_MIN_SURGE_MULT 적용 여부
+  maxBossPhase: 0 | 1 | 2 | 3; // 0=없음, 1=A, 2=A+B, 3=A+B+C
+  tankRatio: number;            // tankStartMs 이후 TANK 스폰 확률
+  eliteIntervalMs: number | null; // null = 엘리트 없음
+}
+
+export type WorldId = 1 | 2 | 3;
+export type WorldStageId = 1 | 2 | 3 | 4 | 5;
+
+export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfig>> = {
+  // ── 월드 1: 튜토리얼 ──────────────────────────────────────────────
+  1: {
+    1: {
+      name: 'W1-1',
+      victoryTimeMs: 2 * 60_000,
+      features: { breed: false, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false },
+      fiveMinSurge: false, maxBossPhase: 0,
+      fastRatio: 0.3,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
+      bossHpMult: 15,  spawnIntervalBase: 6000, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+    2: {
+      name: 'W1-2',
+      victoryTimeMs: 2 * 60_000,
+      features: { breed: true, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false },
+      fiveMinSurge: false, maxBossPhase: 0,
+      fastRatio: 0.3,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
+      bossHpMult: 15,  spawnIntervalBase: 6000, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+    3: {
+      name: 'W1-3',
+      victoryTimeMs: 3 * 60_000,
+      features: { breed: true, synthesize: true, sell: true, lock: false, soulShop: false, recipe: false },
+      fiveMinSurge: false, maxBossPhase: 0,
+      fastRatio: 0.4,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
+      bossHpMult: 15,  spawnIntervalBase: 5800, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+    4: {
+      name: 'W1-4',
+      victoryTimeMs: 3 * 60_000,
+      features: { breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: false },
+      fiveMinSurge: false, maxBossPhase: 1,
+      fastRatio: 0.4,  tankStartMs: 2 * 60_000, tankRatio: 0.15,
+      bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+    5: {
+      name: 'W1-5',
+      victoryTimeMs: 4 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: false, maxBossPhase: 2,
+      fastRatio: 0.45, tankStartMs: 2 * 60_000, tankRatio: 0.15,
+      bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+  },
+  // ── 월드 2: 본게임 (현행 Stage 1·2 기반) ─────────────────────────
+  2: {
+    1: {
+      name: 'W2-1',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.5,  tankStartMs: 3 * 60_000, tankRatio: 0.15,
+      bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+    },
+    2: {
+      name: 'W2-2',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.55, tankStartMs: 2.5 * 60_000, tankRatio: 0.2,
+      bossHpMult: 16,  spawnIntervalBase: 5000, bossTimeLimitMs: 11000, eliteIntervalMs: null,
+    },
+    3: {
+      name: 'W2-3',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.65, tankStartMs: 2 * 60_000, tankRatio: 0.2,
+      bossHpMult: 18,  spawnIntervalBase: 4400, bossTimeLimitMs: 13000, eliteIntervalMs: null,
+    },
+    4: {
+      name: 'W2-4',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.6,  tankStartMs: 1.5 * 60_000, tankRatio: 0.25,
+      bossHpMult: 20,  spawnIntervalBase: 4200, bossTimeLimitMs: 14000, eliteIntervalMs: null,
+    },
+    5: {
+      name: 'W2-5',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.3,
+      bossHpMult: 20,  spawnIntervalBase: 4000, bossTimeLimitMs: 15000, eliteIntervalMs: 45000,
+    },
+  },
+  // ── 월드 3: 하드 (현행 Stage 3 기반) ─────────────────────────────
+  3: {
+    1: {
+      name: 'W3-1',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.25,
+      bossHpMult: 22,  spawnIntervalBase: 3500, bossTimeLimitMs: 16000, eliteIntervalMs: 45000,
+    },
+    2: {
+      name: 'W3-2',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.3,
+      bossHpMult: 24,  spawnIntervalBase: 3300, bossTimeLimitMs: 16000, eliteIntervalMs: 45000,
+    },
+    3: {
+      name: 'W3-3',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.5,  tankStartMs: 45_000, tankRatio: 0.4,
+      bossHpMult: 26,  spawnIntervalBase: 3200, bossTimeLimitMs: 17000, eliteIntervalMs: 40000,
+    },
+    4: {
+      name: 'W3-4',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.55, tankStartMs: 45_000, tankRatio: 0.35,
+      bossHpMult: 28,  spawnIntervalBase: 3000, bossTimeLimitMs: 17000, eliteIntervalMs: 30000,
+    },
+    5: {
+      name: 'W3-5',
+      victoryTimeMs: 7 * 60_000,
+      features: ALL_FEATURES,
+      fiveMinSurge: true, maxBossPhase: 3,
+      fastRatio: 0.5,  tankStartMs: 30_000, tankRatio: 0.4,
+      bossHpMult: 30,  spawnIntervalBase: 2800, bossTimeLimitMs: 18000, eliteIntervalMs: 30000,
+    },
+  },
+};
