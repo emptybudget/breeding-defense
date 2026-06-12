@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-12 (T2 12종 + Archer T1 스프라이트 인게임 적용 — `docs/archor_tier2.zip` 추출·처리·등록 완료)
+> 마지막 갱신: 2026-06-12 (보석 시스템 통합 — GameState.gems ↔ MetaProgress.gems 완전 동기화)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -139,7 +139,7 @@ breeding-defense/
 | `ENEMY_BASE_SPEED` / `ENEMY_BASE_HP` | 40 / 1 | 오버클록 기준 |
 | `OVERCLOCK_HP_GROWTH` / `_SPEED_GROWTH` / `_SPAWN_DECAY` | 1.08 / 1.05 / 0.97 | 매초 |
 | `MINUTE_HP_MULT` / `_SPEED_MULT` | 1.25 / 1.2 | 1분마다 누적 |
-| `STARTING_GOLD` / `STARTING_GEMS` | 100 / 3 | 시작 자원 |
+| `STARTING_GOLD` | 100 | 시작 골드 |
 | `KILL_REWARD` / `BOSS_KILL_REWARD` | 5 / 50 | 처치 보상 |
 | `GOLD_AUTO_RECOVERY_PER_SEC` | 2 | 골드 매초 회복 |
 | `UNIT_CAP` | 5 | 초기 유닛 한도 (한도+1 업그레이드로 증가) |
@@ -151,7 +151,7 @@ breeding-defense/
 | `REWARD_GOLD_AMOUNT` | 150 | 보상 카드 골드 |
 | `BREEDING_DURATION_MS` / `_EXHAUST_DURATION_MS` | 3000 / 3000 | 교배 / 탈진 |
 | `SELL_GOLD_TIER1/2/3/4` | 10 / 30 / 60 / 150 | 판매 보상 |
-| `META_STARS_PER_VICTORY` | 3 | 승리 시 별 지급 (현재 보석으로 통합) |
+| `META_STARS_PER_VICTORY` | — | 삭제 — 승리 시 보석 +1은 GameScene에서 직접 처리 |
 
 > 3티어 dmg: Cyborg_Wizard 6 / Dino_Mecha 30 / Griffin 2 / Thunder_Hawk 5 / Berserk_Shaman 5 / Chaos_Artillery 3.
 > 4티어 Astral_God: range260/dmg10/300ms/8타겟/보장크리티컬/체인4.

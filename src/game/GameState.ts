@@ -28,7 +28,6 @@ import {
   SELL_GOLD_TIER4,
   SPAWN_ACCEL_DECAY,
   SPAWN_ACCEL_INTERVAL_MS,
-  STARTING_GEMS,
   STARTING_GOLD,
   SUMMON_BASE_COST,
   SUMMON_COST_INCREMENT,
@@ -77,7 +76,7 @@ export class GameState {
   elapsedMs = 0;
   enemyCount = 0;
   gold = STARTING_GOLD;
-  gems = STARTING_GEMS;
+  gems = 0;
   phase: Phase = 'playing';
   units: UnitData[] = [];
   summonCost = SUMMON_BASE_COST;
@@ -116,6 +115,7 @@ export class GameState {
   constructor(meta?: MetaData, stageId: number = 1) {
     this.stageConfig = STAGE_CONFIGS[(stageId as StageId)] ?? STAGE_CONFIGS[1];
     if (meta) {
+      this.gems = meta.gems;
       this.gold = STARTING_GOLD + meta.levels.startingGold * META_UPGRADES.startingGold.effectPer;
       this.summonCost = Math.max(1, SUMMON_BASE_COST - meta.levels.summonCost * META_UPGRADES.summonCost.effectPer);
       this.maxUnits = UNIT_CAP + meta.levels.unitCap * META_UPGRADES.unitCap.effectPer;

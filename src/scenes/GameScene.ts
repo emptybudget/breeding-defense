@@ -79,6 +79,7 @@ export class GameScene extends Phaser.Scene {
       },
       () => { this.scene.start('StageSelectScene'); },
       () => { this.adRevive(); },
+      (delta) => { this.metaProgress.addGems(delta); },
     );
     this.enemyRenderer = new EnemyRenderer(
       this,
@@ -376,6 +377,7 @@ export class GameScene extends Phaser.Scene {
 
   private gemContinue(): void {
     if (!this.state.useGemContinue()) return;
+    this.metaProgress.addGems(-1);
     this.enemyRenderer.clearAll();
     this.banner?.destroy(); this.banner = undefined;
     this.popupRenderer.hideGameOver();

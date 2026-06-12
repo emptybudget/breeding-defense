@@ -29,13 +29,14 @@ export class PopupRenderer {
     onInfiniteMode: () => void,
     onStageSelect: () => void,
     onAdRevive: () => void,
+    onGemChange: (delta: number) => void,
   ) {
     this.scene = scene;
     this.pausePopup = new PausePopup(scene, state);
     this.recipePopup = new RecipePopup(scene);
     this.gameOverPopup = new GameOverPopup(scene, state, onRestart, onGemContinue, onStageSelect, onAdRevive);
     this.victoryPopup = new VictoryPopup(scene, state, onRestart, onInfiniteMode, onStageSelect);
-    this.rewardPopup = new RewardPopup(scene, state);
+    this.rewardPopup = new RewardPopup(scene, state, onGemChange);
     this.soulShopPopup = new SoulShopPopup(scene, state);
   }
 

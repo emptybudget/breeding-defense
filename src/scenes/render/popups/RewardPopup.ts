@@ -8,13 +8,15 @@ import { CENTER_X, CENTER_Y } from '../../constants';
 export class RewardPopup {
   private scene: Phaser.Scene;
   private state: GameState;
+  private onGemChange: (delta: number) => void;
   private container?: Phaser.GameObjects.Container;
   private dimOverlay?: Phaser.GameObjects.Rectangle;
   private allRewards: Reward[] = [];
 
-  constructor(scene: Phaser.Scene, state: GameState) {
+  constructor(scene: Phaser.Scene, state: GameState, onGemChange: (delta: number) => void) {
     this.scene = scene;
     this.state = state;
+    this.onGemChange = onGemChange;
   }
 
   show(count: 2 | 3, pregenerated?: Reward[]): void {
@@ -52,6 +54,7 @@ export class RewardPopup {
       card.on('pointerout', () => card.setStyle({ backgroundColor: '#1e2840' }));
       card.on('pointerdown', () => {
         this.state.applyReward(reward.type);
+        if (reward.type === 'gem') this.onGemChange(1);
         this.close();
       });
       return card;
@@ -67,6 +70,7 @@ export class RewardPopup {
       expandBtn.on('pointerdown', () => {
         if (this.state.gems <= 0) return;
         this.state.gems -= 1;
+        this.onGemChange(-1);
         this.show(3);
       });
       items.push(expandBtn);
