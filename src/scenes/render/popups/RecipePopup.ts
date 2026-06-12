@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../../game/config';
+import { DISCOVERY_TOTAL, GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../../game/config';
 import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../../game/types';
 import { ASTRAL_GOD_RECIPE, HYBRID_RACES, TIER1_RACES, getTier2Recipes, getTier3Recipes } from '../../../game/unitHelpers';
 import { ANS, drawPanelAt } from '../../artnouveau';
@@ -109,7 +109,8 @@ export class RecipePopup {
   }
 
   // ── HUD 📖 → 전체 레시피북 ────────────────────────────────────────────────
-  showRecipeBook(onClose: () => void): void {
+  // G3: discovered(첫 제작 도감)에 없는 결과 유닛은 회색 + ❓ 뱃지
+  showRecipeBook(onClose: () => void, discovered: ReadonlySet<string>): void {
     if (this.recipeBookContainer) return;
 
     const dim = this.scene.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.75)
@@ -125,39 +126,43 @@ export class RecipePopup {
     };
     dim.on('pointerdown', close);
 
-    const tier1to2: string[] = [];
+    type Line = { text: string; result?: string };
+    const tier1to2: Line[] = [];
     const seen2 = new Set<string>();
     for (const race of TIER1_RACES) {
       for (const { partner, result } of getTier2Recipes(race)) {
         const key = [race, partner].sort().join('+');
         if (!seen2.has(key)) {
           seen2.add(key);
-          tier1to2.push(`${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`);
+          tier1to2.push({ text: `${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`, result });
         }
       }
     }
 
-    const tier2to3: string[] = [];
+    const tier2to3: Line[] = [];
     const seen3 = new Set<string>();
     for (const race of HYBRID_RACES) {
       for (const { partner, result } of getTier3Recipes(race)) {
         const key = [race, partner].sort().join('+');
         if (!seen3.has(key)) {
           seen3.add(key);
-          tier2to3.push(`${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`);
+          tier2to3.push({ text: `${RACE_EMOJI[race]}+${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`, result });
         }
       }
     }
 
-    const astralLine = `${ASTRAL_GOD_RECIPE.map(r => RACE_EMOJI[r]).join('+')} = 🌟 Astral_God`;
+    const astralLine: Line = {
+      text: `${ASTRAL_GOD_RECIPE.map(r => RACE_EMOJI[r]).join('+')} = 🌟 Astral_God`,
+      result: 'Astral_God',
+    };
 
-    const lines = [
-      '📖  합성 레시피 북',
-      '─ 1티어 → 2티어 ─',
+    const lines: Line[] = [
+      { text: `📖  합성 레시피 북 (도감 ${discovered.size}/${DISCOVERY_TOTAL})` },
+      { text: '─ 1티어 → 2티어 ─' },
       ...tier1to2,
-      '─ 2티어 → 3티어 ─',
+      { text: '─ 2티어 → 3티어 ─' },
       ...tier2to3,
-      '─ 3티어 → 4티어 ─',
+      { text: '─ 3티어 → 4티어 ─' },
       astralLine,
     ];
 
@@ -171,11 +176,15 @@ export class RecipePopup {
     }).setOrigin(0.5).setInteractive({ useHandCursor: true });
     closeBtn.on('pointerdown', close);
 
-    const content = this.scene.add.text(-120, -(bgH / 2) + 30, lines.join('\n'), {
-      fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
-      align: 'left', lineSpacing: 4,
-    }).setOrigin(0, 0);
+    container.add([bgGfx, closeBtn]);
 
-    container.add([bgGfx, closeBtn, content]);
+    lines.forEach((ln, i) => {
+      const undiscovered = ln.result !== undefined && !discovered.has(ln.result);
+      const text = this.scene.add.text(-120, -(bgH / 2) + 30 + i * 15, undiscovered ? `${ln.text} ❓` : ln.text, {
+        fontFamily: 'monospace', fontSize: '11px',
+        color: undiscovered ? ANS.DIM : ANS.CREAM,
+      }).setOrigin(0, 0);
+      container.add(text);
+    });
   }
 }

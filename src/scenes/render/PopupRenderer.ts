@@ -64,8 +64,8 @@ export class PopupRenderer {
     this.recipePopup.showRecipe(unit, onClose);
   }
 
-  showRecipeBook(onClose: () => void): void {
-    this.recipePopup.showRecipeBook(onClose);
+  showRecipeBook(onClose: () => void, discovered: ReadonlySet<string>): void {
+    this.recipePopup.showRecipeBook(onClose, discovered);
   }
 
   showGameOver(isNewRecord = false): void {

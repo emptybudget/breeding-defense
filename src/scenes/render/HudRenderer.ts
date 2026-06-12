@@ -11,6 +11,7 @@ export class HudRenderer {
 
   private timerText!: Phaser.GameObjects.Text;
   private countText!: Phaser.GameObjects.Text;
+  private enemyGaugeGfx!: Phaser.GameObjects.Graphics;
   private goldText!: Phaser.GameObjects.Text;
   private unitText!: Phaser.GameObjects.Text;
   private gemsText!: Phaser.GameObjects.Text;
@@ -67,6 +68,9 @@ export class HudRenderer {
     this.countText = this.scene.add.text(GAME_WIDTH - 28, 8 + TOP, '0 / 50', {
       fontFamily: 'monospace', fontSize: '18px', color: ANS.RED_SOFT,
     }).setOrigin(1, 0).setDepth(6);
+
+    // G1: enemy capacity gauge (HRD) — under count text
+    this.enemyGaugeGfx = this.scene.add.graphics().setDepth(6);
 
     this.goldText = this.scene.add.text(28, 42 + TOP, 'Gold: 100', {
       fontFamily: 'monospace', fontSize: '16px', color: ANS.GOLD_TEXT,
@@ -145,6 +149,20 @@ export class HudRenderer {
       this.timerText.setColor(ANS.CREAM);
     }
     this.countText.setText(`${state.enemyCount} / ${MAX_ENEMIES}`);
+
+    // G1: enemy capacity gauge — 60% yellow / 80% red (danger border와 동일 임계)
+    const ratio = Math.min(state.enemyCount / MAX_ENEMIES, 1);
+    const gaugeW = 80;
+    const gaugeX = GAME_WIDTH - 28 - gaugeW;
+    const gaugeY = 31 + MOBILE_SAFE_ZONE_TOP;
+    const fillColor = ratio >= 0.8 ? 0xff4444 : ratio >= 0.6 ? 0xffdd00 : 0x8aaa4a;
+    this.enemyGaugeGfx.clear();
+    this.enemyGaugeGfx.fillStyle(0x1a1a14, 1);
+    this.enemyGaugeGfx.fillRect(gaugeX, gaugeY, gaugeW, 4);
+    if (ratio > 0) {
+      this.enemyGaugeGfx.fillStyle(fillColor, 1);
+      this.enemyGaugeGfx.fillRect(gaugeX, gaugeY, Math.round(gaugeW * ratio), 4);
+    }
     this.goldText.setText(`Gold: ${state.gold}`);
     this.unitText.setText(`Units: ${state.units.length}/${state.maxUnits}`);
     this.gemsText.setText(`Gem: ${state.gems}`);

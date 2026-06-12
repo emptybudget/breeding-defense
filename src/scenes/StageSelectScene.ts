@@ -46,8 +46,8 @@ export class StageSelectScene extends Phaser.Scene {
     }).setOrigin(0.5);
 
     // Upgrade rows
-    const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold', 'gameSpeed2x'];
-    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 330 + i * 52));
+    const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold', 'gameSpeed2x', 'jackpotSummon'];
+    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 326 + i * 50));
   }
 
   private isWorldUnlocked(worldId: WorldId): boolean {

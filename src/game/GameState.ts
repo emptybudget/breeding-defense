@@ -5,6 +5,7 @@ import {
   CLEAR_TIME_MS,
   FIVE_MIN_SURGE_MULT,
   GOLD_AUTO_RECOVERY_PER_SEC,
+  JACKPOT_TIER2_PROB,
   META_UPGRADES,
   DOUBLE_ATK_INIT_PROB,
   DOUBLE_ATK_PROB_INC,
@@ -61,6 +62,7 @@ import {
 } from './types';
 import { runCombat } from './combat';
 import {
+  HYBRID_RACES,
   TIER1_RACES,
   getCategory,
   getOffspringRace,
@@ -110,6 +112,13 @@ export class GameState {
   fiveMinSurgeApplied = false;
   pendingSurge = false;
   private _surgeMult = 1;
+
+  // G2: 잭팟 소환 — GameScene이 메타 해금 + W1 제외 조건으로 설정
+  jackpotEnabled = false;
+  pendingJackpot = false;
+
+  // G3: 도감 — 이번 틱에 새로 제작된 종 (GameScene이 드레인 후 MetaProgress.discover)
+  pendingDiscoveries: UnitRace[] = [];
 
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
@@ -415,7 +424,10 @@ export class GameState {
     if (this.gold < this.summonCost || this.units.length >= this.maxUnits) return null;
     this.gold -= this.summonCost;
     this.summonCost = Math.min(SUMMON_MAX_COST, this.summonCost + SUMMON_COST_INCREMENT);
-    const race = TIER1_RACES[Math.floor(Math.random() * TIER1_RACES.length)];
+    const isJackpot = this.jackpotEnabled && Math.random() < JACKPOT_TIER2_PROB;
+    const race = isJackpot
+      ? HYBRID_RACES[Math.floor(Math.random() * HYBRID_RACES.length)]
+      : TIER1_RACES[Math.floor(Math.random() * TIER1_RACES.length)];
     const { x1, y1, x2, y2 } = this.unitZone;
     let x: number, y: number, attempts = 0;
     do {
@@ -423,8 +435,13 @@ export class GameState {
       y = y1 + Math.random() * (y2 - y1);
       attempts++;
     } while (attempts < 20 && this._onTrack(x, y));
-    const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
+    const unit = makeUnit(this._nextUnitId++, race, isJackpot ? 2 : 1, x, y);
     this.units.push(unit);
+    this.pendingDiscoveries.push(race);
+    if (isJackpot) {
+      this.pendingJackpot = true;
+      this.pendingNotification = `🎰 잭팟! ${race} 등장!`;
+    }
     return unit;
   }
 
@@ -460,6 +477,7 @@ export class GameState {
     const offspringRace = getOffspringRace(a.race as Tier1Race, b.race as Tier1Race);
     const offspring = makeUnit(this._nextUnitId++, offspringRace, 1, ox, oy);
     this.units.push(offspring);
+    this.pendingDiscoveries.push(offspringRace);
     const born: UnitData[] = [offspring];
 
     // Twin check
@@ -494,6 +512,7 @@ export class GameState {
       this.units.splice(hi, 1); this.units.splice(lo, 1);
       const hybrid = makeUnit(this._nextUnitId++, tier2Race, 2, hx, hy);
       this.units.push(hybrid);
+      this.pendingDiscoveries.push(tier2Race);
       this.applySynthesisCombo();
       return hybrid;
     }
@@ -507,6 +526,7 @@ export class GameState {
       this.units.splice(hi, 1); this.units.splice(lo, 1);
       const ultimate = makeUnit(this._nextUnitId++, tier3Race, 3, hx, hy);
       this.units.push(ultimate);
+      this.pendingDiscoveries.push(tier3Race);
       this.applySynthesisCombo();
       return ultimate;
     }
@@ -529,6 +549,7 @@ export class GameState {
       [aIdx, bIdx, thirdIdx].sort((x, y) => y - x).forEach(idx => this.units.splice(idx, 1));
       const astral = makeUnit(this._nextUnitId++, 'Astral_God', 4, hx, hy);
       this.units.push(astral);
+      this.pendingDiscoveries.push('Astral_God');
       this.applySynthesisCombo();
       return astral;
     }
@@ -564,6 +585,7 @@ export class GameState {
     } while (attempts < 20 && this._onTrack(x, y));
     const unit = makeUnit(this._nextUnitId++, race, 1, x, y);
     this.units.push(unit);
+    this.pendingDiscoveries.push(race);
     return unit;
   }
 

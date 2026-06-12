@@ -139,7 +139,19 @@ export const META_UPGRADES = {
   unitCap:      { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '유닛 한도', emoji: '🏠', desc: '+1칸/Lv' },
   autoGold:     { maxLevel: 2, costs: [1, 1],    effectPer: 1,  label: '자동 골드', emoji: '⚡', desc: '+1/초/Lv' },
   gameSpeed2x:  { maxLevel: 1, costs: [3],       effectPer: 1,  label: '게임 2배속', emoji: '⏩', desc: '인게임 1×/2× 토글 해금' },
+  jackpotSummon: { maxLevel: 1, costs: [2],      effectPer: 1,  label: '잭팟 소환', emoji: '🎰', desc: '소환 4% 확률 2티어 직접 등장' },
 };
+
+// G2: 잭팟 소환 — 메타 해금 후 summon() 시 2티어 직접 등장 확률 (5% 초과 금지 — 교배 우회 방지)
+export const JACKPOT_TIER2_PROB = 0.04;
+
+// G3: 유닛 도감 마일스톤 — 첫 제작 종 수 달성 시 보석 지급 (합계 6, 묶음 한정 — 인플레 방지)
+export const DISCOVERY_TOTAL = 25; // T1 6 + T2 12 + T3 6 + T4 1
+export const DISCOVERY_MILESTONES = [
+  { count: 10, gems: 1 },
+  { count: 18, gems: 2 },
+  { count: 25, gems: 3 },
+] as const;
 
 export type UpgradeKey = keyof typeof META_UPGRADES;
 

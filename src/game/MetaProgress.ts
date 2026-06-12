@@ -1,4 +1,4 @@
-import type { UpgradeKey } from './config';
+import { DISCOVERY_MILESTONES, type UpgradeKey } from './config';
 
 const STORAGE_KEY = 'bd_meta';
 
@@ -7,6 +7,8 @@ export interface MetaData {
   levels: Record<UpgradeKey, number>;
   unlockedStages: number[];
   stageRecords: Record<string, number>; // stageId → best elapsedMs
+  discovered: string[];                 // G3: 도감 — 첫 제작한 유닛 종
+  claimedMilestones: number[];          // G3: 보석 지급 완료된 마일스톤 count
 }
 
 const DEFAULT_LEVELS: Record<UpgradeKey, number> = {
@@ -15,6 +17,7 @@ const DEFAULT_LEVELS: Record<UpgradeKey, number> = {
   unitCap: 0,
   autoGold: 0,
   gameSpeed2x: 0,
+  jackpotSummon: 0,
 };
 
 export class MetaProgress {
@@ -25,9 +28,13 @@ export class MetaProgress {
   }
 
   private load(): MetaData {
+    const empty = (): MetaData => ({
+      gems: 0, levels: { ...DEFAULT_LEVELS }, unlockedStages: [], stageRecords: {},
+      discovered: [], claimedMilestones: [],
+    });
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return { gems: 0, levels: { ...DEFAULT_LEVELS }, unlockedStages: [], stageRecords: {} };
+      if (!raw) return empty();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const p = JSON.parse(raw) as any;
       return {
@@ -35,9 +42,11 @@ export class MetaProgress {
         levels: { ...DEFAULT_LEVELS, ...p.levels },
         unlockedStages: p.unlockedStages ?? [],
         stageRecords: p.stageRecords ?? {},
+        discovered: p.discovered ?? [],
+        claimedMilestones: p.claimedMilestones ?? [],
       };
     } catch {
-      return { gems: 0, levels: { ...DEFAULT_LEVELS }, unlockedStages: [], stageRecords: {} };
+      return empty();
     }
   }
 
@@ -48,6 +57,23 @@ export class MetaProgress {
   get gems(): number { return this.data.gems; }
   getLevel(key: UpgradeKey): number { return this.data.levels[key]; }
   getData(): MetaData { return this.data; }
+  get discovered(): readonly string[] { return this.data.discovered; }
+
+  /** G3: 첫 제작 기록. 새로 달성한 마일스톤의 보석 합계 반환 (없으면 0). */
+  discover(race: string): number {
+    if (this.data.discovered.includes(race)) return 0;
+    this.data.discovered.push(race);
+    let gems = 0;
+    for (const m of DISCOVERY_MILESTONES) {
+      if (this.data.discovered.length >= m.count && !this.data.claimedMilestones.includes(m.count)) {
+        this.data.claimedMilestones.push(m.count);
+        gems += m.gems;
+      }
+    }
+    this.data.gems += gems;
+    this.save();
+    return gems;
+  }
 
   addGems(n: number): void {
     this.data.gems += n;

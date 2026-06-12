@@ -55,6 +55,8 @@ export class GameScene extends Phaser.Scene {
     this.stage = ((data.stage as WorldStageId) ?? 1);
     const worldConfig = WORLD_CONFIGS[this.world]?.[this.stage] ?? WORLD_CONFIGS[2][1];
     this.state = new GameState(this.metaProgress.getData(), worldConfig);
+    // G2: 잭팟 소환 — 메타 해금 + W1 튜토리얼 제외
+    this.state.jackpotEnabled = this.world !== 1 && this.metaProgress.getLevel('jackpotSummon') > 0;
     this.sfx = new SoundManager();
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
@@ -62,7 +64,14 @@ export class GameScene extends Phaser.Scene {
     const speed2xUnlocked = this.metaProgress.getLevel('gameSpeed2x') > 0;
     this.hudRenderer = new HudRenderer(
       this,
-      () => { const unit = this.state.summon(); if (unit) this.unitRenderer.addUnit(unit); },
+      () => {
+        const unit = this.state.summon();
+        if (unit) this.unitRenderer.addUnit(unit);
+        if (this.state.pendingJackpot) {
+          this.state.pendingJackpot = false;
+          this.showJackpotEffect();
+        }
+      },
       () => { this.state.upgradePopulation(); },
       () => { this.onPause(); },
       () => { this.onRecipeBook(); },
@@ -205,6 +214,18 @@ export class GameScene extends Phaser.Scene {
     if (this.state.pendingStreakBonus) {
       this.state.pendingStreakBonus = false;
       this.notificationRenderer.add('🔥 킬 스트릭! +10G', '#ffdd00');
+    }
+
+    // G3: 도감 첫 제작 기록 + 마일스톤 보석
+    if (this.state.pendingDiscoveries.length > 0) {
+      for (const race of this.state.pendingDiscoveries) {
+        const gems = this.metaProgress.discover(race);
+        if (gems > 0) {
+          this.state.gems += gems;
+          this.notificationRenderer.add(`📚 도감 ${this.metaProgress.discovered.length}종 달성! 💎+${gems}`, '#4ab8b8');
+        }
+      }
+      this.state.pendingDiscoveries.length = 0;
     }
 
     // 5-minute surge
@@ -358,6 +379,18 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: text, y: CENTER_Y - 100, alpha: 0, duration: 1500, onComplete: () => text.destroy() });
   }
 
+  // G2: 잭팟 소환 — ULTIMATE 축소 연출 (플래시 + 셰이크 80ms)
+  private showJackpotEffect(): void {
+    this.cameras.main.shake(80, 0.008);
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0xffcc00, 0.35).setDepth(20);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 250, onComplete: () => flash.destroy() });
+    const text = this.add.text(CENTER_X, CENTER_Y - 40, '🎰 JACKPOT!', {
+      fontFamily: 'monospace', fontSize: '26px', color: '#ffcc00',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(21);
+    this.tweens.add({ targets: text, y: CENTER_Y - 80, alpha: 0, duration: 1000, onComplete: () => text.destroy() });
+  }
+
   private toggleSpeedMult(): void {
     this.speedMult = this.speedMult === 2 ? 1 : 2;
     // Also scale Phaser timers/tweens for consistent feel
@@ -378,7 +411,7 @@ export class GameScene extends Phaser.Scene {
   private onRecipeBook(): void {
     if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
     this.state.isPaused = true;
-    this.popupRenderer.showRecipeBook(() => { this.state.isPaused = false; });
+    this.popupRenderer.showRecipeBook(() => { this.state.isPaused = false; }, new Set(this.metaProgress.discovered));
   }
 
   private onSoulShop(): void {
