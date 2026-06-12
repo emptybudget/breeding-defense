@@ -130,7 +130,7 @@ export class DragController {
     this.state.isPaused = true;
     this.scene.time.delayedCall(300, () => { this.state.isPaused = false; });
     // Haptic: tier-4 = heavy triple, tier-3 = double pulse
-    if ('vibrate' in navigator) {
+    if (typeof navigator.vibrate === 'function') {
       navigator.vibrate(tier === 4 ? [100, 50, 150, 50, 200] : [80, 40, 120]);
     }
     const cx = GAME_WIDTH / 2;
@@ -262,7 +262,7 @@ export class DragController {
       const started = this.state.startBreeding(droppedId, targetId);
       if (!started && this.state.units.length >= this.state.maxUnits) {
         this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
-        if ('vibrate' in navigator) navigator.vibrate(30);
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
       }
       if (started) {
         const snapX = Math.min(this.state.unitZone.x2, targetUnit.x + 18);

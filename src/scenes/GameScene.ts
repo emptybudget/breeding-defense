@@ -220,7 +220,7 @@ export class GameScene extends Phaser.Scene {
       this.state.pendingCritHaptic = false;
       if (this.state.elapsedMs - this._lastCritHapticMs > 1500) {
         this._lastCritHapticMs = this.state.elapsedMs;
-        if ('vibrate' in navigator) navigator.vibrate(30);
+        if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
       }
     }
 
@@ -283,7 +283,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onBossKilled(): void {
-    if ('vibrate' in navigator) navigator.vibrate([60, 30, 80]);
+    if (typeof navigator.vibrate === 'function') navigator.vibrate([60, 30, 80]);
     const ms = this.state.elapsedMs;
     const isFastKill = this.state.bossCount > 1 &&
       this.state.bossSpawnedAtMs !== null &&
