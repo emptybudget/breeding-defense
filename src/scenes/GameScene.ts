@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, GAME_HEIGHT, GAME_WIDTH } from '../game/config';
+import { BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
 import { GameState, Phase } from '../game/GameState';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y, CHARACTER_ASSETS, unitTextureKey } from './constants';
@@ -29,7 +29,8 @@ export class GameScene extends Phaser.Scene {
   private overclockSfxPlayed = false;
   private bossTimerText?: Phaser.GameObjects.Text;
   private speedMult: 1 | 2 = 1;
-  private stageId = 1;
+  private world: WorldId = 2;
+  private stage: WorldStageId = 1;
   private _lastCritHapticMs = 0;
 
   constructor() {
@@ -49,8 +50,11 @@ export class GameScene extends Phaser.Scene {
     this.metaProgress = new MetaProgress();
     this.starsAwarded = false;
     this.overclockSfxPlayed = false;
-    this.stageId = ((this.scene.settings.data as Record<string, unknown>)?.stageId as number) ?? 1;
-    this.state = new GameState(this.metaProgress.getData(), this.stageId);
+    const data = (this.scene.settings.data as Record<string, unknown>) ?? {};
+    this.world = ((data.world as WorldId) ?? 2);
+    this.stage = ((data.stage as WorldStageId) ?? 1);
+    const worldConfig = WORLD_CONFIGS[this.world]?.[this.stage] ?? WORLD_CONFIGS[2][1];
+    this.state = new GameState(this.metaProgress.getData(), worldConfig);
     this.sfx = new SoundManager();
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
@@ -102,7 +106,7 @@ export class GameScene extends Phaser.Scene {
     // Mine rendering layer (above track, below enemies)
     this.mineGraphics = this.add.graphics();
 
-    // Danger border (40+ enemies)
+    // Danger border (MAX_ENEMIES의 80% 이상)
     this.dangerTween = undefined;
     this.dangerBorder = this.add.graphics().setDepth(50);
     this.dangerBorder.lineStyle(10, 0xff2222, 1);
@@ -124,7 +128,10 @@ export class GameScene extends Phaser.Scene {
     // Show tutorial → stage intro → start
     this.state.isPaused = true;
     this.popupRenderer.showTutorial(() => {
-      this.showStageIntro(() => { this.state.isPaused = false; });
+      this.showStageIntro(() => {
+        if (this.world === 1) this.showW1Hint(this.stage);
+        this.state.isPaused = false;
+      });
     });
   }
 
@@ -200,6 +207,14 @@ export class GameScene extends Phaser.Scene {
       this.notificationRenderer.add('🔥 킬 스트릭! +10G', '#ffdd00');
     }
 
+    // 5-minute surge
+    if (this.state.pendingSurge) {
+      this.state.pendingSurge = false;
+      this.enemyRenderer.applySurge(FIVE_MIN_SURGE_MULT);
+      this.notificationRenderer.add('🔥 5분 강화! 적이 더 강해집니다!', '#ff6600');
+      this.cameras.main.shake(150, 0.008);
+    }
+
     // Victory check
     if (this.isPhase('victory')) {
       if (!this.popupRenderer.hasVictoryPopup) {
@@ -207,7 +222,7 @@ export class GameScene extends Phaser.Scene {
           this.metaProgress.addGems(1);
           this.starsAwarded = true;
         }
-        const isNewRecord = this.metaProgress.setStageRecord(this.stageId, this.state.elapsedMs);
+        const isNewRecord = this.metaProgress.setStageRecord(this.world * 10 + this.stage, this.state.elapsedMs);
         if (isNewRecord) this.notificationRenderer.add('🏆 최고 기록 갱신!', '#ffd700');
         this.sfx.playSFX('victory');
         this.popupRenderer.showVictory(isNewRecord);
@@ -242,7 +257,7 @@ export class GameScene extends Phaser.Scene {
 
     if (this.isPhase('gameover')) {
       this.sfx.playSFX('gameover');
-      const isNewRecord = this.metaProgress.setStageRecord(this.stageId, this.state.elapsedMs);
+      const isNewRecord = this.metaProgress.setStageRecord(this.world * 10 + this.stage, this.state.elapsedMs);
       this.popupRenderer.showGameOver(isNewRecord);
       return;
     }
@@ -262,7 +277,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   private updateDangerBorder(): void {
-    const danger = this.state.enemyCount >= 40;
+    const danger = this.state.enemyCount >= MAX_ENEMIES * 0.8;
     if (danger && !this.dangerTween) {
       this.dangerTween = this.tweens.add({
         targets: this.dangerBorder,
@@ -395,6 +410,27 @@ export class GameScene extends Phaser.Scene {
     this.banner = this.add.text(CENTER_X, CENTER_Y, text, {
       fontFamily: 'monospace', fontSize: '24px', color, align: 'center',
     }).setOrigin(0.5);
+  }
+
+  private showW1Hint(stage: WorldStageId): void {
+    const hints: Partial<Record<WorldStageId, string>> = {
+      1: '소환 버튼으로 유닛을 배치하세요!',
+      2: '교배 해금!\n같은 종족을 드래그해 붙이세요',
+      3: '합성·판매 해금!\n다른 종족을 드래그해 합성하세요',
+      4: '잠금·영혼 상점 해금!',
+      5: '모든 기능 해금!',
+    };
+    const msg = hints[stage];
+    if (!msg) return;
+    const t = this.add.text(CENTER_X, CENTER_Y + 60, msg, {
+      fontFamily: 'monospace', fontSize: '14px', color: '#00ffcc',
+      stroke: '#000000', strokeThickness: 3, align: 'center',
+    }).setOrigin(0.5).setDepth(25).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, duration: 300, onComplete: () => {
+      this.time.delayedCall(2200, () => {
+        this.tweens.add({ targets: t, alpha: 0, duration: 500, onComplete: () => t.destroy() });
+      });
+    }});
   }
 
   shutdown(): void {

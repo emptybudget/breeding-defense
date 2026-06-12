@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
-import { GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, STAGE_CONFIGS, STAGE_UNLOCK_GEM_COST, StageId, UpgradeKey, VICTORY_TIME_MS } from '../game/config';
+import { DEV_UNLOCK_ALL_WORLDS, GAME_HEIGHT, GAME_WIDTH, META_UPGRADES, WORLD_CONFIGS, WorldId, WorldStageId, UpgradeKey } from '../game/config';
 import { MetaProgress } from '../game/MetaProgress';
 import { AN, ANS, drawDivider } from './artnouveau';
 import { CENTER_X, CENTER_Y } from './constants';
 
 export class StageSelectScene extends Phaser.Scene {
+  private selectedWorld: WorldId = 1;
+
   constructor() {
     super('StageSelectScene');
   }
@@ -12,95 +14,117 @@ export class StageSelectScene extends Phaser.Scene {
   create(): void {
     this.cameras.main.fadeIn(300, 0, 0, 0);
     const meta = new MetaProgress();
+    const data = (this.scene.settings.data as Record<string, unknown>) ?? {};
+    this.selectedWorld = ((data.selectedWorld as WorldId) ?? 1);
 
     this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, AN.BG_DEEP);
 
     // Title
-    this.add.text(CENTER_X, 46, 'STAGES', {
-      fontFamily: 'monospace', fontSize: '28px', color: ANS.GOLD_TEXT,
+    this.add.text(CENTER_X, 38, 'STAGES', {
+      fontFamily: 'monospace', fontSize: '26px', color: ANS.GOLD_TEXT,
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5);
 
     // Gem display
-    this.add.text(CENTER_X, 82, `💎 ${meta.gems}개`, {
-      fontFamily: 'monospace', fontSize: '18px', color: ANS.TEAL,
-    }).setOrigin(0.5);
-    this.add.text(CENTER_X, 104, '승리 시 💎1개 획득', {
-      fontFamily: 'monospace', fontSize: '11px', color: ANS.PARCH,
+    this.add.text(CENTER_X, 68, `💎 ${meta.gems}개`, {
+      fontFamily: 'monospace', fontSize: '16px', color: ANS.TEAL,
     }).setOrigin(0.5);
 
-    // Stage buttons
-    this.makeStageButton(CENTER_X, 140, 1, meta);
-    this.makeStageButton(CENTER_X, 200, 2, meta);
-    this.makeStageButton(CENTER_X, 260, 3, meta);
+    // World tabs
+    this.drawWorldTabs(meta);
+
+    // Stage grid for selected world
+    this.drawStageGrid(meta);
 
     // Divider
     const div = this.add.graphics();
-    drawDivider(div, 30, 292, GAME_WIDTH - 60);
+    drawDivider(div, 30, 278, GAME_WIDTH - 60);
 
     // Shop header
-    this.add.text(CENTER_X, 310, '🛒 영구 강화', {
-      fontFamily: 'monospace', fontSize: '14px', color: ANS.PARCH,
+    this.add.text(CENTER_X, 296, '🛒 영구 강화', {
+      fontFamily: 'monospace', fontSize: '13px', color: ANS.PARCH,
     }).setOrigin(0.5);
 
     // Upgrade rows
     const keys: UpgradeKey[] = ['startingGold', 'summonCost', 'unitCap', 'autoGold', 'gameSpeed2x'];
-    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 348 + i * 52));
+    keys.forEach((key, i) => this.makeUpgradeRow(meta, key, 330 + i * 52));
   }
 
-  private makeStageButton(x: number, y: number, stageId: number, meta: MetaProgress): void {
-    const cfg = STAGE_CONFIGS[stageId as StageId];
-    const cost = STAGE_UNLOCK_GEM_COST[stageId] ?? 0;
-    const isUnlocked = meta.isStageUnlocked(stageId);
-    const canAfford = meta.gems >= cost;
+  private isWorldUnlocked(worldId: WorldId): boolean {
+    if (DEV_UNLOCK_ALL_WORLDS) return true;
+    if (worldId === 1) return true;
+    // Production: W1 fully cleared → W2; W2 fully cleared → W3
+    // For now just allow W1 always, others blocked without DEV flag
+    return false;
+  }
 
-    // Best record label (shown for unlocked stages)
-    if (isUnlocked) {
-      const recMs = meta.getStageRecord(stageId);
+  private drawWorldTabs(meta: MetaProgress): void {
+    const worlds: WorldId[] = [1, 2, 3];
+    const labels = ['W1 튜토리얼', 'W2 본게임', 'W3 하드'];
+    const xPositions = [70, 180, 290];
+
+    worlds.forEach((w, i) => {
+      const isSelected = this.selectedWorld === w;
+      const isUnlocked = this.isWorldUnlocked(w);
+      const bg = isSelected ? '#2e5020' : isUnlocked ? '#1a2810' : '#1a1a14';
+      const color = isSelected ? ANS.GOLD_TEXT : isUnlocked ? ANS.CREAM : ANS.DIM;
+      const label = isUnlocked ? labels[i] : `🔒 ${labels[i]}`;
+
+      const btn = this.add.text(xPositions[i], 100, label, {
+        fontFamily: 'monospace', fontSize: '11px', color,
+        backgroundColor: bg, padding: { x: 6, y: 5 },
+      }).setOrigin(0.5);
+
+      if (isUnlocked) {
+        btn.setInteractive({ useHandCursor: true });
+        btn.on('pointerover', () => { if (!isSelected) btn.setStyle({ backgroundColor: '#263818' }); });
+        btn.on('pointerout', () => { if (!isSelected) btn.setStyle({ backgroundColor: bg }); });
+        btn.on('pointerdown', () => {
+          if (isSelected) return;
+          this.scene.restart({ selectedWorld: w });
+        });
+      }
+    });
+
+    void meta; // used in drawStageGrid
+  }
+
+  private drawStageGrid(meta: MetaProgress): void {
+    const stages: WorldStageId[] = [1, 2, 3, 4, 5];
+    // Row 1: stages 1-3 at y=165; Row 2: stages 4-5 at y=225
+    const positions: { x: number; y: number }[] = [
+      { x: 60, y: 165 }, { x: 180, y: 165 }, { x: 300, y: 165 },
+      { x: 120, y: 225 }, { x: 240, y: 225 },
+    ];
+
+    stages.forEach((s, i) => {
+      const cfg = WORLD_CONFIGS[this.selectedWorld][s];
+      const recMs = meta.getStageRecord(this.selectedWorld * 10 + s);
+      const { x, y } = positions[i];
+
+      // Record label
       if (recMs !== null) {
-        const isInfinite = recMs > VICTORY_TIME_MS;
-        const label = meta.formatRecord(recMs, isInfinite);
-        this.add.text(x, y + 24, label, {
-          fontFamily: 'monospace', fontSize: '11px', color: ANS.GOLD,
+        const isInfinite = recMs > cfg.victoryTimeMs;
+        this.add.text(x, y + 24, meta.formatRecord(recMs, isInfinite), {
+          fontFamily: 'monospace', fontSize: '9px', color: ANS.GOLD,
         }).setOrigin(0.5);
       }
-    }
 
-    if (isUnlocked) {
-      // Play button
-      const btn = this.add.text(x, y, `  ${cfg.name}  `, {
-        fontFamily: 'monospace', fontSize: '16px', color: ANS.CREAM,
-        backgroundColor: '#243a18', padding: { x: 16, y: 10 },
+      const btn = this.add.text(x, y, cfg.name, {
+        fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+        backgroundColor: '#243a18', padding: { x: 8, y: 6 },
       }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
       btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#2e5020' }));
       btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#243a18' }));
       btn.on('pointerdown', () => {
         btn.disableInteractive();
         this.cameras.main.fadeOut(300, 0, 0, 0);
         this.cameras.main.once('camerafadeoutcomplete', () => {
-          this.scene.start('GameScene', { stageId });
+          this.scene.start('GameScene', { world: this.selectedWorld, stage: s });
         });
       });
-    } else if (canAfford) {
-      // Unlock button
-      const btn = this.add.text(x, y, `  🔓 ${cfg.name}  (💎${cost} 소비)  `, {
-        fontFamily: 'monospace', fontSize: '14px', color: ANS.GOLD,
-        backgroundColor: '#2a2810', padding: { x: 12, y: 10 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      btn.on('pointerover', () => btn.setStyle({ backgroundColor: '#3a3810' }));
-      btn.on('pointerout', () => btn.setStyle({ backgroundColor: '#2a2810' }));
-      btn.on('pointerdown', () => {
-        btn.disableInteractive();
-        meta.unlockStage(stageId, cost);
-        this.scene.restart();
-      });
-    } else {
-      // Locked — can't afford
-      this.add.text(x, y, `  🔒 ${cfg.name}  (💎${cost} 필요)  `, {
-        fontFamily: 'monospace', fontSize: '14px', color: ANS.DIM,
-        backgroundColor: '#1a1a18', padding: { x: 12, y: 10 },
-      }).setOrigin(0.5);
-    }
+    });
   }
 
   private makeUpgradeRow(meta: MetaProgress, key: UpgradeKey, y: number): void {
@@ -145,7 +169,7 @@ export class StageSelectScene extends Phaser.Scene {
         btn.on('pointerdown', () => {
           btn.disableInteractive();
           meta.buyUpgrade(key, cost, upg.maxLevel);
-          this.scene.restart();
+          this.scene.restart({ selectedWorld: this.selectedWorld });
         });
       }
     }

@@ -3,6 +3,7 @@ import {
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
+  FIVE_MIN_SURGE_MULT,
   GOLD_AUTO_RECOVERY_PER_SEC,
   META_UPGRADES,
   DOUBLE_ATK_INIT_PROB,
@@ -37,10 +38,9 @@ import {
   CRIT_INIT_PROB,
   CRIT_PROB_INC,
   UNIT_CAP,
-  VICTORY_TIME_MS,
-  STAGE_CONFIGS,
-  StageConfig,
-  StageId,
+  WORLD_CONFIGS,
+  WorldStageConfig,
+  StageFeatures,
   SOUL_SUMMON_COST_START,
   TIER1_ENHANCE_MAX,
   TIER1_ENHANCE_COST,
@@ -107,13 +107,19 @@ export class GameState {
   adReviveUsed = false;
   pendingCritHaptic = false;
 
+  fiveMinSurgeApplied = false;
+  pendingSurge = false;
+  private _surgeMult = 1;
+
   readonly trackWaypoints: { x: number; y: number }[];
   readonly unitZone: { x1: number; y1: number; x2: number; y2: number };
-  readonly stageConfig: StageConfig;
+  readonly stageConfig: WorldStageConfig;
+  readonly features: StageFeatures;
   private goldAutoRecovery = GOLD_AUTO_RECOVERY_PER_SEC;
 
-  constructor(meta?: MetaData, stageId: number = 1) {
-    this.stageConfig = STAGE_CONFIGS[(stageId as StageId)] ?? STAGE_CONFIGS[1];
+  constructor(meta?: MetaData, worldConfig?: WorldStageConfig) {
+    this.stageConfig = worldConfig ?? WORLD_CONFIGS[2][1];
+    this.features = this.stageConfig.features;
     if (meta) {
       this.gems = meta.gems;
       this.gold = STARTING_GOLD + meta.levels.startingGold * META_UPGRADES.startingGold.effectPer;
@@ -198,7 +204,7 @@ export class GameState {
     if (this.phase === 'gameover' || this.isPaused) return;
     this.elapsedMs += deltaMs;
 
-    if (!this.isInfiniteMode && this.phase === 'playing' && this.elapsedMs >= VICTORY_TIME_MS) {
+    if (!this.isInfiniteMode && this.phase === 'playing' && this.elapsedMs >= this.stageConfig.victoryTimeMs) {
       this.phase = 'victory';
       this.gems += 1;
       this.isPaused = true;
@@ -226,14 +232,23 @@ export class GameState {
       this.minuteSpeedMult *= MINUTE_SPEED_MULT;
     }
 
+    // 5-minute surge (worlds 2+3 only, one-time)
+    if (this.stageConfig.fiveMinSurge && !this.fiveMinSurgeApplied && this.elapsedMs >= 300_000) {
+      this.fiveMinSurgeApplied = true;
+      this._surgeMult = FIVE_MIN_SURGE_MULT;
+      this.pendingSurge = true;
+    }
+
     // 30-second spawn acceleration + boss spawn
     const currentThirtySec = Math.floor(this.elapsedMs / SPAWN_ACCEL_INTERVAL_MS);
     if (currentThirtySec > this.lastThirtySecCrossed) {
       this.lastThirtySecCrossed = currentThirtySec;
       this.spawnAccelMult *= SPAWN_ACCEL_DECAY;
-      this.pendingBossSpawn = true;
-      this.bossCount++;
-      this.bossSpawnedAtMs = this.elapsedMs;
+      if (this.stageConfig.maxBossPhase > 0) {
+        this.pendingBossSpawn = true;
+        this.bossCount++;
+        this.bossSpawnedAtMs = this.elapsedMs;
+      }
     }
 
     // Boss alert: 5 seconds before each boss spawn
@@ -593,13 +608,13 @@ export class GameState {
   get currentEnemyHp(): number {
     const overclockMult = this.overclockSeconds > 0
       ? Math.pow(OVERCLOCK_HP_GROWTH, this.overclockSeconds) : 1;
-    return ENEMY_BASE_HP * this.minuteHpMult * overclockMult;
+    return ENEMY_BASE_HP * this.minuteHpMult * overclockMult * this._surgeMult;
   }
 
   get currentEnemySpeed(): number {
     const overclockMult = this.overclockSeconds > 0
       ? Math.pow(OVERCLOCK_SPEED_GROWTH, this.overclockSeconds) : 1;
-    return ENEMY_BASE_SPEED * this.minuteSpeedMult * overclockMult;
+    return ENEMY_BASE_SPEED * this.minuteSpeedMult * overclockMult * this._surgeMult;
   }
 
   private applySynthesisCombo(): void {

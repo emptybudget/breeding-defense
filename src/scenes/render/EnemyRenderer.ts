@@ -13,7 +13,6 @@ import {
   ELITE_BASE_SPEED,
   ELITE_HP_BOSS_RATIO,
   ELITE_KILL_REWARD,
-  ELITE_SPAWN_INTERVAL_MS,
   ELITE_SPAWN_START_MS,
   ENEMY_TYPES,
   KILL_REWARD,
@@ -171,6 +170,14 @@ export class EnemyRenderer {
     this.bossAuraGraphics = undefined;
   }
 
+  applySurge(mult: number): void {
+    for (const e of this.enemyMap.values()) {
+      e.hp = Math.ceil(e.hp * mult);
+      e.maxHp = Math.ceil(e.maxHp * mult);
+      e.speed *= mult;
+    }
+  }
+
   private handleSpawning(deltaMs: number): void {
     // First enemy fires at exactly 5s of game time
     if (!this.firstSpawnDone) {
@@ -189,11 +196,12 @@ export class EnemyRenderer {
       if ((this.state.phase as string) === 'gameover') break;
     }
 
-    // Elite: fixed 45s timer, unlocks at 1:30
-    if (this.state.elapsedMs >= ELITE_SPAWN_START_MS) {
+    // Elite: per-config interval (null = disabled), unlocks at 1:30
+    const eliteInterval = this.state.stageConfig.eliteIntervalMs;
+    if (eliteInterval !== null && this.state.elapsedMs >= ELITE_SPAWN_START_MS) {
       this.eliteTimerMs += deltaMs;
-      while (this.eliteTimerMs >= ELITE_SPAWN_INTERVAL_MS) {
-        this.eliteTimerMs -= ELITE_SPAWN_INTERVAL_MS;
+      while (this.eliteTimerMs >= eliteInterval) {
+        this.eliteTimerMs -= eliteInterval;
         this.spawnElite();
       }
     }
@@ -204,9 +212,9 @@ export class EnemyRenderer {
     const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
     const wp = waypoints[wpIdx];
 
-    const { fastRatio, tankStartMs } = this.state.stageConfig;
+    const { fastRatio, tankStartMs, tankRatio } = this.state.stageConfig;
     let type: EnemyType;
-    if (this.state.elapsedMs >= tankStartMs && Math.random() < 0.15) {
+    if (this.state.elapsedMs >= tankStartMs && Math.random() < tankRatio) {
       type = 'TANK';
     } else {
       type = Math.random() < fastRatio ? 'FAST' : 'NORMAL';

@@ -81,6 +81,7 @@ export class DragController {
           const now = Date.now();
           if (unitId === this.lastTapUnitId && now - this.lastTapTime < 300) {
             // Double-tap → lock toggle
+            if (!this.state.features.lock) return;
             this.state.toggleLock(unitId);
             this.lastTapUnitId = -1;
           } else {
@@ -188,7 +189,7 @@ export class DragController {
     if (!droppedUnit) return;
 
     // Sell zone (highest priority)
-    if (this.isOnSellZone(go.x, go.y)) {
+    if (this.state.features.sell && this.isOnSellZone(go.x, go.y)) {
       const sellGold = droppedUnit.tier === 4 ? SELL_GOLD_TIER4 : droppedUnit.tier === 3 ? SELL_GOLD_TIER3 : droppedUnit.tier === 2 ? SELL_GOLD_TIER2 : SELL_GOLD_TIER1;
       this.state.sellUnit(droppedId);
       this.unitRenderer.removeUnit(droppedId);
@@ -233,6 +234,7 @@ export class DragController {
 
     // Tier-3 + Tier-3 → Astral_God (3-way synthesis)
     if (droppedUnit.tier === 3 && targetUnit.tier === 3) {
+      if (!this.state.features.synthesize) return;
       if (droppedUnit.isLocked || targetUnit.isLocked) return;
       this.trySynthesize(droppedId, targetId, /* cleanupStale */ true);
       return;
@@ -243,6 +245,7 @@ export class DragController {
 
     // Tier-2 + Tier-2 → tier-3 synthesis
     if (droppedUnit.tier === 2 && targetUnit.tier === 2) {
+      if (!this.state.features.synthesize) return;
       if (droppedUnit.isLocked || targetUnit.isLocked) return;
       this.trySynthesize(droppedId, targetId, /* cleanupStale */ false);
       return;
@@ -258,7 +261,7 @@ export class DragController {
     const sameCategory =
       getCategory(droppedUnit.race as Tier1Race) === getCategory(targetUnit.race as Tier1Race);
 
-    if (sameCategory) {
+    if (sameCategory && this.state.features.breed) {
       const started = this.state.startBreeding(droppedId, targetId);
       if (!started && this.state.units.length >= this.state.maxUnits) {
         this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
@@ -273,7 +276,7 @@ export class DragController {
         this.unitRenderer.startBreedingEffect(droppedId, targetId);
         this.sfx?.playSFX('breed');
       }
-    } else {
+    } else if (this.state.features.synthesize) {
       this.trySynthesize(droppedId, targetId, /* cleanupStale */ false, /* showEffect */ false);
     }
   }
