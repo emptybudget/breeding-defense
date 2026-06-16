@@ -25,7 +25,7 @@ export const MINUTE_SPEED_MULT = 1.2; // +20% speed per minute
 
 // --- Economy ---
 export const STARTING_GOLD = 100;
-export const GOLD_AUTO_RECOVERY_PER_SEC = 1;
+export const GOLD_AUTO_RECOVERY_PER_SEC = 2;
 export const KILL_REWARD = 5;
 export const UNIT_CAP = 5;
 export const SUMMON_BASE_COST = 10;
