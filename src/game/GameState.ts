@@ -1,5 +1,7 @@
 import { MetaData } from './MetaProgress';
 import {
+  BOSS_PHASE_B_START_MS,
+  BOSS_PHASE_C_START_MS,
   BREEDING_DURATION_MS,
   BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
@@ -92,6 +94,8 @@ export class GameState {
   pendingStreakBonus = false;
   pendingScriptedWaveAlert = false;
   pendingScriptedWave: { type: EnemyType; count: number } | null = null;
+  // GD1: 보스 페이즈 전환 컷인 — GameScene이 드레인 (2=Phase B, 3=Phase C)
+  pendingPhaseTransition: 2 | 3 | null = null;
   bossSpawnedAtMs: number | null = null;
   bossCount = 0;
   private _lastSynthesisMs = 0;
@@ -213,6 +217,8 @@ export class GameState {
   private recentKillTimestamps: number[] = [];
   private scriptedWaveIndex = 0;
   private scriptedWaveAlerted = false;
+  private phaseBTransitionFired = false;
+  private phaseCTransitionFired = false;
 
   tick(deltaMs: number): void {
     if (this.phase === 'gameover' || this.isPaused) return;
@@ -263,6 +269,16 @@ export class GameState {
         this.bossCount++;
         this.bossSpawnedAtMs = this.elapsedMs;
       }
+    }
+
+    // GD1: 보스 페이즈 전환 컷인 (시간 경계 기반, 스테이지 maxBossPhase 도달 시에만)
+    if (this.stageConfig.maxBossPhase >= 2 && !this.phaseBTransitionFired && this.elapsedMs >= BOSS_PHASE_B_START_MS) {
+      this.phaseBTransitionFired = true;
+      this.pendingPhaseTransition = 2;
+    }
+    if (this.stageConfig.maxBossPhase >= 3 && !this.phaseCTransitionFired && this.elapsedMs >= BOSS_PHASE_C_START_MS) {
+      this.phaseCTransitionFired = true;
+      this.pendingPhaseTransition = 3;
     }
 
     // Boss alert: 5 seconds before each boss spawn

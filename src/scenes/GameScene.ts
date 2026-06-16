@@ -32,6 +32,7 @@ export class GameScene extends Phaser.Scene {
   private world: WorldId = 2;
   private stage: WorldStageId = 1;
   private _lastCritHapticMs = 0;
+  private phaseFreezeUntilMs = 0;
 
   constructor() {
     super('GameScene');
@@ -167,7 +168,8 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, deltaMs: number): void {
     if (this.isPhase('gameover')) return;
 
-    const scaledDelta = deltaMs * this.speedMult;
+    // GD1: 페이즈 전환 컷인 동안 0.4s 시뮬레이션 프리즈 (입력 핸들러는 영향 X)
+    const scaledDelta = _time < this.phaseFreezeUntilMs ? 0 : deltaMs * this.speedMult;
     this.state.tick(scaledDelta);
 
     // HUD always updates
@@ -210,6 +212,13 @@ export class GameScene extends Phaser.Scene {
       if (this.state.bossCount > 1) {
         this.startBossCountdown();
       }
+    }
+
+    // GD1: 보스 페이즈 전환 컷인
+    if (this.state.pendingPhaseTransition) {
+      const phase = this.state.pendingPhaseTransition;
+      this.state.pendingPhaseTransition = null;
+      this.showPhaseTransition(phase, _time);
     }
 
     // Boss fast-kill countdown update
@@ -392,6 +401,28 @@ export class GameScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: text, y: CENTER_Y - 100, alpha: 0, duration: 1500, onComplete: () => text.destroy() });
+  }
+
+  // GD1: 보스 페이즈 전환 컷인 (Phase B/C 경계, 0.4s 프리즈 + 색 변화 + 배너)
+  private showPhaseTransition(phase: 2 | 3, time: number): void {
+    const tint = phase === 3 ? 0x222222 : 0x8822cc; // Phase C 검정 / Phase B 보라
+    const banner = phase === 3 ? 'PHASE 3' : 'PHASE 2';
+    const color = phase === 3 ? '#cc66ff' : '#aa44ff';
+
+    // 적 30+ 시 슬로우(프리즈) 생략 — 배너만
+    if (this.state.enemyCount < 30) {
+      this.phaseFreezeUntilMs = time + 400;
+      this.cameras.main.shake(250, 0.01);
+    }
+
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, tint, 0.35).setDepth(20);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 600, onComplete: () => flash.destroy() });
+
+    const text = this.add.text(CENTER_X, CENTER_Y - 40, banner, {
+      fontFamily: 'monospace', fontSize: '36px', color,
+      stroke: '#000000', strokeThickness: 5,
+    }).setOrigin(0.5).setDepth(21);
+    this.tweens.add({ targets: text, y: CENTER_Y - 70, alpha: 0, duration: 1200, onComplete: () => text.destroy() });
   }
 
   // G2: 잭팟 소환 — ULTIMATE 축소 연출 (플래시 + 셰이크 80ms)
