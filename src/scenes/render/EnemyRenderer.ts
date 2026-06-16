@@ -78,6 +78,7 @@ type Enemy = Phaser.GameObjects.Text & {
   waypointIndex: number;
   enemyType: EnemyType | 'ELITE';
   isBoss: boolean;
+  isMiniboss?: boolean;
   killReward: number;
 };
 
@@ -246,7 +247,7 @@ export class EnemyRenderer {
     for (let i = 0; i < count; i++) this.spawnEnemy(type);
   }
 
-  private spawnElite(): void {
+  private spawnElite(isMiniboss = false): void {
     const waypoints = this.state.trackWaypoints;
     const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
     const wp = waypoints[wpIdx];
@@ -258,17 +259,23 @@ export class EnemyRenderer {
     );
 
     const elite = this.scene.add.text(wp.x, wp.y, ELITE_EMOJI, {
-      fontFamily: 'monospace', fontSize: ELITE_FONT,
+      fontFamily: 'monospace', fontSize: isMiniboss ? '32px' : ELITE_FONT,
     }).setOrigin(0.5) as unknown as Enemy;
     elite.id = this._nextEnemyId++;
     elite.hp = eliteHp; elite.maxHp = eliteHp;
     elite.speed = ELITE_BASE_SPEED * overclockSpeedMult;
     elite.waypointIndex = (wpIdx + 1) % waypoints.length;
     elite.enemyType = 'ELITE'; elite.isBoss = false;
+    elite.isMiniboss = isMiniboss;
     elite.killReward = ELITE_KILL_REWARD;
+    if (isMiniboss) elite.setTint(0xffcc66); // 황금빛으로 일반 엘리트와 구분
     this.enemies.add(elite);
     this.enemyMap.set(elite.id, elite);
     this.state.registerSpawn();
+  }
+
+  spawnMiniboss(): void {
+    this.spawnElite(true);
   }
 
   private moveEnemies(deltaMs: number): void {
@@ -360,7 +367,12 @@ export class EnemyRenderer {
       if (enemy) {
         if (enemy.isBoss) bossKilled = true;
         if (enemy.enemyType === 'ELITE') {
-          this.state.pendingNotification = `💀 ELITE DOWN! +${ELITE_KILL_REWARD}G`;
+          if (enemy.isMiniboss && !this.state.isPaused) {
+            this.state.pendingMinibossReward = true;
+            this.state.pendingNotification = `💀 미니보스 처치! +${ELITE_KILL_REWARD}G`;
+          } else {
+            this.state.pendingNotification = `💀 ELITE DOWN! +${ELITE_KILL_REWARD}G`;
+          }
         }
         hadKills = true;
         enemy.destroy();

@@ -17,6 +17,10 @@ import {
   MAX_ENEMIES,
   MINE_DAMAGE,
   MINE_LIFETIME_MS,
+  MINIBOSS_TIMES_MS,
+  MINIBOSS_GOLD_AMOUNT,
+  MINIBOSS_WAVE_GUARD_MS,
+  MINIBOSS_WAVE_DELAY_MS,
   MINUTE_HP_MULT,
   MINUTE_SPEED_MULT,
   OVERCLOCK_HP_GROWTH,
@@ -96,6 +100,9 @@ export class GameState {
   pendingScriptedWave: { type: EnemyType; count: number } | null = null;
   // GD1: 보스 페이즈 전환 컷인 — GameScene이 드레인 (2=Phase B, 3=Phase C)
   pendingPhaseTransition: 2 | 3 | null = null;
+  // GD3: 미니보스 — GameScene이 드레인
+  pendingMinibossSpawn = false;
+  pendingMinibossReward = false;
   bossSpawnedAtMs: number | null = null;
   bossCount = 0;
   private _lastSynthesisMs = 0;
@@ -219,6 +226,8 @@ export class GameState {
   private scriptedWaveAlerted = false;
   private phaseBTransitionFired = false;
   private phaseCTransitionFired = false;
+  private minibossTimes: number[] | null = null; // lazy-init (엘리트 스테이지만, 웨이브 충돌 보정 포함)
+  private minibossIndex = 0;
 
   tick(deltaMs: number): void {
     if (this.phase === 'gameover' || this.isPaused) return;
@@ -305,6 +314,21 @@ export class GameState {
         this.scriptedWaveIndex++;
         this.scriptedWaveAlerted = false;
       }
+    }
+
+    // GD3: 미니보스 — 엘리트 스테이지에서 고정 시각 2회 (G4 웨이브와 충돌 시 뒤로 보정)
+    if (this.minibossTimes === null) {
+      this.minibossTimes = this.stageConfig.eliteIntervalMs === null
+        ? []
+        : MINIBOSS_TIMES_MS.map(t => {
+            const clash = this.stageConfig.scriptedWaves?.find(w => Math.abs(w.atMs - t) <= MINIBOSS_WAVE_GUARD_MS);
+            return clash ? clash.atMs + MINIBOSS_WAVE_DELAY_MS : t;
+          });
+    }
+    if (this.minibossIndex < this.minibossTimes.length &&
+        this.elapsedMs >= this.minibossTimes[this.minibossIndex]) {
+      this.minibossIndex++;
+      this.pendingMinibossSpawn = true;
     }
 
     // Auto-clear exhaustion
@@ -434,10 +458,26 @@ export class GameState {
     return pool.slice(0, Math.min(count, pool.length));
   }
 
+  // GD3: 미니보스 축소 보상 — 보스 풀과 분리, 골드(절반)/소량 확률 카드만. 2장 중 1택.
+  generateMinibossRewards(): Reward[] {
+    const pool: Reward[] = [
+      { type: 'goldSmall', label: `💰 골드 +${MINIBOSS_GOLD_AMOUNT}` },
+      { type: 'twinProb', label: this.twinProbability === 0 ? `👶 쌍둥이 ${(TWIN_INIT_PROB * 100).toFixed(0)}%` : `👶 쌍둥이 +${(TWIN_PROB_INC * 100).toFixed(0)}% (현재 ${(this.twinProbability * 100).toFixed(0)}%)` },
+      { type: 'doubleAtk', label: this.doubleAttackProbability === 0 ? `⚡ 더블어택 ${(DOUBLE_ATK_INIT_PROB * 100).toFixed(0)}%` : `⚡ 더블어택 +${(DOUBLE_ATK_PROB_INC * 100).toFixed(0)}% (현재 ${(this.doubleAttackProbability * 100).toFixed(0)}%)` },
+      { type: 'crit', label: this.criticalProbability === 0 ? `🎯 치명타 ${(CRIT_INIT_PROB * 100).toFixed(0)}%` : `🎯 치명타 +${(CRIT_PROB_INC * 100).toFixed(0)}% (현재 ${(this.criticalProbability * 100).toFixed(0)}%)` },
+    ];
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [pool[i], pool[j]] = [pool[j], pool[i]];
+    }
+    return pool.slice(0, 2);
+  }
+
   applyReward(type: RewardType): void {
     switch (type) {
       case 'enhance':  this.enhancePoints += 1; break;
       case 'gold':     this.gold += REWARD_GOLD_AMOUNT; break;
+      case 'goldSmall': this.gold += MINIBOSS_GOLD_AMOUNT; break;
       case 'damage':   this.globalDamageBonus += 1; break;
       case 'maxUnits': this.maxUnits += 1; break;
       case 'twinProb':

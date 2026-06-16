@@ -226,6 +226,12 @@ export const ELITE_HP_BOSS_RATIO     = 0.3;   // HP = 30% of Phase A boss HP
 export const ELITE_BASE_SPEED        = 30;    // px/s (between NORMAL 40 and TANK 25)
 export const ELITE_KILL_REWARD       = 20;
 
+// GD3: 미니보스(엘리트 웨이브 보상) — 엘리트 스테이지에서 고정 2회, 처치 시 축소 보상 카드
+export const MINIBOSS_TIMES_MS       = [90_000, 210_000]; // 1:30 · 3:30
+export const MINIBOSS_GOLD_AMOUNT    = 60;    // 축소 골드 보상 (보스 카드 150의 절반 수준)
+export const MINIBOSS_WAVE_GUARD_MS  = 6_000; // G4 스크립트 웨이브와 이 범위 내면 충돌로 판정
+export const MINIBOSS_WAVE_DELAY_MS  = 7_000; // 충돌 시 웨이브 시각 + 이만큼 뒤로 미룸
+
 // --- World/Stage system ---
 // DEV: 전 월드 즉시 선택 가능. 출시 전 false로 전환.
 export const DEV_UNLOCK_ALL_WORLDS = true;

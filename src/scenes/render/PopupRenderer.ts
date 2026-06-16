@@ -80,8 +80,8 @@ export class PopupRenderer {
     this.victoryPopup.show(isNewRecord);
   }
 
-  showReward(count: 2 | 3, pregenerated?: Reward[]): void {
-    this.rewardPopup.show(count, pregenerated);
+  showReward(count: 2 | 3, pregenerated?: Reward[], opts?: { title?: string; allowExpand?: boolean }): void {
+    this.rewardPopup.show(count, pregenerated, opts);
   }
 
   showSoulShop(onUnitSummon: (unit: UnitData) => void, onClose: () => void): void {

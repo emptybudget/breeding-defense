@@ -1,7 +1,7 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-06-16 (GD1 페이즈 전환 컷인 + GD2 위협 브리핑 완료. 다음: GD3 미니보스 보상(P2) → G5 재논의)
+> 마지막 갱신: 2026-06-16 (GD1 컷인 + GD2 브리핑 + GD3 미니보스 보상 완료. 다음: GD4~GD6(P3, 출시 직후) / G5 재논의)
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
@@ -73,7 +73,7 @@
 
 | # | 박자 | 항목 | 내용 | 난이도 |
 |---|---|---|---|---|
-| GD3 | Pop/Plan | **미니 보스(엘리트 웨이브) 보상** | ELITE 💀 처치 시 축소 보상 카드 1장. **1:30·3:30 2회 고정**(매 ELITE X). `generateRewards`/`applyReward` 재사용, 보상 강도 절반(골드/소량 확률만), 보스 카드 풀과 분리. G4 스크립트 웨이브 타이밍 충돌 점검 필수. 후반 인플레로 난이도 붕괴 주의 | 중 |
+| GD3 | Pop/Plan | ✅ **미니 보스(엘리트 웨이브) 보상** | **엘리트 스테이지(`eliteIntervalMs!==null`)** 한정, `MINIBOSS_TIMES_MS`=1:30·3:30 고정 2회. `GameState.tick()`이 `minibossTimes` lazy-init(웨이브 충돌 보정 포함) → `pendingMinibossSpawn` → GameScene `spawnMiniboss()`(엘리트 32px+금빛 틴트). 처치 시 `pendingMinibossReward` → `generateMinibossRewards()` 축소 풀(💰+60·쌍둥이·더블·치명타, **enhance/maxUnits/damage 제외, 보스 풀 분리**) 2장 중 1택, 보석 확장 X. **G4 충돌 가드:** 웨이브 atMs와 ±6s 이내면 미니보스를 웨이브+7s로 미룸(W3-3/4/5 1:30 충돌 해소). 신규 `RewardType:'goldSmall'`(`MINIBOSS_GOLD_AMOUNT`=60) | **완료 (2026-06-16)** |
 
 #### 🥉 P3 — 출시 직후 첫 패치 (리텐션/Loop, 데이터 보고 튜닝)
 

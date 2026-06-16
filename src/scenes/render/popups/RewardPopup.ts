@@ -19,11 +19,13 @@ export class RewardPopup {
     this.onGemChange = onGemChange;
   }
 
-  show(count: 2 | 3, pregenerated?: Reward[]): void {
+  show(count: 2 | 3, pregenerated?: Reward[], opts?: { title?: string; allowExpand?: boolean }): void {
     this.container?.destroy();
     this.dimOverlay?.destroy();
 
     if (pregenerated) this.allRewards = pregenerated;
+    const titleText = opts?.title ?? '⚔️ 보스 처치!\n보상을 선택하세요';
+    const allowExpand = opts?.allowExpand ?? true;
 
     this.dimOverlay = this.scene.add
       .rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72)
@@ -37,7 +39,7 @@ export class RewardPopup {
     const divGfx = this.scene.add.graphics();
     drawDivider(divGfx, -140, -68, 280);
 
-    const title = this.scene.add.text(0, -95, '⚔️ 보스 처치!\n보상을 선택하세요', {
+    const title = this.scene.add.text(0, -95, titleText, {
       fontFamily: 'monospace', fontSize: '14px', color: ANS.GOLD_TEXT, align: 'center',
     }).setOrigin(0.5);
 
@@ -61,7 +63,7 @@ export class RewardPopup {
 
     const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, ...cards];
 
-    if (count === 2 && this.state.gems > 0) {
+    if (allowExpand && count === 2 && this.state.gems > 0) {
       const expandBtn = this.scene.add.text(0, 100, `💎 선택지 추가 (보석 ${this.state.gems}개)`, {
         fontFamily: 'monospace', fontSize: '12px', color: ANS.TEAL,
         backgroundColor: '#102030', padding: { x: 12, y: 8 },

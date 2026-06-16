@@ -198,6 +198,22 @@ export class GameScene extends Phaser.Scene {
       this.notificationRenderer.add('🌊 적 집단이 몰려옵니다!', '#ff6666');
     }
 
+    // GD3: 미니보스 스폰
+    if (this.state.pendingMinibossSpawn) {
+      this.state.pendingMinibossSpawn = false;
+      this.enemyRenderer.spawnMiniboss();
+      this.notificationRenderer.add('💀 미니보스 출현! 처치 시 보상', '#ffcc66');
+      this.cameras.main.shake(120, 0.006);
+    }
+
+    // GD3: 미니보스 처치 보상 (축소 카드 2장 중 1택)
+    if (this.state.pendingMinibossReward) {
+      this.state.pendingMinibossReward = false;
+      this.state.isPaused = true;
+      const rewards = this.state.generateMinibossRewards();
+      this.popupRenderer.showReward(2, rewards, { title: '💀 미니보스 처치!\n보상을 선택하세요', allowExpand: false });
+    }
+
     // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;
