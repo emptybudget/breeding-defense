@@ -181,6 +181,21 @@ export class GameScene extends Phaser.Scene {
       this.startBossPreAlert();
     }
 
+    // Scripted wave alert (G4, 5s before spawn — reuses boss telegraph)
+    if (this.state.pendingScriptedWaveAlert) {
+      this.state.pendingScriptedWaveAlert = false;
+      this.notificationRenderer.add('⚠️ 적 집단 출현 5초 전!', '#ff8800');
+      this.startBossPreAlert();
+    }
+
+    // Scripted wave spawn triggered by tick()
+    if (this.state.pendingScriptedWave) {
+      const wave = this.state.pendingScriptedWave;
+      this.state.pendingScriptedWave = null;
+      this.enemyRenderer.spawnScriptedWave(wave.type, wave.count);
+      this.notificationRenderer.add('🌊 적 집단이 몰려옵니다!', '#ff6666');
+    }
+
     // Boss spawn triggered by tick()
     if (this.state.pendingBossSpawn) {
       this.state.pendingBossSpawn = false;

@@ -1,3 +1,5 @@
+import { EnemyType } from './types';
+
 export const GAME_WIDTH = 360;
 export const GAME_HEIGHT = 640;
 
@@ -244,6 +246,12 @@ export const ALL_FEATURES: StageFeatures = {
   breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: true,
 };
 
+export interface ScriptedWave {
+  atMs: number;        // 스폰 시각 (게임 경과 ms)
+  type: EnemyType;
+  count: number;
+}
+
 export interface WorldStageConfig extends StageConfig {
   victoryTimeMs: number;
   features: StageFeatures;
@@ -251,6 +259,7 @@ export interface WorldStageConfig extends StageConfig {
   maxBossPhase: 0 | 1 | 2 | 3; // 0=없음, 1=A, 2=A+B, 3=A+B+C
   tankRatio: number;            // tankStartMs 이후 TANK 스폰 확률
   eliteIntervalMs: number | null; // null = 엘리트 없음
+  scriptedWaves?: ScriptedWave[]; // 정해진 시각에 일시 러시 스폰 (G4)
 }
 
 export type WorldId = 1 | 2 | 3;
@@ -309,6 +318,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.5,  tankStartMs: 3 * 60_000, tankRatio: 0.15,
       bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,
+      scriptedWaves: [{ atMs: 3 * 60_000 + 30_000, type: 'FAST', count: 6 }],
     },
     2: {
       name: 'W2-2',
@@ -317,6 +327,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.55, tankStartMs: 2.5 * 60_000, tankRatio: 0.2,
       bossHpMult: 16,  spawnIntervalBase: 5000, bossTimeLimitMs: 11000, eliteIntervalMs: null,
+      scriptedWaves: [{ atMs: 3 * 60_000, type: 'FAST', count: 7 }],
     },
     3: {
       name: 'W2-3',
@@ -325,6 +336,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.65, tankStartMs: 2 * 60_000, tankRatio: 0.2,
       bossHpMult: 18,  spawnIntervalBase: 4400, bossTimeLimitMs: 13000, eliteIntervalMs: null,
+      scriptedWaves: [{ atMs: 2 * 60_000 + 30_000, type: 'TANK', count: 5 }],
     },
     4: {
       name: 'W2-4',
@@ -333,6 +345,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.6,  tankStartMs: 1.5 * 60_000, tankRatio: 0.25,
       bossHpMult: 20,  spawnIntervalBase: 4200, bossTimeLimitMs: 14000, eliteIntervalMs: null,
+      scriptedWaves: [{ atMs: 3 * 60_000, type: 'FAST', count: 8 }],
     },
     5: {
       name: 'W2-5',
@@ -341,6 +354,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.3,
       bossHpMult: 20,  spawnIntervalBase: 4000, bossTimeLimitMs: 15000, eliteIntervalMs: 45000,
+      scriptedWaves: [{ atMs: 2 * 60_000 + 30_000, type: 'TANK', count: 6 }],
     },
   },
   // ── 월드 3: 하드 (현행 Stage 3 기반) ─────────────────────────────
@@ -352,6 +366,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.25,
       bossHpMult: 22,  spawnIntervalBase: 3500, bossTimeLimitMs: 16000, eliteIntervalMs: 45000,
+      scriptedWaves: [{ atMs: 2 * 60_000, type: 'FAST', count: 8 }],
     },
     2: {
       name: 'W3-2',
@@ -360,6 +375,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.55, tankStartMs: 60_000, tankRatio: 0.3,
       bossHpMult: 24,  spawnIntervalBase: 3300, bossTimeLimitMs: 16000, eliteIntervalMs: 45000,
+      scriptedWaves: [{ atMs: 2 * 60_000, type: 'TANK', count: 6 }],
     },
     3: {
       name: 'W3-3',
@@ -368,6 +384,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.5,  tankStartMs: 45_000, tankRatio: 0.4,
       bossHpMult: 26,  spawnIntervalBase: 3200, bossTimeLimitMs: 17000, eliteIntervalMs: 40000,
+      scriptedWaves: [{ atMs: 90_000, type: 'FAST', count: 9 }],
     },
     4: {
       name: 'W3-4',
@@ -376,6 +393,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.55, tankStartMs: 45_000, tankRatio: 0.35,
       bossHpMult: 28,  spawnIntervalBase: 3000, bossTimeLimitMs: 17000, eliteIntervalMs: 30000,
+      scriptedWaves: [{ atMs: 90_000, type: 'TANK', count: 7 }],
     },
     5: {
       name: 'W3-5',
@@ -384,6 +402,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
       fiveMinSurge: true, maxBossPhase: 3,
       fastRatio: 0.5,  tankStartMs: 30_000, tankRatio: 0.4,
       bossHpMult: 30,  spawnIntervalBase: 2800, bossTimeLimitMs: 18000, eliteIntervalMs: 30000,
+      scriptedWaves: [{ atMs: 90_000, type: 'TANK', count: 8 }],
     },
   },
 };

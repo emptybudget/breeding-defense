@@ -207,17 +207,21 @@ export class EnemyRenderer {
     }
   }
 
-  private spawnEnemy(): void {
+  private spawnEnemy(forcedType?: EnemyType): void {
     const waypoints = this.state.trackWaypoints;
     const wpIdx = Phaser.Math.Between(0, waypoints.length - 1);
     const wp = waypoints[wpIdx];
 
-    const { fastRatio, tankStartMs, tankRatio } = this.state.stageConfig;
     let type: EnemyType;
-    if (this.state.elapsedMs >= tankStartMs && Math.random() < tankRatio) {
-      type = 'TANK';
+    if (forcedType) {
+      type = forcedType;
     } else {
-      type = Math.random() < fastRatio ? 'FAST' : 'NORMAL';
+      const { fastRatio, tankStartMs, tankRatio } = this.state.stageConfig;
+      if (this.state.elapsedMs >= tankStartMs && Math.random() < tankRatio) {
+        type = 'TANK';
+      } else {
+        type = Math.random() < fastRatio ? 'FAST' : 'NORMAL';
+      }
     }
 
     const def = ENEMY_TYPES[type];
@@ -236,6 +240,10 @@ export class EnemyRenderer {
     this.enemies.add(enemy);
     this.enemyMap.set(enemy.id, enemy);
     this.state.registerSpawn();
+  }
+
+  spawnScriptedWave(type: EnemyType, count: number): void {
+    for (let i = 0; i < count; i++) this.spawnEnemy(type);
   }
 
   private spawnElite(): void {

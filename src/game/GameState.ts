@@ -51,6 +51,7 @@ import {
 import {
   CombatResult,
   EnemySnapshot,
+  EnemyType,
   HybridRace,
   Mine,
   Reward,
@@ -89,6 +90,8 @@ export class GameState {
   pendingBossSpawn = false;
   pendingBossAlert = false;
   pendingStreakBonus = false;
+  pendingScriptedWaveAlert = false;
+  pendingScriptedWave: { type: EnemyType; count: number } | null = null;
   bossSpawnedAtMs: number | null = null;
   bossCount = 0;
   private _lastSynthesisMs = 0;
@@ -208,6 +211,8 @@ export class GameState {
   private _nextMineId = 0;
   private bossRewardCallCount = 0;
   private recentKillTimestamps: number[] = [];
+  private scriptedWaveIndex = 0;
+  private scriptedWaveAlerted = false;
 
   tick(deltaMs: number): void {
     if (this.phase === 'gameover' || this.isPaused) return;
@@ -266,6 +271,24 @@ export class GameState {
         this.elapsedMs >= nextBossInterval * SPAWN_ACCEL_INTERVAL_MS - 5000) {
       this.lastBossAlertThirtySec = nextBossInterval;
       this.pendingBossAlert = true;
+    }
+
+    // Scripted wave (G4): 5s telegraph, then spawn at the configured time
+    const scriptedWaves = this.stageConfig.scriptedWaves;
+    if (scriptedWaves && this.scriptedWaveIndex < scriptedWaves.length) {
+      const wave = scriptedWaves[this.scriptedWaveIndex];
+      if (!this.scriptedWaveAlerted && this.elapsedMs >= wave.atMs - 5000) {
+        this.scriptedWaveAlerted = true;
+        this.pendingScriptedWaveAlert = true;
+      }
+      if (this.elapsedMs >= wave.atMs) {
+        const count = Math.min(wave.count, MAX_ENEMIES - this.enemyCount - 10);
+        if (count > 0) {
+          this.pendingScriptedWave = { type: wave.type, count };
+        }
+        this.scriptedWaveIndex++;
+        this.scriptedWaveAlerted = false;
+      }
     }
 
     // Auto-clear exhaustion
