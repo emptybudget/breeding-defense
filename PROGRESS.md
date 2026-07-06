@@ -18,6 +18,7 @@
 > 혈통 네이밍: `docs/redesign/08-naming-system.md` — M3 데이터 원천 (계열 3문 확정: 검문/야수문/강철문, 혈통명 풀 1296조합, 변이 칭호, `naming.ts` 사양).
 > 스토어 패키지: `docs/redesign/09-store-package.md` (아이콘·스샷 5장 시나리오·소개문·ASO, M5 후) / 신규 SFX 11종: `docs/redesign/10-sound-spec.md` (tone() 시퀀스, 각 M에 배정).
 > 비즈니스 모델: `docs/redesign/11-business-model.md` (v1.1, BM1~BM3) — 확률형="옛 가문의 부화당"(유물 알, 코스메틱 온리, 천장 40회, 확률 공시), 보상형 광고 5슬롯, IAP 5종. **미결정이던 수익 모델 확정** — 코어 판타지 §미결정 항목 해소.
+> ⚠️ 밸런스 사전 검증: `docs/redesign/12-balance-verification.md` (몬테카를로 10만회) — **M3 구현 시 필독**: F1 `BOSS_HP_MULT_PHASE_C` 50→65(M5), F2 지배시퀀스 검사에 합성 수요 포함, F3 희귀 피티 영속 저장 필수, F4 계열 운빨 리스크 기우 판명.
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
