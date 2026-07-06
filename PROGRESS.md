@@ -27,6 +27,7 @@
 > 🎓 FTUE 대본: `docs/redesign/16-ftue-script.md` — 스텝 F1~F13 트리거·카피·강제행동 확정, FtueController 사양, M2/M4/M5 배정.
 > 📜 디자인 헌법: `docs/redesign/19-design-constitution.md` — **신규 아이디어·밸런스 변경·피드백은 이 심사 기준을 통과해야 채택** (코어 판타지 3문항, 더하기 전에 빼기, 상수 1개씩, 금색=혈통 독점). AI는 헌법 충돌 시 고지 의무.
 > 🚑 게이트 플레이북: `docs/redesign/20-gate-playbook.md` — 플레이테스트 게이트 실패 시 즉흥 수정 금지, 증상→원인→노브 표대로.
+> 📊 채점표+9점 로드맵: `docs/redesign/21-scorecard-roadmap.md` — 14요소 냉철 채점(현재 3.7 → 패치 후 7.2 → G1~G5로 8.3), **M5 이후 다음 목표 = G4(일일)→G2(적 3종)→G3(BGM)→G1(주간 시드+리더보드)**.
 > 🎨 UI 토큰: `docs/redesign/17-ui-design-tokens.md` — **M1a는 이 값 그대로** (tokens.ts, JuicyButton 3변형, 독/상단바 px 배치, 카드·바텀시트 언어, 숫자 롤링).
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
