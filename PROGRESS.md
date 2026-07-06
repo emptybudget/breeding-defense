@@ -5,6 +5,7 @@
 
 ## ⚠️ 임시 디버그 코드 (프리징 원인 확정 후 제거)
 
+- **🎯 근본 원인 유력 확정 (2026-07-06)**: iOS `navigator.vibrate` TypeError가 RAF 콜백 내부(`onBossKilled` 첫 줄)에서 발생 → Phaser RAF 체인 사망 = 완전 정지. `911abc9`에서 수정 완료(`typeof` 체크). **상세 분석·2차 버그 B1~B5·소킹 계획: `docs/redesign/15-freeze-analysis.md`**. iPhone 실기기 연속 10판 무재현 확인 후 아래 제거:
 - `main.ts`에 런타임 에러 화면 표시 오버레이(`#fatal-error`) 삽입됨 — 인게임 프리징(보스 처치 시점 의심) 원인 추적용. 프리징 재발 없으면 제거.
 - `scripts/sim-freeze.ts` — 순수 데이터 레이어 3분 시뮬레이션 (프리징 진단용, 순수 레이어 무죄 확인 완료). 함께 제거 가능.
 
