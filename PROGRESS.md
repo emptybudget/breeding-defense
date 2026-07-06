@@ -25,6 +25,8 @@
 > 🐛 프리징 분석: `docs/redesign/15-freeze-analysis.md` — 근본 원인(iOS vibrate→RAF 사망) 기수정, 소킹 10판 게이트. **2차 버그 B1(보상 증발)·B2(clear 배너 스팸)·B3(딤 관통) 수정 완료 (2026-07-06)** — B4는 B1로 자동 해소, B5(성능 미미)만 M5 잔존.
 > ✅ 테스트 인프라: **vitest 도입** (`npm test`) — `tests/game/` 순수 레이어 회귀 38케이스 (레시피 18종·판매가·소환 곡선·경제 tick·게임오버·스트릭). **M1a부터 완료 판정의 순수 TS 테스트는 여기에 추가**.
 > 🎓 FTUE 대본: `docs/redesign/16-ftue-script.md` — 스텝 F1~F13 트리거·카피·강제행동 확정, FtueController 사양, M2/M4/M5 배정.
+> 📜 디자인 헌법: `docs/redesign/19-design-constitution.md` — **신규 아이디어·밸런스 변경·피드백은 이 심사 기준을 통과해야 채택** (코어 판타지 3문항, 더하기 전에 빼기, 상수 1개씩, 금색=혈통 독점). AI는 헌법 충돌 시 고지 의무.
+> 🚑 게이트 플레이북: `docs/redesign/20-gate-playbook.md` — 플레이테스트 게이트 실패 시 즉흥 수정 금지, 증상→원인→노브 표대로.
 > 🎨 UI 토큰: `docs/redesign/17-ui-design-tokens.md` — **M1a는 이 값 그대로** (tokens.ts, JuicyButton 3변형, 독/상단바 px 배치, 카드·바텀시트 언어, 숫자 롤링).
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
