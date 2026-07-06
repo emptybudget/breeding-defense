@@ -24,6 +24,7 @@
 > 🧬 breeding.ts API 계약: `docs/redesign/14-breeding-api.md` — **M3는 이 시그니처 그대로 구현** (공개 함수 7개, 타입 확장, config 상수, GameState 통합 지점, 테스트 계약 9종).
 > 🐛 프리징 분석: `docs/redesign/15-freeze-analysis.md` — 근본 원인(iOS vibrate→RAF 사망) 기수정, 소킹 10판 게이트 + 2차 버그 B1~B5 (B1 보상 증발은 M2, B3 딤 관통은 M1a에 편입).
 > 🎓 FTUE 대본: `docs/redesign/16-ftue-script.md` — 스텝 F1~F13 트리거·카피·강제행동 확정, FtueController 사양, M2/M4/M5 배정.
+> 🎨 UI 토큰: `docs/redesign/17-ui-design-tokens.md` — **M1a는 이 값 그대로** (tokens.ts, JuicyButton 3변형, 독/상단바 px 배치, 카드·바텀시트 언어, 숫자 롤링).
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
