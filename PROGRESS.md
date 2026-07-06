@@ -22,6 +22,8 @@
 > ⚠️ 밸런스 사전 검증: `docs/redesign/12-balance-verification.md` (몬테카를로 10만회) — **M3 구현 시 필독**: F1 `BOSS_HP_MULT_PHASE_C` 50→65(M5), F2 지배시퀀스 검사에 합성 수요 포함, F3 희귀 피티 영속 저장 필수, F4 계열 운빨 리스크 기우 판명.
 > ⚠️ 엣지케이스 판정: `docs/redesign/13-edge-case-matrix.md` (E1~E22) — **M1b~M5 구현 시 필독**: 잠금×둥지, 잭팟/시드×혈통, 탈진 폐기, 연출 우선순위, 세이브 마이그레이션 등 크로스 시스템 판정 전부 확정.
 > 🧬 breeding.ts API 계약: `docs/redesign/14-breeding-api.md` — **M3는 이 시그니처 그대로 구현** (공개 함수 7개, 타입 확장, config 상수, GameState 통합 지점, 테스트 계약 9종).
+> 🐛 프리징 분석: `docs/redesign/15-freeze-analysis.md` — 근본 원인(iOS vibrate→RAF 사망) 기수정, 소킹 10판 게이트 + 2차 버그 B1~B5 (B1 보상 증발은 M2, B3 딤 관통은 M1a에 편입).
+> 🎓 FTUE 대본: `docs/redesign/16-ftue-script.md` — 스텝 F1~F13 트리거·카피·강제행동 확정, FtueController 사양, M2/M4/M5 배정.
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
