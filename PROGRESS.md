@@ -17,6 +17,7 @@
 > 아트 어셋: `docs/redesign/07-art-milestones.md` (AM1~AM6, 후처리·코드 등록 절차) + 프롬프트 `docs/novelai-prompt-bloodline.md` — **각 M 착수 전 필요한 AM 생성분을 사용자에게 요청할 것** (AM1 알→M4, AM4 컷인→M2, AM5 적→M5).
 > 혈통 네이밍: `docs/redesign/08-naming-system.md` — M3 데이터 원천 (계열 3문 확정: 검문/야수문/강철문, 혈통명 풀 1296조합, 변이 칭호, `naming.ts` 사양).
 > 스토어 패키지: `docs/redesign/09-store-package.md` (아이콘·스샷 5장 시나리오·소개문·ASO, M5 후) / 신규 SFX 11종: `docs/redesign/10-sound-spec.md` (tone() 시퀀스, 각 M에 배정).
+> 비즈니스 모델: `docs/redesign/11-business-model.md` (v1.1, BM1~BM3) — 확률형="옛 가문의 부화당"(유물 알, 코스메틱 온리, 천장 40회, 확률 공시), 보상형 광고 5슬롯, IAP 5종. **미결정이던 수익 모델 확정** — 코어 판타지 §미결정 항목 해소.
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
@@ -234,7 +235,7 @@
 
 - [ ] 메타프로그레션 2차 트리 (시너지 해금 / 스타터 유닛 선택)
 - [ ] 시너지 카탈로그 5~10개
-- [ ] 수익 모델 (F2P 광고 / IAP / 프리미엄)
+- [x] 수익 모델 — **확정 (2026-07-06)**: F2P + 보상형 광고 + 코스메틱 확률형(유물 알) + IAP 5종. 상세 `docs/redesign/11-business-model.md`
 
 ---
 
