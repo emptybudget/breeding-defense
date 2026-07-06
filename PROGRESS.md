@@ -15,6 +15,7 @@
 > **"뽑는 게임이 아니라 낳는 게임 — 당신이 교배로 길러낸 혈통이 신(神)을 낳는, 유일한 랜덤 디펜스."** 상세 기획: `docs/redesign/05-design-v3.md` (유일한 기획 원천 — 수치·규칙 충돌 시 그쪽이 정답).
 > 공통 원칙: **데이터/렌더 분리 불가침** — 규칙·상태·판정은 `src/game/*`(Phaser 의존 0, 순수 TS 테스트 가능), 연출·입력은 `src/scenes/*`. 트랙 좌표·배치존·사거리(config.ts) 무변경. 각 M 종료 = `npm run build` 통과 + 명시된 순수 TS 테스트 + 사용자 플레이테스트 게이트 통과(헤드리스 검증 금지, CLAUDE.md §6).
 > 아트 어셋: `docs/redesign/07-art-milestones.md` (AM1~AM6, 후처리·코드 등록 절차) + 프롬프트 `docs/novelai-prompt-bloodline.md` — **각 M 착수 전 필요한 AM 생성분을 사용자에게 요청할 것** (AM1 알→M4, AM4 컷인→M2, AM5 적→M5).
+> 혈통 네이밍: `docs/redesign/08-naming-system.md` — M3 데이터 원천 (계열 3문 확정: 검문/야수문/강철문, 혈통명 풀 1296조합, 변이 칭호, `naming.ts` 사양).
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
