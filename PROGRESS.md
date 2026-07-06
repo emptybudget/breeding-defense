@@ -20,6 +20,7 @@
 > 비즈니스 모델: `docs/redesign/11-business-model.md` (v1.1, BM1~BM3) — 확률형="옛 가문의 부화당"(유물 알, 코스메틱 온리, 천장 40회, 확률 공시), 보상형 광고 5슬롯, IAP 5종. **미결정이던 수익 모델 확정** — 코어 판타지 §미결정 항목 해소.
 > ⚠️ 밸런스 사전 검증: `docs/redesign/12-balance-verification.md` (몬테카를로 10만회) — **M3 구현 시 필독**: F1 `BOSS_HP_MULT_PHASE_C` 50→65(M5), F2 지배시퀀스 검사에 합성 수요 포함, F3 희귀 피티 영속 저장 필수, F4 계열 운빨 리스크 기우 판명.
 > ⚠️ 엣지케이스 판정: `docs/redesign/13-edge-case-matrix.md` (E1~E22) — **M1b~M5 구현 시 필독**: 잠금×둥지, 잭팟/시드×혈통, 탈진 폐기, 연출 우선순위, 세이브 마이그레이션 등 크로스 시스템 판정 전부 확정.
+> 🧬 breeding.ts API 계약: `docs/redesign/14-breeding-api.md` — **M3는 이 시그니처 그대로 구현** (공개 함수 7개, 타입 확장, config 상수, GameState 통합 지점, 테스트 계약 9종).
 
 #### 마일스톤 (투입 순서 고정: M1a→M1b→M2→M3→M4→M5)
 
