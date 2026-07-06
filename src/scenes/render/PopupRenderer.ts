@@ -44,6 +44,10 @@ export class PopupRenderer {
     return this.gameOverPopup.isShown;
   }
 
+  get hasRewardPopup(): boolean {
+    return this.rewardPopup.isShown;
+  }
+
   get hasVictoryPopup(): boolean {
     return this.victoryPopup.isShown;
   }

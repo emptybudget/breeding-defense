@@ -207,7 +207,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     // GD3: 미니보스 처치 보상 (축소 카드 2장 중 1택)
-    if (this.state.pendingMinibossReward) {
+    // 보스 보상 카드가 이미 떠 있으면 플래그를 유지해 다음 프레임으로 유예 — show()가 기존 팝업을 destroy·교체해 보스 보상이 증발하는 것 방지
+    if (this.state.pendingMinibossReward && !this.popupRenderer.hasRewardPopup) {
       this.state.pendingMinibossReward = false;
       this.state.isPaused = true;
       const rewards = this.state.generateMinibossRewards();
@@ -327,13 +328,13 @@ export class GameScene extends Phaser.Scene {
       if (!this.overclockSfxPlayed) {
         this.overclockSfxPlayed = true;
         this.sfx.playSFX('overclock');
+        this.showBanner('Game Clear!\n오버클록 모드 진입!', '#ffd24a');
+        this.time.delayedCall(1500, () => {
+          this.banner?.destroy();
+          this.banner = undefined;
+          this.state.enterOverclock();
+        });
       }
-      this.showBanner('Game Clear!\n오버클록 모드 진입!', '#ffd24a');
-      this.time.delayedCall(1500, () => {
-        this.banner?.destroy();
-        this.banner = undefined;
-        this.state.enterOverclock();
-      });
     }
   }
 

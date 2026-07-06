@@ -19,6 +19,10 @@ export class RewardPopup {
     this.onGemChange = onGemChange;
   }
 
+  get isShown(): boolean {
+    return this.container !== undefined;
+  }
+
   show(count: 2 | 3, pregenerated?: Reward[], opts?: { title?: string; allowExpand?: boolean }): void {
     this.container?.destroy();
     this.dimOverlay?.destroy();
@@ -29,7 +33,8 @@ export class RewardPopup {
 
     this.dimOverlay = this.scene.add
       .rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.72)
-      .setDepth(15);
+      .setDepth(15)
+      .setInteractive(); // 딤 영역 탭이 아래 필드(유닛 드래그·버튼)로 관통하는 것 차단
 
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(16);
 
