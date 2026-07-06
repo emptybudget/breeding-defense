@@ -280,3 +280,75 @@ prismatic gold dominant palette, crisp ink outline, cel-shading, no text, no log
 - [ ] AM5 적 6장 (M5 전)
 - [ ] AM6 키비주얼 (M5 전)
 - 완료분은 zip으로 `docs/`에 업로드 → AI가 `docs/redesign/07-art-milestones.md` 절차로 후처리·등록
+
+---
+
+# 추가분 (2026-07-06 커버리지 실사 후)
+
+## AM7. 혈통 전용 이펙트 2종 (검정배경+가산 — §5-2 방식 그대로)
+
+> 기존 fx 4종(금+청록)과 달리 **순금 단색** — "금색=혈통 독점"(헌법 제4조) 시각 규칙의 이펙트 구현. 네거티브·설정은 `design-prompts.md` §5-2 공통 네거티브 그대로. `public/assets/fx/`, BlendModes.ADD.
+
+### fx_bloodline_strike.png — 혈통 일격 추가탄 (Seed 83005)
+
+```
+{{golden divine projectile effect}}, single elongated comet of pure golden light,
+bright molten gold #e8c84a core with deeper amber #b8882a trail,
+royal ornamental streak, thin art nouveau filigree lines woven inside the trail,
+regal and sacred, no teal, no blue, monochromatic gold palette only,
+isolated effect on pure black background, additive glow, high contrast,
+centered, single projectile, horizontal orientation, no character
+```
+
+- 사용처: M4 혈통 일격(Gen2+) 발사체. tween: scale 0.6→1 + 이동, 0.12s. **기존 8종 이펙트와 색이 섞이면 안 됨** — 청록 성분이 나오면 재롤.
+
+### fx_hatch_burst.png — 전설 부화 버스트 (Seed 83006)
+
+```
+{{radiant golden explosion burst}}, magnificent radial explosion of golden light,
+blooming lotus petals of light unfolding outward, alphonse mucha ornamental rays,
+concentric golden rings expanding, sparkling gold dust particles,
+pure gold #e8c84a and warm cream #f0e8c8 only, no teal, no blue,
+divine birth moment, celebratory, isolated on pure black background,
+additive glow, high contrast, perfectly centered burst, symmetric, no character, no egg
+```
+
+- 사용처: M4 전설 부화 순간 (scale 0→1.4 + fade 0.6s, hatchLegend 사운드 동기). 희귀는 이걸 은색 tint+축소 재사용, 일반은 미사용(낙차 위계).
+
+## AM8. G2 신규 적 3종 (21번 로드맵 확정분 — 적 공통부·네거티브는 AM5와 동일)
+
+| 파일 | Seed | 개별 블록 |
+|---|---|---|
+| enemy_shield | 85007 | `armored beetle sentinel, dark iron tower shield fused to its front, tiny legs peeking under the shield, single glowing slit eye, scratched metal surface, gunmetal gray and dark bronze palette` |
+| enemy_splitter | 85008 | `gelatinous twin-core slime, translucent dark purple body, two glowing nuclei visible inside, wobbling asymmetric shape, faint seam line down the middle hinting it will split, deep violet and magenta palette` |
+| enemy_healer | 85009 | `sinister acolyte wisp, small hooded spirit holding a cracked censer staff, faint green healing mist swirling around, serene closed eyes, corrupted priest robe, dark moss green and bone white palette` |
+
+- 검수: 기존 6종과 24px에서 혼동 없어야 함. 특히 healer의 초록이 유닛 Beast 초록(#44cc44)과 헷갈리면 채도 낮춰 재롤.
+
+## AM9. 유물 알 — BM1 부화당용 (Seed 84004)
+
+> 계열 알(AM1)과 즉시 구분돼야 함: 계열 알 = 매끈+선명한 계열색 / 유물 알 = **낡고 금 갔고 무채색+금**.
+
+```
+{{masterpiece}}, {{best quality}}, very aesthetic, absurdres, year 2025,
+artist:ke-ta, artist:alphonse mucha,
+single ancient relic egg, weathered cracked stone shell, faded antique gold filigree bands,
+chipped ornamental engravings of a forgotten noble family crest, moss in the crevices,
+faint mysterious golden light leaking from the cracks, dusty and aged yet dignified,
+desaturated stone gray shell with antique gold #b8882a accents, no bright colors,
+flat color shading with soft cel-shading, crisp ink outline, thick 3px black contour,
+readable at small scale, white background, simple background, no shadow on ground,
+centered composition, 100px padding from edge
+```
+
+- 네거티브: 네거티브 B + `vivid color, blue shell, green shell, purple shell, clean surface, new egg`.
+
+## ⚠️ 구 문서 폐기 판정 (design-prompts.md §8 중)
+
+| 항목 | 판정 | 사유 |
+|---|---|---|
+| §8-2 타이틀 배경 (81002) | **폐기** | AM6 키비주얼이 상위 호환 |
+| §8-4 팝업 프레임 (81004) | **폐기** | 17번 UI 토큰 — 팝업은 Graphics(`drawPanelAt`) 유지 |
+| §8-5/8-6 버튼 이미지 (81005) | **폐기** | 17번 JuicyButton = Graphics 드로우 확정 |
+| §8-1 메인 배경 / §8-3 스테이지 선택 / §8-7 보스 오버레이 | 유지 (선택) | 배경 2종은 M5 리스킨 때 가치 있음. 보스 오버레이는 현 Graphics로 충분 — 여유 시만 |
+| §5-2 이펙트 4종 | 유지 (**미생성**) | M4 이펙트 교체 시 AM7과 함께 생성 |

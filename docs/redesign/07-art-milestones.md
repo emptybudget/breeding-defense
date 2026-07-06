@@ -14,6 +14,11 @@
 | AM4 | T4 컷인 | 1 | M2 (W1-5 클리어 컷인) | `ui/cutin_astral_god.png` | ⬜ |
 | AM5 | 적 | 6 | M5 (이모지 grep ≤20) | `enemies/enemy_<type>.png` ×6 | ⬜ |
 | AM6 | 타이틀 키비주얼 | 1 | M5 (타이틀 리스킨) | `ui/title_keyvisual.png` | ⬜ |
+| AM7 | 혈통 전용 fx 2종 (순금) | 2 | **M4** (일격·전설 부화) | `fx/fx_bloodline_strike.png` `fx_hatch_burst.png` | ⬜ |
+| AM8 | G2 신규 적 3종 | 3 | v1.1 G2 (실드/분열/힐러) | `enemies/enemy_shield·splitter·healer.png` | ⬜ |
+| AM9 | 유물 알 | 1 | v1.1 BM1 (부화당) | `characters/egg_relic.png` | ⬜ |
+
+> 참고: 기존 `design-prompts.md` §5-2 이펙트 4종(83001~4)은 프롬프트만 있고 **미생성** — AM7과 함께 M4 전에 일괄 생성 권장(전부 검정배경+가산, 후처리=크롭만). §8 중 8-2(타이틀 배경)·8-4(팝업 프레임)·8-5/6(버튼 이미지)은 **폐기** (AM6·17번 UI 토큰이 대체). 폐기·추가 상세: `docs/novelai-prompt-bloodline.md` 하단.
 
 투입 순서 권장: **AM1 → AM3 → AM4 → AM2 → AM5 → AM6** (M 의존 순서). 코드 마일스톤을 막지 않게 각 M 착수 전에 해당 AM 생성분을 사용자에게 요청할 것.
 
