@@ -29,6 +29,7 @@
 > 🚑 게이트 플레이북: `docs/redesign/20-gate-playbook.md` — 플레이테스트 게이트 실패 시 즉흥 수정 금지, 증상→원인→노브 표대로.
 > 🌱 확장성 분석: `docs/redesign/22-content-extensibility.md` — 제2 T4 「Ruin_God」 슬롯(남은 T3 3종이 정확히 공석) + 변이종 무한 라인 + 시즌 템플릿. **T1~T3 층 추가는 조합폭발로 봉인**.
 > 🔄 라이브 로드맵: `docs/redesign/23-live-ops-roadmap.md` — 대형 시스템 축 L1~L6(유파·가문 전당·신들의 대립·침공·월드4·시즌틀) + 이탈 구간별(D1/D7/D30/D90/복귀) 방어 매핑 + 12개월 캘린더.
+> 📖 세계관·유닛 스토리: `docs/redesign/24-lore-units.md` — 「접경의 명가들」 세계관 + 25종 도감 플레이버·부화 대사(T4는 가문명 치환 "〈가문명〉… 좋은 이름이다") + 적 로어. `lore.ts` 사양, 부화 대사=M4·도감=M5.
 > 📊 채점표+9점 로드맵: `docs/redesign/21-scorecard-roadmap.md` — 14요소 냉철 채점(현재 3.7 → 패치 후 7.2 → G1~G5로 8.3), **M5 이후 다음 목표 = G4(일일)→G2(적 3종)→G3(BGM)→G1(주간 시드+리더보드)**.
 > 🎨 UI 토큰: `docs/redesign/17-ui-design-tokens.md` — **M1a는 이 값 그대로** (tokens.ts, JuicyButton 3변형, 독/상단바 px 배치, 카드·바텀시트 언어, 숫자 롤링).
 
