@@ -48,7 +48,7 @@
 
 ### AM1 (알) — M4 둥지 연출에서 신규 로드
 - `GameScene` preload에 `egg_human/beast/robot` 3키 추가. 둥지 슬롯·부화 연출(HudRenderer/팝업)에서 사용. 크기 48~64px.
-- 계열 매핑은 M3의 `FAMILY_OF_RACE` 상수 사용 (Human/Beast/Robot).
+- **키 매핑 주의**: 파일명은 Race 기반(`egg_human/beast/robot`), 코드의 계열 키는 `FamilyKey`(`sword/fang/steel`) — 1:1 대응(Human=sword, Beast=fang, Robot=steel)이므로 로드 시 매핑 상수 1개로 연결 (`EGG_TEXTURE_OF_FAMILY: Record<FamilyKey, string>`). 파일명 변경 금지(프롬프트 문서와 일치 유지).
 
 ### AM5 (적) — EnemyRenderer 이모지 → 스프라이트
 - `enemy_normal/fast/tank/elite/boss/greatboss` 6키. `EnemyRenderer`의 이모지 텍스트 생성부를 이미지로 교체 (M5 "이모지 grep ≤20" 판정 대상).

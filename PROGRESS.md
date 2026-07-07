@@ -20,7 +20,7 @@
 > 혈통 네이밍: `docs/redesign/08-naming-system.md` — M3 데이터 원천 (계열 3문 확정: 검문/야수문/강철문, 혈통명 풀 1296조합, 변이 칭호, `naming.ts` 사양).
 > 스토어 패키지: `docs/redesign/09-store-package.md` (아이콘·스샷 5장 시나리오·소개문·ASO, M5 후) / 신규 SFX 11종: `docs/redesign/10-sound-spec.md` (tone() 시퀀스, 각 M에 배정).
 > 비즈니스 모델: `docs/redesign/11-business-model.md` (v1.1, BM1~BM3) — 확률형="옛 가문의 부화당"(유물 알, 코스메틱 온리, 천장 40회, 확률 공시), 보상형 광고 5슬롯, IAP 5종. **미결정이던 수익 모델 확정** — 코어 판타지 §미결정 항목 해소.
-> ⚠️ 밸런스 사전 검증: `docs/redesign/12-balance-verification.md` (몬테카를로 10만회) — **M3 구현 시 필독**: F1 `BOSS_HP_MULT_PHASE_C` 50→65(M5), F2 지배시퀀스 검사에 합성 수요 포함, F3 희귀 피티 영속 저장 필수, F4 계열 운빨 리스크 기우 판명.
+> ⚠️ 밸런스 사전 검증: `docs/redesign/12-balance-verification.md` (몬테카를로 10만회) — **M3 구현 시 필독**: F1 Phase C 보스 HP 배율 50→65 (`BOSS_HP_PHASE_C_SCALAR` 50/15→65/15, M5), F2 지배시퀀스 검사에 합성 수요 포함, F3 희귀 피티 영속 저장 필수, F4 계열 운빨 리스크 기우 판명.
 > ⚠️ 엣지케이스 판정: `docs/redesign/13-edge-case-matrix.md` (E1~E22) — **M1b~M5 구현 시 필독**: 잠금×둥지, 잭팟/시드×혈통, 탈진 폐기, 연출 우선순위, 세이브 마이그레이션 등 크로스 시스템 판정 전부 확정.
 > 🧬 breeding.ts API 계약: `docs/redesign/14-breeding-api.md` — **M3는 이 시그니처 그대로 구현** (공개 함수 7개, 타입 확장, config 상수, GameState 통합 지점, 테스트 계약 9종).
 > 🐛 프리징 분석: `docs/redesign/15-freeze-analysis.md` — 근본 원인(iOS vibrate→RAF 사망) 기수정, 소킹 10판 게이트. **2차 버그 B1(보상 증발)·B2(clear 배너 스팸)·B3(딤 관통) 수정 완료 (2026-07-06)** — B4는 B1로 자동 해소, B5(성능 미미)만 M5 잔존.

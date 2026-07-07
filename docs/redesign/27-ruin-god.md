@@ -4,7 +4,7 @@
 
 ## 1. 정체성
 
-- **레시피**: Dino_Mecha + Griffin?— 아니, **Dino_Mecha + Berserk_Shaman + Chaos_Artillery** (3-way 100px, Astral과 동일 UX). 미사용 T3 3종 정확히 소비 — 합성 트리 완결.
+- **레시피**: **Dino_Mecha + Berserk_Shaman + Chaos_Artillery** (3-way 100px, Astral과 동일 UX). 미사용 T3 3종 정확히 소비 — 합성 트리 완결.
 - **대비 축**: Astral = 하늘·질서·다수 청소 / **Ruin = 대지·기억·단일 격멸**. "쓸어담는 신 vs 뚫어버리는 신".
 - 외형 키워드: 재를 두른 짐승형 신, 부서진 왕관을 이마에, 잿빛+잔불 주황, 무하 장식은 **그을린 금**.
 
