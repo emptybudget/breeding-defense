@@ -7,6 +7,23 @@ export const GAME_HEIGHT = 640;
 export const MOBILE_SAFE_ZONE_TOP = 24;
 export const MOBILE_SAFE_ZONE_BOTTOM = 16;
 
+// --- M1a: product shell layout ---
+export const HUD_BAR_Y = 24;
+export const HUD_BAR_H = 44;
+export const DOCK_Y = 536;
+export const DOCK_H = 88;
+export const MIN_HIT_PX = 48;      // JuicyButton hit-area floor (below this: clamp + dev-build throw)
+export const UNIT_MAX_HALF_H = 16; // max sprite half-height, must not overlap dock
+
+// --- M1b: drag context mode (nest slots + edge sell zones) ---
+export const DOCK_CENTER_Y = DOCK_Y + DOCK_H / 2; // 580
+export const DRAG_LIFT_OFFSET_Y = -40; // sprite lifted above finger while dragging
+export const NEST_SLOT_SIZE = 56;
+export const NEST_SLOT_1_X = 152;
+export const NEST_SLOT_2_X = 208;
+export const SELL_EDGE_W = 48;     // width of each edge sell zone in drag mode
+export const DRAG_SNAP_DIST = 40;  // px — proximity to a nest slot center that triggers snap+highlight
+
 export const MAX_ENEMIES = 40;
 export const CLEAR_TIME_MS = 10 * 60 * 1000; // 10:00
 
@@ -44,7 +61,6 @@ export const TRACK_UNIT_ZONE_PADDING = 30;
 
 // --- Unit combat (legacy, superseded by RACE_STATS/HYBRID_STATS) ---
 export const BREEDING_DURATION_MS = 5000;
-export const BREEDING_EXHAUST_DURATION_MS = 5000;
 
 // Tier-1 unit combat stats (6종)
 export const TIER1_STATS = {

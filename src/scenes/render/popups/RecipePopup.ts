@@ -1,111 +1,19 @@
 import Phaser from 'phaser';
-import { DISCOVERY_TOTAL, GAME_HEIGHT, GAME_WIDTH, TIER3_STATS, TIER4_STATS } from '../../../game/config';
-import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../../game/types';
+import { DISCOVERY_TOTAL, GAME_HEIGHT, GAME_WIDTH } from '../../../game/config';
 import { ASTRAL_GOD_RECIPE, HYBRID_RACES, TIER1_RACES, getTier2Recipes, getTier3Recipes } from '../../../game/unitHelpers';
 import { ANS, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../../constants';
+import { SoundManager } from '../../SoundManager';
+import { JuicyButton } from '../../ui/JuicyButton';
 
 export class RecipePopup {
   private scene: Phaser.Scene;
-  private recipeContainer?: Phaser.GameObjects.Container;
+  private sfx?: SoundManager;
   private recipeBookContainer?: Phaser.GameObjects.Container;
 
-  constructor(scene: Phaser.Scene) {
+  constructor(scene: Phaser.Scene, sfx?: SoundManager) {
     this.scene = scene;
-  }
-
-  // ── 유닛 탭 → 단일 유닛 레시피 ─────────────────────────────────────────────
-  showRecipe(unit: UnitData, onClose: () => void): void {
-    if (this.recipeContainer) return;
-
-    const dim = this.scene.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.65)
-      .setDepth(20).setInteractive();
-
-    const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(21);
-    this.recipeContainer = container;
-
-    const close = () => {
-      container.destroy(); this.recipeContainer = undefined;
-      dim.destroy();
-      onClose();
-    };
-    dim.on('pointerdown', close);
-
-    let lines: string[] = [];
-
-    if (unit.tier === 1) {
-      const race = unit.race as Tier1Race;
-      const emoji = RACE_EMOJI[race];
-      const recipes = getTier2Recipes(race);
-      lines = [
-        `${emoji}  ${race}`,
-        '─────────────────',
-        ...recipes.map(({ partner, result }) =>
-          `${emoji} + ${RACE_EMOJI[partner]} = ${RACE_EMOJI[result]} ${result}`
-        ),
-      ];
-    } else if (unit.tier === 2) {
-      const race = unit.race as HybridRace;
-      const emoji = RACE_EMOJI[race];
-      const recipe = getTier3Recipes(race)[0];
-      lines = [
-        `${emoji}  ${race}`,
-        '─────────────────',
-      ];
-      if (recipe) {
-        lines.push(`${emoji} + ${RACE_EMOJI[recipe.partner]} = ${RACE_EMOJI[recipe.result]} ${recipe.result}`);
-      } else {
-        lines.push('레시피 없음');
-      }
-    } else if (unit.tier === 3) {
-      const tier3 = unit.race as Tier3Race;
-      const stats = TIER3_STATS[tier3];
-      const emoji = RACE_EMOJI[tier3];
-      lines = [
-        `${emoji}  ${tier3}`,
-        '─────────────────',
-        `범위: ${stats.range}px`,
-        `대미지: ${stats.damage}`,
-        `공격속도: ${stats.attackIntervalMs}ms`,
-        `동시 타겟: ${stats.maxTargets}`,
-      ];
-      if (ASTRAL_GOD_RECIPE.includes(tier3)) {
-        const others = ASTRAL_GOD_RECIPE.filter(r => r !== tier3);
-        lines.push('─────────────────');
-        lines.push(`🌟 Astral_God 재료`);
-        lines.push(`+ ${others.map(r => `${RACE_EMOJI[r]}`).join(' + ')} = 🌟`);
-      }
-    } else {
-      const stats = TIER4_STATS['Astral_God'];
-      lines = [
-        `🌟  Astral_God`,
-        '─────────────────',
-        '✨ 세 세계의 융합체',
-        `레시피: 🦅 + 🌩️ + 🧙`,
-        '─────────────────',
-        `범위: ${stats.range}px`,
-        `대미지: ${stats.damage}`,
-        `공격속도: ${stats.attackIntervalMs}ms`,
-        `동시 타겟: ${stats.maxTargets}`,
-      ];
-    }
-
-    const bgH = 60 + lines.length * 22;
-    const bgGfx = this.scene.add.graphics();
-    drawPanelAt(bgGfx, 270, bgH);
-
-    const closeBtn = this.scene.add.text(110, -(bgH / 2) + 14, ' X ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#3a2020', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', close);
-
-    const content = this.scene.add.text(0, 8, lines.join('\n'), {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      align: 'center', lineSpacing: 6,
-    }).setOrigin(0.5);
-
-    container.add([bgGfx, closeBtn, content]);
+    this.sfx = sfx;
   }
 
   // ── HUD 📖 → 전체 레시피북 ────────────────────────────────────────────────
@@ -170,13 +78,13 @@ export class RecipePopup {
     const bgGfx = this.scene.add.graphics();
     drawPanelAt(bgGfx, 270, bgH);
 
-    const closeBtn = this.scene.add.text(110, -(bgH / 2) + 14, ' X ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#3a2020', padding: { x: 6, y: 3 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', close);
+    const closeBtn = new JuicyButton({
+      scene: this.scene, x: 110, y: -(bgH / 2) + 26, width: 48, height: 48,
+      visualWidth: 32, visualHeight: 32, label: 'X', variant: 'danger', fontSize: 14,
+      sfx: this.sfx, onClick: close,
+    });
 
-    container.add([bgGfx, closeBtn]);
+    container.add([bgGfx, closeBtn.container]);
 
     lines.forEach((ln, i) => {
       const undiscovered = ln.result !== undefined && !discovered.has(ln.result);

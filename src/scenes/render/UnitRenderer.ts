@@ -15,8 +15,8 @@ export class UnitRenderer {
   private unitObjects = new Map<number, UnitGameObject>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
   private heartTexts = new Map<number, Phaser.GameObjects.Text>();
-  private zzzTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
+  private nestWaitTexts = new Map<number, Phaser.GameObjects.Text>();
   private highlightGraphics = new Map<number, Phaser.GameObjects.Graphics>();
   private motionTweens = new Map<number, Phaser.Tweens.Tween>();
   private draggingId: number | null = null;
@@ -65,9 +65,26 @@ export class UnitRenderer {
     this.unitObjects.get(id)?.destroy();       this.unitObjects.delete(id);
     this.rangeCircles.get(id)?.destroy();      this.rangeCircles.delete(id);
     this.heartTexts.get(id)?.destroy();        this.heartTexts.delete(id);
-    this.zzzTexts.get(id)?.destroy();          this.zzzTexts.delete(id);
     this.lockTexts.get(id)?.destroy();         this.lockTexts.delete(id);
+    this.nestWaitTexts.get(id)?.destroy();     this.nestWaitTexts.delete(id);
     this.highlightGraphics.get(id)?.destroy(); this.highlightGraphics.delete(id);
+  }
+
+  /** 둥지에서 파트너를 기다리는 유닛 위에 🪺 마커 표시/제거 (M1b — 교배 대기 가시화). */
+  setNestWaiting(id: number, waiting: boolean): void {
+    const existing = this.nestWaitTexts.get(id);
+    if (waiting) {
+      if (existing) return;
+      const go = this.unitObjects.get(id);
+      if (!go) return;
+      const t = this.scene.add.text(go.x, go.y - 24, '🪺', {
+        fontSize: '13px',
+      }).setOrigin(0.5).setDepth(2);
+      this.nestWaitTexts.set(id, t);
+    } else if (existing) {
+      existing.destroy();
+      this.nestWaitTexts.delete(id);
+    }
   }
 
   setHighlights(ids: number[]): void {
@@ -121,8 +138,15 @@ export class UnitRenderer {
 
   syncOverlays(): void {
     this.syncIdleBob();
-    this.syncZzzTexts();
     this.syncLockTexts();
+    this.syncNestWaitTexts();
+  }
+
+  private syncNestWaitTexts(): void {
+    for (const [id, t] of this.nestWaitTexts) {
+      const go = this.unitObjects.get(id);
+      if (go) t.setPosition(go.x, go.y - 24);
+    }
   }
 
   setDragging(id: number, dragging: boolean): void {
@@ -199,27 +223,6 @@ export class UnitRenderer {
       if (Math.hypot(x - other.x, y - other.y) <= radius) return id;
     }
     return null;
-  }
-
-  private syncZzzTexts(): void {
-    for (const unit of this.state.units) {
-      const go = this.unitObjects.get(unit.id);
-      if (!go) continue;
-      if (unit.isExhausted) {
-        const existing = this.zzzTexts.get(unit.id);
-        if (!existing) {
-          const t = this.scene.add.text(go.x, go.y - 16, 'zzz', {
-            fontSize: '11px', color: '#aaaaff',
-          }).setOrigin(0.5).setDepth(2);
-          this.zzzTexts.set(unit.id, t);
-        } else {
-          existing.setPosition(go.x, go.y - 16);
-        }
-      } else {
-        const t = this.zzzTexts.get(unit.id);
-        if (t) { t.destroy(); this.zzzTexts.delete(unit.id); }
-      }
-    }
   }
 
   private syncLockTexts(): void {

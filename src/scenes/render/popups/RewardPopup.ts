@@ -4,19 +4,23 @@ import { GameState } from '../../../game/GameState';
 import { Reward } from '../../../game/types';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y } from '../../constants';
+import { SoundManager } from '../../SoundManager';
+import { JuicyButton } from '../../ui/JuicyButton';
 
 export class RewardPopup {
   private scene: Phaser.Scene;
   private state: GameState;
   private onGemChange: (delta: number) => void;
+  private sfx?: SoundManager;
   private container?: Phaser.GameObjects.Container;
   private dimOverlay?: Phaser.GameObjects.Rectangle;
   private allRewards: Reward[] = [];
 
-  constructor(scene: Phaser.Scene, state: GameState, onGemChange: (delta: number) => void) {
+  constructor(scene: Phaser.Scene, state: GameState, onGemChange: (delta: number) => void, sfx?: SoundManager) {
     this.scene = scene;
     this.state = state;
     this.onGemChange = onGemChange;
+    this.sfx = sfx;
   }
 
   get isShown(): boolean {
@@ -50,36 +54,31 @@ export class RewardPopup {
 
     const rewards = this.allRewards.slice(0, count);
     const xPositions = count === 2 ? [-82, 82] : [-115, 0, 115];
+    const cardWidth = count === 2 ? 150 : 100;
 
-    const cards = rewards.map((reward, i) => {
-      const card = this.scene.add.text(xPositions[i], 16, reward.label, {
-        fontFamily: 'monospace', fontSize: '12px', color: ANS.CREAM,
-        backgroundColor: '#1e2840', padding: { x: 10, y: 16 },
-        align: 'center',
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      card.on('pointerover', () => card.setStyle({ backgroundColor: '#2a3860' }));
-      card.on('pointerout', () => card.setStyle({ backgroundColor: '#1e2840' }));
-      card.on('pointerdown', () => {
+    const cards = rewards.map((reward, i) => new JuicyButton({
+      scene: this.scene, x: xPositions[i], y: 16, width: cardWidth, height: 64,
+      label: reward.label, variant: 'ghost', fontSize: 12, sfx: this.sfx,
+      onClick: () => {
         this.state.applyReward(reward.type);
         this.close();
-      });
-      return card;
-    });
+      },
+    }));
 
-    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, ...cards];
+    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, ...cards.map(c => c.container)];
 
     if (allowExpand && count === 2 && this.state.gems > 0) {
-      const expandBtn = this.scene.add.text(0, 100, `💎 선택지 추가 (보석 ${this.state.gems}개)`, {
-        fontFamily: 'monospace', fontSize: '12px', color: ANS.TEAL,
-        backgroundColor: '#102030', padding: { x: 12, y: 8 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      expandBtn.on('pointerdown', () => {
-        if (this.state.gems <= 0) return;
-        this.state.gems -= 1;
-        this.onGemChange(-1);
-        this.show(3);
+      const expandBtn = new JuicyButton({
+        scene: this.scene, x: 0, y: 88, width: 220, height: 48,
+        label: `💎 선택지 추가 (보석 ${this.state.gems}개)`, variant: 'ghost', fontSize: 12, sfx: this.sfx,
+        onClick: () => {
+          if (this.state.gems <= 0) return;
+          this.state.gems -= 1;
+          this.onGemChange(-1);
+          this.show(3);
+        },
       });
-      items.push(expandBtn);
+      items.push(expandBtn.container);
     }
 
     container.add(items);

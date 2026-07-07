@@ -1,4 +1,4 @@
-export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory';
+export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory' | 'button';
 
 // BGM: C major, 120 BPM, 8-bar melodic loop (16s)
 //   Bass  : C-C-G-G-F-F-G-G (one per bar)
@@ -139,6 +139,7 @@ export class SoundManager {
         case 'overclock': this.sfxOverclock(ctx); break;
         case 'gameover':  this.sfxGameover(ctx);  break;
         case 'victory':   this.sfxVictory(ctx);   break;
+        case 'button':    this.sfxButton(ctx);    break;
       }
     } catch {}
   }
@@ -191,5 +192,9 @@ export class SoundManager {
       this.tone(ctx, 'sine', f, f, 0.40, ctx.currentTime + i * 0.14, 0.20));
     [523.3, 659.3, 784].forEach(f =>
       this.tone(ctx, 'sine', f, f, 0.28, ctx.currentTime + 0.58, 0.50));
+  }
+
+  private sfxButton(ctx: AudioContext): void {
+    this.tone(ctx, 'square', 660, 660, 0.06, ctx.currentTime, 0.03);
   }
 }

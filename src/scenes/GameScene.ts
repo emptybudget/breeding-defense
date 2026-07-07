@@ -29,6 +29,7 @@ export class GameScene extends Phaser.Scene {
   private overclockSfxPlayed = false;
   private bossTimerText?: Phaser.GameObjects.Text;
   private speedMult: 1 | 2 = 1;
+  private speed2xUnlocked = false;
   private world: WorldId = 2;
   private stage: WorldStageId = 1;
   private _lastCritHapticMs = 0;
@@ -62,7 +63,7 @@ export class GameScene extends Phaser.Scene {
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
     this.unitRenderer = new UnitRenderer(this, this.state);
-    const speed2xUnlocked = this.metaProgress.getLevel('gameSpeed2x') > 0;
+    this.speed2xUnlocked = this.metaProgress.getLevel('gameSpeed2x') > 0;
     this.hudRenderer = new HudRenderer(
       this,
       () => {
@@ -75,11 +76,8 @@ export class GameScene extends Phaser.Scene {
       },
       () => { this.state.upgradePopulation(); },
       () => { this.onPause(); },
-      () => { this.onRecipeBook(); },
       () => { this.onSoulShop(); },
-      () => { this.toggleSpeedMult(); },
-      () => this.speedMult,
-      speed2xUnlocked,
+      this.sfx,
     );
     this.popupRenderer = new PopupRenderer(
       this,
@@ -94,6 +92,7 @@ export class GameScene extends Phaser.Scene {
       () => { this.scene.start('StageSelectScene'); },
       () => { this.adRevive(); },
       (delta) => { this.metaProgress.addGems(delta); },
+      this.sfx,
     );
     this.enemyRenderer = new EnemyRenderer(
       this,
@@ -126,7 +125,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
-    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.sfx);
+    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.hudRenderer, this.sfx);
     this.dragController.register();
 
     // Blur / visibility → auto-pause to prevent game-over during interruptions
@@ -468,6 +467,8 @@ export class GameScene extends Phaser.Scene {
       () => { this.state.isPaused = false; },
       () => { this.scene.start('StageSelectScene'); },
       { muted: () => this.sfx.muted, toggle: () => this.sfx.toggleMute() },
+      this.state.features.recipe ? () => { this.onRecipeBook(); } : undefined,
+      this.speed2xUnlocked ? { getMult: () => this.speedMult, toggle: () => { this.toggleSpeedMult(); } } : undefined,
     );
   }
 

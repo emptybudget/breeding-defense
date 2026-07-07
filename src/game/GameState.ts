@@ -3,7 +3,6 @@ import {
   BOSS_PHASE_B_START_MS,
   BOSS_PHASE_C_START_MS,
   BREEDING_DURATION_MS,
-  BREEDING_EXHAUST_DURATION_MS,
   CLEAR_TIME_MS,
   FIVE_MIN_SURGE_MULT,
   GOLD_AUTO_RECOVERY_PER_SEC,
@@ -331,14 +330,6 @@ export class GameState {
       this.pendingMinibossSpawn = true;
     }
 
-    // Auto-clear exhaustion
-    for (const unit of this.units) {
-      if (unit.isExhausted && this.elapsedMs >= unit.exhaustEndMs) {
-        unit.isExhausted = false;
-        unit.exhaustEndMs = 0;
-      }
-    }
-
     // Expire old mines
     if (this.mines.length > 0) {
       this.mines = this.mines.filter(m => this.elapsedMs - m.placedAtMs < MINE_LIFETIME_MS);
@@ -531,7 +522,6 @@ export class GameState {
     if (a.tier !== 1 || b.tier !== 1) return false;
     if (getCategory(a.race as Tier1Race) !== getCategory(b.race as Tier1Race)) return false;
     if (a.isBreeding || b.isBreeding) return false;
-    if (a.isExhausted || b.isExhausted) return false;
     if (a.isLocked || b.isLocked) return false;
     const pendingOffspring = this.units.filter(u => u.isBreeding).length / 2;
     if (this.units.length + pendingOffspring >= this.maxUnits) return false;
@@ -548,9 +538,6 @@ export class GameState {
     if (!a || !b) return [];
     a.isBreeding = false; a.breedingEndMs = 0;
     b.isBreeding = false; b.breedingEndMs = 0;
-    const exhaustEnd = this.elapsedMs + BREEDING_EXHAUST_DURATION_MS;
-    a.isExhausted = true; a.exhaustEndMs = exhaustEnd;
-    b.isExhausted = true; b.exhaustEndMs = exhaustEnd;
     const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
     const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
     const offspringRace = getOffspringRace(a.race as Tier1Race, b.race as Tier1Race);

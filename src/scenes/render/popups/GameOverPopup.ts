@@ -3,6 +3,8 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../../../game/config';
 import { GameState } from '../../../game/GameState';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y } from '../../constants';
+import { SoundManager } from '../../SoundManager';
+import { JuicyButton } from '../../ui/JuicyButton';
 import { appendDpsMeter } from './shared';
 
 export class GameOverPopup {
@@ -12,6 +14,7 @@ export class GameOverPopup {
   private onGemContinue: () => void;
   private onStageSelect: () => void;
   private onAdRevive: () => void;
+  private sfx?: SoundManager;
 
   private container?: Phaser.GameObjects.Container;
 
@@ -22,6 +25,7 @@ export class GameOverPopup {
     onGemContinue: () => void,
     onStageSelect: () => void,
     onAdRevive: () => void,
+    sfx?: SoundManager,
   ) {
     this.scene = scene;
     this.state = state;
@@ -29,6 +33,7 @@ export class GameOverPopup {
     this.onGemContinue = onGemContinue;
     this.onStageSelect = onStageSelect;
     this.onAdRevive = onAdRevive;
+    this.sfx = sfx;
   }
 
   get isShown(): boolean {
@@ -57,50 +62,48 @@ export class GameOverPopup {
       fontFamily: 'monospace', fontSize: '13px', color: isNewRecord ? ANS.GOLD_TEXT : ANS.PARCH,
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(0, -panelH / 2 + 100, '  다시하기  ', {
-      fontFamily: 'monospace', fontSize: '15px', color: ANS.CREAM,
-      backgroundColor: '#2a3a1e', padding: { x: 14, y: 9 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    restartBtn.on('pointerdown', () => { this.onRestart(); });
+    const restartBtn = new JuicyButton({
+      scene: this.scene, x: 0, y: -panelH / 2 + 100, width: 160, height: 48,
+      label: '다시하기', variant: 'primary', fontSize: 15, sfx: this.sfx,
+      onClick: () => { this.onRestart(); },
+    });
 
     const hasGems = this.state.gems > 0;
-    const gemBtn = this.scene.add.text(0, -panelH / 2 + 148, `  💎 보석(${this.state.gems})로 이어하기  `, {
-      fontFamily: 'monospace', fontSize: '13px',
-      color: hasGems ? ANS.CREAM : ANS.DIM,
-      backgroundColor: hasGems ? '#1e3040' : '#1a1a14',
-      padding: { x: 12, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: hasGems });
-    if (hasGems) gemBtn.on('pointerdown', () => { this.onGemContinue(); });
+    const gemBtn = new JuicyButton({
+      scene: this.scene, x: 0, y: -panelH / 2 + 152, width: 220, height: 48,
+      label: `💎 보석(${this.state.gems})로 이어하기`, variant: 'primary', fontSize: 13, sfx: this.sfx,
+      onClick: () => { this.onGemContinue(); },
+    }).setDisabled(!hasGems);
 
-    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, timeText, restartBtn, gemBtn];
+    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, timeText, restartBtn.container, gemBtn.container];
 
     if (hasAd) {
-      const adBtn = this.scene.add.text(0, -panelH / 2 + 194, '  📺 광고 보고 부활 (1회)  ', {
-        fontFamily: 'monospace', fontSize: '13px', color: '#88ffaa',
-        backgroundColor: '#0a2a10', padding: { x: 12, y: 8 },
-      }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-      adBtn.on('pointerdown', () => {
-        adBtn.disableInteractive();
-        const dim = this.scene.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.85).setDepth(50);
-        const adText = this.scene.add.text(CENTER_X, CENTER_Y, '📺  광고 시청 중...', {
-          fontFamily: 'monospace', fontSize: '18px', color: '#ffffff',
-        }).setOrigin(0.5).setDepth(51);
-        this.scene.time.delayedCall(1500, () => {
-          this.scene.tweens.add({ targets: [dim, adText], alpha: 0, duration: 400,
-            onComplete: () => { dim.destroy(); adText.destroy(); this.onAdRevive(); }
+      const adBtn = new JuicyButton({
+        scene: this.scene, x: 0, y: -panelH / 2 + 204, width: 220, height: 48,
+        label: '📺 광고 보고 부활 (1회)', variant: 'ghost', fontSize: 13, sfx: this.sfx,
+        onClick: () => {
+          adBtn.setDisabled(true);
+          const dim = this.scene.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.85).setDepth(50);
+          const adText = this.scene.add.text(CENTER_X, CENTER_Y, '📺  광고 시청 중...', {
+            fontFamily: 'monospace', fontSize: '18px', color: '#ffffff',
+          }).setOrigin(0.5).setDepth(51);
+          this.scene.time.delayedCall(1500, () => {
+            this.scene.tweens.add({ targets: [dim, adText], alpha: 0, duration: 400,
+              onComplete: () => { dim.destroy(); adText.destroy(); this.onAdRevive(); }
+            });
           });
-        });
+        },
       });
-      items.push(adBtn);
+      items.push(adBtn.container);
     }
 
-    const stageBtnY = hasAd ? -panelH / 2 + 238 : -panelH / 2 + 194;
-    const stageBtn = this.scene.add.text(0, stageBtnY, '스테이지 선택으로 돌아가기', {
-      fontFamily: 'monospace', fontSize: '12px', color: ANS.PARCH,
-      backgroundColor: '#1a1a0e', padding: { x: 10, y: 7 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    stageBtn.on('pointerdown', () => { this.onStageSelect(); });
-    items.push(stageBtn);
+    const stageBtnY = hasAd ? -panelH / 2 + 254 : -panelH / 2 + 204;
+    const stageBtn = new JuicyButton({
+      scene: this.scene, x: 0, y: stageBtnY, width: 220, height: 48,
+      label: '스테이지 선택으로 돌아가기', variant: 'ghost', fontSize: 12, sfx: this.sfx,
+      onClick: () => { this.onStageSelect(); },
+    });
+    items.push(stageBtn.container);
 
     // DPS meter
     const dpsStartY = stageBtnY + 38;

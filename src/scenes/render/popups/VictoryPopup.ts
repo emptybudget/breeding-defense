@@ -2,6 +2,8 @@ import Phaser from 'phaser';
 import { GameState } from '../../../game/GameState';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y } from '../../constants';
+import { SoundManager } from '../../SoundManager';
+import { JuicyButton } from '../../ui/JuicyButton';
 import { appendDpsMeter } from './shared';
 
 export class VictoryPopup {
@@ -10,6 +12,7 @@ export class VictoryPopup {
   private onRestart: () => void;
   private onInfiniteMode: () => void;
   private onStageSelect: () => void;
+  private sfx?: SoundManager;
 
   private container?: Phaser.GameObjects.Container;
 
@@ -19,12 +22,14 @@ export class VictoryPopup {
     onRestart: () => void,
     onInfiniteMode: () => void,
     onStageSelect: () => void,
+    sfx?: SoundManager,
   ) {
     this.scene = scene;
     this.state = state;
     this.onRestart = onRestart;
     this.onInfiniteMode = onInfiniteMode;
     this.onStageSelect = onStageSelect;
+    this.sfx = sfx;
   }
 
   get isShown(): boolean {
@@ -59,29 +64,32 @@ export class VictoryPopup {
       fontFamily: 'monospace', fontSize: '13px', color: ANS.PARCH, align: 'center',
     }).setOrigin(0.5);
 
-    const restartBtn = this.scene.add.text(-95, -22, ' 다시하기 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#2a3a1e', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    restartBtn.on('pointerdown', () => { this.onRestart(); });
-
-    const infiniteBtn = this.scene.add.text(0, -22, ' 무한 모드 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#1e3040', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    infiniteBtn.on('pointerdown', () => {
-      container.destroy();
-      this.container = undefined;
-      this.onInfiniteMode();
+    const restartBtn = new JuicyButton({
+      scene: this.scene, x: -95, y: -22, width: 84, height: 48,
+      label: '다시하기', variant: 'primary', fontSize: 12, sfx: this.sfx,
+      onClick: () => { this.onRestart(); },
     });
 
-    const menuBtn = this.scene.add.text(95, -22, ' 스테이지선택 ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#202038', padding: { x: 8, y: 8 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    menuBtn.on('pointerdown', () => { this.onStageSelect(); });
+    const infiniteBtn = new JuicyButton({
+      scene: this.scene, x: 0, y: -22, width: 84, height: 48,
+      label: '무한 모드', variant: 'ghost', fontSize: 12, sfx: this.sfx,
+      onClick: () => {
+        container.destroy();
+        this.container = undefined;
+        this.onInfiniteMode();
+      },
+    });
 
-    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, gemReward, timeText, gemInfo, restartBtn, infiniteBtn, menuBtn];
+    const menuBtn = new JuicyButton({
+      scene: this.scene, x: 95, y: -22, width: 84, height: 48,
+      label: '스테이지선택', variant: 'ghost', fontSize: 11, sfx: this.sfx,
+      onClick: () => { this.onStageSelect(); },
+    });
+
+    const items: Phaser.GameObjects.GameObject[] = [
+      bgGfx, divGfx, title, gemReward, timeText, gemInfo,
+      restartBtn.container, infiniteBtn.container, menuBtn.container,
+    ];
 
     // DPS meter below buttons
     appendDpsMeter(this.scene, this.state, items, 18);

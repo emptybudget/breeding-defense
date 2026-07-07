@@ -168,6 +168,7 @@ export class StageSelectScene extends Phaser.Scene {
     const lineTexts = lines.map((ln, i) =>
       this.add.text(CENTER_X, CENTER_Y - 28 + i * 22, ln, {
         fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
+        align: 'center', wordWrap: { width: 260 },
       }).setOrigin(0.5),
     );
 

@@ -4,15 +4,19 @@ import { GameState } from '../../../game/GameState';
 import { Tier1Race, UnitData } from '../../../game/types';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y, RACE_EMOJI } from '../../constants';
+import { SoundManager } from '../../SoundManager';
+import { JuicyButton } from '../../ui/JuicyButton';
 
 export class SoulShopPopup {
   private scene: Phaser.Scene;
   private state: GameState;
+  private sfx?: SoundManager;
   private container?: Phaser.GameObjects.Container;
 
-  constructor(scene: Phaser.Scene, state: GameState) {
+  constructor(scene: Phaser.Scene, state: GameState, sfx?: SoundManager) {
     this.scene = scene;
     this.state = state;
+    this.sfx = sfx;
   }
 
   show(onUnitSummon: (unit: UnitData) => void, onClose: () => void): void {
@@ -32,57 +36,57 @@ export class SoulShopPopup {
     };
     dim.on('pointerdown', close);
 
-    // Panel: 310 × 380 centered → screen y 130~510 (safe zone)
+    // Panel: 310 × 460 centered → screen y 90~550 (safe zone)
     const bgGfx = this.scene.add.graphics();
-    drawPanelAt(bgGfx, 310, 380);
+    drawPanelAt(bgGfx, 310, 460);
 
-    const title = this.scene.add.text(0, -174, '💀 보스의 영혼 상점', {
+    const title = this.scene.add.text(0, -190, '💀 보스의 영혼 상점', {
       fontFamily: 'monospace', fontSize: '16px', color: '#cc88ff',
     }).setOrigin(0.5);
 
-    const soulCountText = this.scene.add.text(0, -148, '', {
+    const soulCountText = this.scene.add.text(0, -164, '', {
       fontFamily: 'monospace', fontSize: '13px', color: ANS.PARCH,
     }).setOrigin(0.5);
 
     const div1 = this.scene.add.graphics();
-    drawDivider(div1, -130, -130, 260);
+    drawDivider(div1, -130, -146, 260);
 
     // ── 강화 section ─────────────────────────────────────────────────────────
-    const enhanceLabel = this.scene.add.text(-130, -115, '⚔️  강화', {
+    const enhanceLabel = this.scene.add.text(-130, -131, '⚔️  강화', {
       fontFamily: 'monospace', fontSize: '12px', color: ANS.GOLD,
     }).setOrigin(0, 0.5);
 
-    const t1LabelText = this.scene.add.text(-126, -90, '', {
+    const t1LabelText = this.scene.add.text(-126, -106, '', {
       fontFamily: 'monospace', fontSize: '12px', color: ANS.CREAM,
     }).setOrigin(0, 0.5);
-    const t1Btn = this.scene.add.text(118, -90, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
-      backgroundColor: '#2a1a08', padding: { x: 8, y: 5 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    t1Btn.on('pointerdown', () => { if (state.upgradeTier1Atk()) refresh(); });
+    const t1Btn = new JuicyButton({
+      scene: this.scene, x: 118, y: -106, width: 90, height: 48, label: '',
+      variant: 'ghost', fontSize: 11, sfx: this.sfx,
+      onClick: () => { if (state.upgradeTier1Atk()) refresh(); },
+    });
 
-    const t2LabelText = this.scene.add.text(-126, -62, '', {
+    const t2LabelText = this.scene.add.text(-126, -54, '', {
       fontFamily: 'monospace', fontSize: '12px', color: ANS.CREAM,
     }).setOrigin(0, 0.5);
-    const t2Btn = this.scene.add.text(118, -62, '', {
-      fontFamily: 'monospace', fontSize: '11px', color: ANS.CREAM,
-      backgroundColor: '#08182a', padding: { x: 8, y: 5 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    t2Btn.on('pointerdown', () => { if (state.upgradeTier2Atk()) refresh(); });
+    const t2Btn = new JuicyButton({
+      scene: this.scene, x: 118, y: -54, width: 90, height: 48, label: '',
+      variant: 'ghost', fontSize: 11, sfx: this.sfx,
+      onClick: () => { if (state.upgradeTier2Atk()) refresh(); },
+    });
 
     const div2 = this.scene.add.graphics();
-    drawDivider(div2, -130, -38, 260);
+    drawDivider(div2, -130, -24, 260);
 
     // ── 유닛 구매 section ────────────────────────────────────────────────────
-    const unitBuyLabel = this.scene.add.text(-130, -22, '🎯  유닛 직접 구매', {
+    const unitBuyLabel = this.scene.add.text(-130, -8, '🎯  유닛 직접 구매', {
       fontFamily: 'monospace', fontSize: '12px', color: ANS.GOLD,
     }).setOrigin(0, 0.5);
 
-    const unitCostText = this.scene.add.text(-130, 2, '', {
+    const unitCostText = this.scene.add.text(-130, 16, '', {
       fontFamily: 'monospace', fontSize: '11px', color: ANS.PARCH,
     }).setOrigin(0, 0.5);
 
-    const unitFullText = this.scene.add.text(0, 2, '', {
+    const unitFullText = this.scene.add.text(60, 16, '', {
       fontFamily: 'monospace', fontSize: '11px', color: '#ff8844',
     }).setOrigin(0.5);
 
@@ -93,29 +97,27 @@ export class SoulShopPopup {
       ['Squirrel', 'Android', 'Cannon'],
     ] as Tier1Race[][];
 
-    const unitBtns: Phaser.GameObjects.Text[] = [];
+    const unitBtns: JuicyButton[] = [];
     unitRows.forEach((row, rowIdx) => {
-      const y = 42 + rowIdx * 48;
+      const y = 54 + rowIdx * 56;
       row.forEach((race, colIdx) => {
         const emoji = RACE_EMOJI[race] ?? '?';
-        const btn = this.scene.add.text(cols[colIdx], y, `${emoji}\n${race}`, {
-          fontFamily: 'monospace', fontSize: '10px', color: ANS.CREAM,
-          backgroundColor: '#1a1040', padding: { x: 8, y: 6 },
-          align: 'center',
-        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-        btn.on('pointerdown', () => {
-          const unit = state.soulSummonUnit(race);
-          if (unit) { onUnitSummon(unit); refresh(); }
+        const btn = new JuicyButton({
+          scene: this.scene, x: cols[colIdx], y, width: 84, height: 48,
+          label: `${emoji}\n${race}`, variant: 'ghost', fontSize: 10, sfx: this.sfx,
+          onClick: () => {
+            const unit = state.soulSummonUnit(race);
+            if (unit) { onUnitSummon(unit); refresh(); }
+          },
         });
         unitBtns.push(btn);
       });
     });
 
-    const closeBtn = this.scene.add.text(0, 158, '  ✖ 닫기  ', {
-      fontFamily: 'monospace', fontSize: '13px', color: ANS.CREAM,
-      backgroundColor: '#3a2020', padding: { x: 16, y: 7 },
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    closeBtn.on('pointerdown', close);
+    const closeBtn = new JuicyButton({
+      scene: this.scene, x: 0, y: 190, width: 120, height: 48, label: '✖ 닫기',
+      variant: 'danger', fontSize: 13, sfx: this.sfx, onClick: close,
+    });
 
     const refresh = () => {
       soulCountText.setText(`보유 영혼: 💀 ${state.enhancePoints}`);
@@ -123,32 +125,28 @@ export class SoulShopPopup {
       const t1Maxed = state.tier1AtkBonus >= TIER1_ENHANCE_MAX;
       const t1CanBuy = !t1Maxed && state.enhancePoints >= TIER1_ENHANCE_COST;
       t1LabelText.setText(`1티어 강화 +1 dmg  (${state.tier1AtkBonus}/${TIER1_ENHANCE_MAX})`);
-      t1Btn.setText(t1Maxed ? '최대' : `${TIER1_ENHANCE_COST}pt 구매`);
-      t1Btn.setStyle({ color: t1CanBuy ? ANS.CREAM : ANS.DIM, backgroundColor: t1CanBuy ? '#2a1a08' : '#111108' });
+      t1Btn.setLabel(t1Maxed ? '최대' : `${TIER1_ENHANCE_COST}pt 구매`).setDisabled(t1Maxed || !t1CanBuy);
 
       const t2Maxed = state.tier2AtkBonus >= TIER2_ENHANCE_MAX;
       const t2CanBuy = !t2Maxed && state.enhancePoints >= TIER2_ENHANCE_COST;
       t2LabelText.setText(`2티어 강화 +1 dmg  (${state.tier2AtkBonus}/${TIER2_ENHANCE_MAX})`);
-      t2Btn.setText(t2Maxed ? '최대' : `${TIER2_ENHANCE_COST}pt 구매`);
-      t2Btn.setStyle({ color: t2CanBuy ? ANS.CREAM : ANS.DIM, backgroundColor: t2CanBuy ? '#08182a' : '#080811' });
+      t2Btn.setLabel(t2Maxed ? '최대' : `${TIER2_ENHANCE_COST}pt 구매`).setDisabled(t2Maxed || !t2CanBuy);
 
       const isFull = state.units.length >= state.maxUnits;
       unitCostText.setText(isFull ? '' : `현재 비용: ${state.soulSummonCost}pt`);
       unitFullText.setText(isFull ? '유닛 한도 초과' : '');
 
       const canBuyUnit = !isFull && state.enhancePoints >= state.soulSummonCost;
-      unitBtns.forEach(btn => {
-        btn.setStyle({ color: canBuyUnit ? ANS.CREAM : ANS.DIM, backgroundColor: canBuyUnit ? '#1a1040' : '#0d0a1e' });
-      });
+      unitBtns.forEach(btn => { btn.setDisabled(!canBuyUnit); });
     };
 
     refresh();
 
     container.add([
       bgGfx, title, soulCountText, div1,
-      enhanceLabel, t1LabelText, t1Btn, t2LabelText, t2Btn, div2,
-      unitBuyLabel, unitCostText, unitFullText, ...unitBtns,
-      closeBtn,
+      enhanceLabel, t1LabelText, t1Btn.container, t2LabelText, t2Btn.container, div2,
+      unitBuyLabel, unitCostText, unitFullText, ...unitBtns.map(b => b.container),
+      closeBtn.container,
     ]);
   }
 }
