@@ -1,10 +1,14 @@
 import Phaser from 'phaser';
-import { BREEDING_DURATION_MS } from '../../game/config';
+import { findApexUnit } from '../../game/breeding';
+import { EGG_HATCH_MS, GEN_VISUALS } from '../../game/config';
 import { GameState } from '../../game/GameState';
-import { UnitData, UnitRace } from '../../game/types';
+import { UNIT_LORE } from '../../game/lore';
+import { FamilyKey, MutationGrade, UnitData, UnitRace } from '../../game/types';
 import { getUnitCombatStats } from '../../game/unitHelpers';
+import { ANS } from '../artnouveau';
 import { RACE_COLORS, RACE_EMOJI, UNIT_SPRITE_SIZE, unitTextureKey } from '../constants';
 import { SoundManager } from '../SoundManager';
+import { UI } from '../ui/tokens';
 import { AttackKind } from './EnemyRenderer';
 
 type UnitGameObject = Phaser.GameObjects.Text | Phaser.GameObjects.Image;
@@ -13,20 +17,36 @@ export class UnitRenderer {
   private scene: Phaser.Scene;
   private state: GameState;
   private sfx?: SoundManager;
+  private onHatchRevealed?: (mutation: MutationGrade | undefined) => void;
 
   private unitObjects = new Map<number, UnitGameObject>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
-  private heartTexts = new Map<number, Phaser.GameObjects.Text>();
   private lockTexts = new Map<number, Phaser.GameObjects.Text>();
   private nestWaitTexts = new Map<number, Phaser.GameObjects.Text>();
   private highlightGraphics = new Map<number, Phaser.GameObjects.Graphics>();
   private motionTweens = new Map<number, Phaser.Tweens.Tween>();
   private draggingId: number | null = null;
 
-  constructor(scene: Phaser.Scene, state: GameState, sfx?: SoundManager) {
+  // M4: Gen 형태 표기(R4) — 유닛별 링/뿔/왕관 Graphics
+  private genOverlays = new Map<number, Phaser.GameObjects.Graphics>();
+  private genPulseTweens = new Map<number, Phaser.Tweens.Tween>();
+
+  // M4: 정점 유닛 계열 문장 오버레이 (E22) — 단일 재사용 Graphics
+  private apexCrestGfx?: Phaser.GameObjects.Graphics;
+  private apexUnitId: number | null = null;
+  private apexFamily: FamilyKey | null = null;
+
+  // M4: 알 부화 연출 (R7) — 판당 교배는 한 번에 하나뿐이라 단일 인스턴스로 충분
+  private eggTickEvent?: Phaser.Time.TimerEvent;
+
+  constructor(
+    scene: Phaser.Scene, state: GameState, sfx?: SoundManager,
+    onHatchRevealed?: (mutation: MutationGrade | undefined) => void,
+  ) {
     this.scene = scene;
     this.state = state;
     this.sfx = sfx;
+    this.onHatchRevealed = onHatchRevealed;
   }
 
   addUnit(unit: UnitData): void {
@@ -57,13 +77,43 @@ export class UnitRenderer {
     this.scene.input.setDraggable(label);
     label.setData('unitId', unit.id);
 
+    // M4: Gen 형태 표기(R4) — Gen3+ 스케일 배율(왕관 1.10/1.18)을 카드 본체에도 적용
+    const gen = unit.gen ?? 0;
+    const visuals = gen >= 1 && gen <= 4 ? GEN_VISUALS[gen as 1 | 2 | 3 | 4] : undefined;
+    const scaleMult = visuals?.scaleMult ?? 1;
+    if (scaleMult !== 1) label.scaleY *= scaleMult;
+
     // M2: 카드 뒤집기 연출(0.35s) — scaleX 0→최종값
-    const targetScaleX = label.scaleX;
+    const targetScaleX = label.scaleX * scaleMult;
     label.scaleX = 0;
     this.scene.tweens.add({ targets: label, scaleX: targetScaleX, duration: 350, ease: 'Back.easeOut' });
     this.sfx?.playSFX('cardFlip');
 
     this.unitObjects.set(unit.id, label);
+    if (visuals) this.addGenOverlay(unit, visuals);
+  }
+
+  private addGenOverlay(unit: UnitData, visuals: typeof GEN_VISUALS[1]): void {
+    const gfx = this.scene.add.graphics().setPosition(unit.x, unit.y).setDepth(1);
+    gfx.lineStyle(2, UI.gold, 0.8);
+    if (visuals.ring) gfx.strokeCircle(0, 0, 20);
+    if (visuals.horn) {
+      gfx.fillStyle(UI.gold, 1);
+      gfx.fillTriangle(-6, -18, 0, -30, 6, -18);
+    }
+    if (visuals.crown) {
+      gfx.fillStyle(UI.gold, 1);
+      gfx.fillTriangle(-10, -18, -10, -30, -4, -22);
+      gfx.fillTriangle(-4, -18, -4, -32, 4, -22);
+      gfx.fillTriangle(4, -18, 4, -30, 10, -22);
+      gfx.fillRect(-10, -18, 20, 4);
+    }
+    this.genOverlays.set(unit.id, gfx);
+    if (visuals.pulse) {
+      this.genPulseTweens.set(unit.id, this.scene.tweens.add({
+        targets: gfx, alpha: { from: 1, to: 0.55 }, duration: 500, yoyo: true, repeat: -1,
+      }));
+    }
   }
 
   removeUnit(id: number): void {
@@ -73,10 +123,11 @@ export class UnitRenderer {
     if (this.draggingId === id) this.draggingId = null;
     this.unitObjects.get(id)?.destroy();       this.unitObjects.delete(id);
     this.rangeCircles.get(id)?.destroy();      this.rangeCircles.delete(id);
-    this.heartTexts.get(id)?.destroy();        this.heartTexts.delete(id);
     this.lockTexts.get(id)?.destroy();         this.lockTexts.delete(id);
     this.nestWaitTexts.get(id)?.destroy();     this.nestWaitTexts.delete(id);
     this.highlightGraphics.get(id)?.destroy(); this.highlightGraphics.delete(id);
+    this.genPulseTweens.get(id)?.stop();       this.genPulseTweens.delete(id);
+    this.genOverlays.get(id)?.destroy();       this.genOverlays.delete(id);
   }
 
   /** 둥지에서 파트너를 기다리는 유닛 위에 🪺 마커 표시/제거 (M1b — 교배 대기 가시화). */
@@ -123,34 +174,141 @@ export class UnitRenderer {
     this.highlightGraphics.clear();
   }
 
+  // M4: 하트 대신 알(Graphics 스텁) + 게이지 + 3회 심장박동 SFX → EGG_HATCH_MS 후 등급 리빌.
+  // 아트(AM1) 미확보 상태의 프로시저럴 스텁 — 추후 egg_<family>.png 교체 예정.
   startBreedingEffect(idA: number, idB: number): void {
     const goA = this.unitObjects.get(idA);
     const goB = this.unitObjects.get(idB);
     if (!goA || !goB) return;
 
-    const heartA = this.scene.add.text(goA.x, goA.y - 22, '❤', {
-      fontSize: '14px', color: '#ff4444',
-    }).setOrigin(0.5).setDepth(2);
-    const heartB = this.scene.add.text(goB.x, goB.y - 22, '❤', {
-      fontSize: '14px', color: '#ff4444',
-    }).setOrigin(0.5).setDepth(2);
-    this.heartTexts.set(idA, heartA);
-    this.heartTexts.set(idB, heartB);
+    const ex = (goA.x + goB.x) / 2;
+    const ey = (goA.y + goB.y) / 2 - 10;
 
-    this.scene.time.delayedCall(BREEDING_DURATION_MS, () => {
-      heartA.destroy(); heartB.destroy();
-      this.heartTexts.delete(idA); this.heartTexts.delete(idB);
+    const eggGfx = this.scene.add.graphics().setPosition(ex, ey).setDepth(2);
+    eggGfx.fillStyle(UI.cream, 1);
+    eggGfx.fillEllipse(0, 0, 18, 24);
+    eggGfx.lineStyle(2, UI.gold, 1);
+    eggGfx.strokeEllipse(0, 0, 18, 24);
+
+    const gaugeGfx = this.scene.add.graphics().setPosition(ex, ey).setDepth(2);
+    this.scene.tweens.addCounter({
+      from: 0, to: 1, duration: EGG_HATCH_MS,
+      onUpdate: tw => {
+        const ratio = tw?.getValue() ?? 0;
+        gaugeGfx.clear();
+        gaugeGfx.lineStyle(2, UI.goldMid, 1);
+        gaugeGfx.beginPath();
+        gaugeGfx.arc(0, 0, 16, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * ratio), false);
+        gaugeGfx.strokePath();
+      },
+    });
+
+    this.eggTickEvent = this.scene.time.addEvent({
+      delay: EGG_HATCH_MS / 3, repeat: 2,
+      callback: () => this.sfx?.playSFX('eggTick'),
+    });
+
+    this.scene.time.delayedCall(EGG_HATCH_MS, () => {
+      eggGfx.destroy();
+      gaugeGfx.destroy();
+      this.eggTickEvent?.remove();
+      this.eggTickEvent = undefined;
+
       const born = this.state.completeBreeding(idA, idB);
+      const hatch = this.state.pendingHatch;
+      this.state.pendingHatch = null;
+
       for (const u of born) this.addUnit(u);
       // M3: 부모 2 소모 — 상태에서 사라진 부모 스프라이트 정리
       this.removeStaleUnits(this.state.units.map(u => u.id));
+
+      if (hatch) {
+        this.playHatchFlourish(ex, ey, hatch.race, hatch.mutation);
+        this.onHatchRevealed?.(hatch.mutation);
+      }
     });
+  }
+
+  private playHatchFlourish(x: number, y: number, race: UnitRace, mutation?: MutationGrade): void {
+    if (mutation === 'legend') {
+      this.sfx?.playSFX('hatchLegend');
+      this.burstFlourish(x, y, UI.gold, '🌟', 1400);
+    } else if (mutation === 'rare') {
+      this.sfx?.playSFX('hatchRare');
+      this.burstFlourish(x, y, UI.silver, '✨', 900);
+    } else {
+      this.sfx?.playSFX('hatchCommon');
+      this.burstFlourish(x, y, UI.goldDim, '', 500);
+    }
+    // M4: 부화 배너 대사(등급 연출 아래, 0.8s) — 24-lore-units.md §2~§5
+    const cry = UNIT_LORE[race]?.birthCry;
+    if (cry) {
+      const t = this.scene.add.text(x, y + 22, cry, {
+        fontFamily: 'monospace', fontSize: '10px', color: ANS.CREAM,
+      }).setOrigin(0.5).setDepth(3).setAlpha(0);
+      this.scene.tweens.add({ targets: t, alpha: 1, duration: 100 });
+      this.scene.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 200, onComplete: () => t.destroy() });
+    }
+  }
+
+  private burstFlourish(x: number, y: number, color: number, emoji: string, durationMs: number): void {
+    const flash = this.scene.add.circle(x, y, 22, color, 0.5).setDepth(3);
+    this.scene.tweens.add({ targets: flash, radius: 40, alpha: 0, duration: durationMs, onComplete: () => flash.destroy() });
+    if (emoji) {
+      const t = this.scene.add.text(x, y - 20, emoji, { fontSize: '20px' }).setOrigin(0.5).setDepth(3);
+      this.scene.tweens.add({ targets: t, y: y - 50, alpha: 0, duration: durationMs, onComplete: () => t.destroy() });
+    }
   }
 
   syncOverlays(): void {
     this.syncIdleBob();
     this.syncLockTexts();
     this.syncNestWaitTexts();
+    this.syncGenOverlays();
+    this.updateApexCrest();
+  }
+
+  private syncGenOverlays(): void {
+    for (const [id, gfx] of this.genOverlays) {
+      const go = this.unitObjects.get(id);
+      if (go) gfx.setPosition(go.x, go.y);
+    }
+  }
+
+  // M4 E22: 정점 유닛(필드 내 최대 Gen 혈통 계승자) 계열 문장 — 변경 시에만 다시 그림, 위치는 매 프레임 갱신.
+  private updateApexCrest(): void {
+    const apex = findApexUnit(this.state.units);
+    if (!apex) {
+      this.apexCrestGfx?.setVisible(false);
+      this.apexUnitId = null;
+      return;
+    }
+    const family = apex.lineageId !== undefined ? this.state.lineages.get(apex.lineageId)?.family ?? null : null;
+    if (apex.id !== this.apexUnitId || family !== this.apexFamily) {
+      this.apexUnitId = apex.id;
+      this.apexFamily = family;
+      if (!this.apexCrestGfx) this.apexCrestGfx = this.scene.add.graphics().setDepth(3);
+      this.drawApexCrest(this.apexCrestGfx, family);
+    }
+    const go = this.unitObjects.get(apex.id);
+    if (go) this.apexCrestGfx?.setPosition(go.x, go.y - 34).setVisible(true);
+  }
+
+  private drawApexCrest(gfx: Phaser.GameObjects.Graphics, family: FamilyKey | null): void {
+    gfx.clear();
+    if (!family) return;
+    gfx.lineStyle(2, UI.gold, 1);
+    if (family === 'sword') {
+      gfx.lineBetween(-6, 6, 6, -6);
+      gfx.lineBetween(-6, -6, 6, 6);
+      gfx.strokeCircle(0, 0, 9);
+    } else if (family === 'fang') {
+      gfx.fillStyle(UI.gold, 1);
+      gfx.fillTriangle(-6, -8, 0, 8, 6, -8);
+    } else {
+      gfx.strokeRect(-7, -7, 14, 14);
+      gfx.strokeCircle(0, 0, 4);
+    }
   }
 
   private syncNestWaitTexts(): void {

@@ -40,21 +40,42 @@ console.warn = (...args: unknown[]) => { pushRing('warn', args); origWarn(...arg
 // RAF 워치독 — Phaser의 poststep 이벤트가 3초 이상 안 오면 RAF 체인 사망으로 간주, 재시작 버튼 노출
 let lastTickAt = Date.now();
 let restartShown = false;
+let restartBtn: HTMLButtonElement | null = null;
+let closeBtn: HTMLButtonElement | null = null;
 function showFreezeRestartButton(): void {
   if (restartShown) return;
   restartShown = true;
   showFatalError(`[WATCHDOG] RAF 3초 이상 정지 감지\n최근 로그:\n${consoleRing.join('\n')}`);
-  const btn = document.createElement('button');
-  btn.textContent = '재시작';
-  btn.style.cssText =
-    'position:fixed;top:8px;right:8px;z-index:10000;padding:8px 16px;' +
+  restartBtn = document.createElement('button');
+  restartBtn.textContent = '재시작';
+  restartBtn.style.cssText =
+    'position:fixed;top:8px;right:96px;z-index:10000;padding:8px 16px;' +
     'background:#c44;color:#fff;border:none;border-radius:4px;font:14px monospace;';
-  btn.onclick = () => location.reload();
-  document.body.appendChild(btn);
+  restartBtn.onclick = () => location.reload();
+  document.body.appendChild(restartBtn);
+
+  // 탭 전환 등으로 인한 오탐일 수 있으므로 새로고침 없이 닫는 옵션도 제공
+  closeBtn = document.createElement('button');
+  closeBtn.textContent = '닫기';
+  closeBtn.style.cssText =
+    'position:fixed;top:8px;right:8px;z-index:10000;padding:8px 16px;' +
+    'background:#555;color:#fff;border:none;border-radius:4px;font:14px monospace;';
+  closeBtn.onclick = () => {
+    document.getElementById('fatal-error')?.remove();
+    restartBtn?.remove();
+    closeBtn?.remove();
+    restartShown = false;
+    lastTickAt = Date.now();
+  };
+  document.body.appendChild(closeBtn);
 }
 setInterval(() => {
-  if (Date.now() - lastTickAt > 3000) showFreezeRestartButton();
+  if (document.visibilityState === 'visible' && Date.now() - lastTickAt > 3000) showFreezeRestartButton();
 }, 1000);
+// 백그라운드 탭 복귀 시 RAF 공백을 진짜 프리징으로 오인하지 않도록 즉시 리셋
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') lastTickAt = Date.now();
+});
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,

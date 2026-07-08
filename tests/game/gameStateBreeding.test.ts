@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../../src/game/GameState';
 import { makeUnit } from '../../src/game/unitHelpers';
-import { BREED_BUDGET } from '../../src/game/config';
+import { BREED_BUDGET, MUTATION_COMMON_GOLD, WORLD_CONFIGS } from '../../src/game/config';
 
 describe('M3 GameState 교배 통합 (14 §4)', () => {
   it('부모 2 소모 + 자식 1 생성 + 혈통 창설 + pendingHatch', () => {
@@ -55,5 +55,60 @@ describe('M3 GameState 교배 통합 (14 §4)', () => {
     expect(hybrid!.gen).toBe(2);            // max(재료 gen)
     expect(hybrid!.lineageId).toBe(9);      // 최대 Gen 재료 혈통 승계
     expect(hybrid!.bloodlineName).toBe('은빛칼날');
+  });
+});
+
+describe('M4 W1-2 확정 희귀 (R3) + 일반 변이 즉시 골드 (R6)', () => {
+  it('W1-2 최초 확정 교배는 mutation=rare, Gen2 산출', () => {
+    const st = new GameState(undefined, WORLD_CONFIGS[1][2]);
+    st.units.push(makeUnit(1, 'Warrior', 1, 0, 0), makeUnit(2, 'Archer', 1, 0, 0));
+    st.startBreeding(1, 2);
+    const [child] = st.completeBreeding(1, 2);
+    expect(child.gen).toBe(2); // 0+1(동계열)+1(확정 희귀)
+    expect(st.pendingMutationRecord).toBe('rare');
+  });
+
+  it('W1-2 두 번째 교배부터는 강제되지 않음(분포 검증, 100회)', () => {
+    let forcedTwice = 0;
+    for (let trial = 0; trial < 100; trial++) {
+      const st = new GameState(undefined, WORLD_CONFIGS[1][2]);
+      st.units.push(makeUnit(1, 'Warrior', 1, 0, 0), makeUnit(2, 'Archer', 1, 0, 0));
+      st.startBreeding(1, 2);
+      st.completeBreeding(1, 2); // 1회차 = 강제 희귀 소진
+      st.units.push(makeUnit(3, 'Warrior', 1, 0, 0), makeUnit(4, 'Archer', 1, 0, 0));
+      st.startBreeding(3, 4);
+      st.completeBreeding(3, 4); // 2회차 = 일반 롤
+      if (st.pendingMutationRecord === 'rare') forcedTwice++;
+    }
+    // 2회차가 매번 rare라면 강제가 잘못 유지되고 있는 것 — 일반 확률(≈2.5%)이라 100회 중 대부분은 아님
+    expect(forcedTwice).toBeLessThan(100);
+  });
+
+  it('W1-2가 아닌 스테이지는 첫 교배도 강제되지 않음(분포 검증, 100회)', () => {
+    let rareCount = 0;
+    for (let trial = 0; trial < 100; trial++) {
+      const st = new GameState(undefined, WORLD_CONFIGS[2][1]);
+      st.units.push(makeUnit(1, 'Warrior', 1, 0, 0), makeUnit(2, 'Archer', 1, 0, 0));
+      st.startBreeding(1, 2);
+      st.completeBreeding(1, 2);
+      if (st.pendingMutationRecord === 'rare') rareCount++;
+    }
+    expect(rareCount).toBeLessThan(100); // 매번 rare면 forceRare가 스테이지 무관하게 새고 있는 것
+  });
+
+  it('common 변이 시 gold가 정확히 MUTATION_COMMON_GOLD만큼 증가 (실제 확률 분포, 500회 내 관측 보장)', () => {
+    let sawCommon = false;
+    for (let trial = 0; trial < 500 && !sawCommon; trial++) {
+      const st = new GameState(undefined, WORLD_CONFIGS[2][1]);
+      st.units.push(makeUnit(1, 'Warrior', 1, 0, 0), makeUnit(2, 'Archer', 1, 0, 0));
+      st.startBreeding(1, 2);
+      const goldBefore = st.gold;
+      st.completeBreeding(1, 2);
+      if (st.pendingMutationRecord === 'common') {
+        expect(st.gold).toBe(goldBefore + MUTATION_COMMON_GOLD);
+        sawCommon = true;
+      }
+    }
+    expect(sawCommon).toBe(true);
   });
 });

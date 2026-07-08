@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-  DOCK_CENTER_Y, DOCK_H, DOCK_Y, GAME_WIDTH, HUD_BAR_H, HUD_BAR_Y, MAX_ENEMIES,
+  DOCK_CENTER_Y, DOCK_H, DOCK_Y, FOLDED_TAB_SIZE, GAME_WIDTH, HUD_BAR_H, HUD_BAR_Y, MAX_ENEMIES,
   NEST_SLOT_1_X, NEST_SLOT_2_X, NEST_SLOT_SIZE, ROUND_MS, SELL_EDGE_W, SUMMON_MAX_COST, TOTAL_ROUNDS,
 } from '../../game/config';
 import { NestSlot } from '../../game/dockGeometry';
@@ -149,6 +149,8 @@ export class HudRenderer {
   private nestSlots: (NestSlotView | undefined)[] = [undefined, undefined];
   private nestOccupiedState: [boolean, boolean] = [false, false];
   private sellLabelTexts: Phaser.GameObjects.Text[] = [];
+  private foldedTabGfx?: Phaser.GameObjects.Graphics;
+  private foldedTabPulseTween?: Phaser.Tweens.Tween;
 
   // M2: FTUE 스포트라이트 대상 bounds — 좌표 하드코딩 금지, 렌더러가 게터로 제공
   private segmentBarBounds = { x: 0, y: 0, w: 0, h: 0 };
@@ -259,6 +261,14 @@ export class HudRenderer {
         this.nestSlots[i] = view;
         this.dragDockObjects.push(view.gfx, view.iconText);
       });
+
+      // M4 R7: 1슬롯만 충족 시 접힘 탭(알 실루엣+금빛 펄스) — 드래그 모드와 무관하게 항상 보임
+      const tabCx = (NEST_SLOT_1_X + NEST_SLOT_2_X) / 2;
+      const tabCy = DOCK_Y - FOLDED_TAB_SIZE / 2 - 4;
+      const tabGfx = this.scene.add.graphics().setPosition(tabCx, tabCy).setDepth(6).setVisible(false);
+      tabGfx.fillStyle(UI.gold, 0.85);
+      tabGfx.fillEllipse(0, 0, FOLDED_TAB_SIZE * 0.7, FOLDED_TAB_SIZE);
+      this.foldedTabGfx = tabGfx;
     }
 
     if (state.features.sell) {
@@ -337,6 +347,21 @@ export class HudRenderer {
     this.nestOccupiedState[slot] = occupied;
     this.nestSlots[slot]?.setState(occupied, false);
     this.nestSlots[slot]?.setIcon(occupied ? (emoji ?? null) : null);
+  }
+
+  /** M4 R7: 정확히 1슬롯만 충족됐을 때(교배 확정 전) 보이는 24px 접힘 탭. */
+  setFoldedTabVisible(visible: boolean): void {
+    if (!this.foldedTabGfx || this.foldedTabGfx.visible === visible) return;
+    this.foldedTabGfx.setVisible(visible);
+    if (visible) {
+      this.foldedTabPulseTween = this.scene.tweens.add({
+        targets: this.foldedTabGfx, alpha: { from: 1, to: 0.5 }, duration: 500, yoyo: true, repeat: -1,
+      });
+    } else {
+      this.foldedTabPulseTween?.stop();
+      this.foldedTabPulseTween = undefined;
+      this.foldedTabGfx.setAlpha(1);
+    }
   }
 
   update(state: GameState): void {

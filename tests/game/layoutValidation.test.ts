@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkChromeSafeZone } from '../../src/game/layoutValidation';
+import { checkChromeSafeZone, checkHatchOverlaySafeZone } from '../../src/game/layoutValidation';
 import { DOCK_H, DOCK_Y, HUD_BAR_H, UNIT_MAX_HALF_H } from '../../src/game/config';
 
 describe('크롬-세이프존-트랙 산술', () => {
@@ -40,5 +40,13 @@ describe('크롬-세이프존-트랙 산술', () => {
   it('경계값: 트랙 최저점(520)+반높이(16)=독 상단(536) 정확히 일치는 통과, 1px 모자라면 실패', () => {
     expect(checkChromeSafeZone({ dockY: 536 }).ok).toBe(true);
     expect(checkChromeSafeZone({ dockY: 535 }).ok).toBe(false);
+  });
+});
+
+describe('M4 부화·예상 혈통 카드 세이프존(y100~420, R7)', () => {
+  it('실제 config 상수는 세이프존·카드 좌표 위반이 없어야 한다', () => {
+    const result = checkHatchOverlaySafeZone();
+    expect(result.reasons).toEqual([]);
+    expect(result.ok).toBe(true);
   });
 });

@@ -159,10 +159,33 @@ export const RARE_PITY = 8;                           // 희귀 피티 임계 (�
 export const LEGEND_PITY = 60;                        // 전설 피티 임계 (영속)
 export const RARE_PITY_BOOST = 10;                    // 피티 발동 시 희귀 확률(%)
 export const STRIKE_PERIOD: Record<2 | 3 | 4, number> = { 2: 4, 3: 3, 4: 2 };
-export const BLOODLINE_STRIKE_ENABLED = false;        // M4에서 true
+export const BLOODLINE_STRIKE_ENABLED = true;         // M4: 연출과 함께 활성화
 export const TRAIT_INHERIT = { fromA: 50, fromB: 40, third: 20, synthesis: 60 } as const;
 export const GEN_MAX = 4;
 export const SAVE_SCHEMA_VERSION = 2;                 // v2 = gen/lineage/특성 + exhaust 제거
+
+// --- M4: 혈통의 무대 (docs/redesign/05-design-v3.md R4·R6·R7, 13-edge-case-matrix E10) ---
+export const MUTATION_COMMON_GOLD = 10;               // 일반 변이 즉시 골드 (R6)
+export const PREVIEW_SLOWMO = 0.3;                    // 예상 혈통 카드 구간 절대 배속 (E10 — 2배속 중에도 고정)
+export const HATCH_SAFE_ZONE_Y1 = 100;                // 부화·예상카드 세이프존 (R7)
+export const HATCH_SAFE_ZONE_Y2 = 420;
+export const PREVIEW_CARD_W = 220;                    // 변이 등급별 설명 문구가 들어갈 폭
+export const PREVIEW_CARD_H = 148;
+export const PREVIEW_CARD_X = (GAME_WIDTH - PREVIEW_CARD_W) / 2;
+export const PREVIEW_CARD_Y = 150;                    // 150~298, 세이프존 내부
+export const BREED_BUTTON_W = 64;
+export const BREED_BUTTON_H = 48;
+export const BREED_BUTTON_X = (GAME_WIDTH - BREED_BUTTON_W) / 2;
+export const BREED_BUTTON_Y = PREVIEW_CARD_Y + PREVIEW_CARD_H + 12; // 292
+export const FOLDED_TAB_SIZE = 24;                    // 1슬롯 충족 시 접힘 탭 (R7)
+
+// Gen별 형태 표기 (R4) — 색상은 렌더 레이어(scenes/ui/tokens.ts UI.gold)에서 해석
+export const GEN_VISUALS: Record<1 | 2 | 3 | 4, { ring: boolean; horn: boolean; crown: boolean; pulse: boolean; scaleMult: number }> = {
+  1: { ring: true, horn: false, crown: false, pulse: false, scaleMult: 1.0 },
+  2: { ring: true, horn: true,  crown: false, pulse: false, scaleMult: 1.0 },
+  3: { ring: true, horn: false, crown: true,  pulse: false, scaleMult: 1.10 },
+  4: { ring: true, horn: false, crown: true,  pulse: true,  scaleMult: 1.18 },
+};
 
 // Boss reward economy
 export const REWARD_GOLD_AMOUNT = 150;

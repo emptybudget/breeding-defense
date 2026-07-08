@@ -9,6 +9,9 @@ export const UI = {
   panelHi: 0x3a3220,
   danger: 0x8a2f2f,
   disabled: 0x1c1a10,
+  // M4: 카드·바텀시트 언어 (17-ui-design-tokens.md §5) — 금색=혈통 전용(헌법 제4조), T2 잭팟은 백금
+  silver: 0xc8d4e0,
+  platinum: 0xd8dde3,
   // 수치
   radius: 8,
   border: 2,

@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
-import { BANNER_PRIORITY, BannerTag, BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, DOCK_H, DOCK_Y, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, ROUND_CLEAR_GOLD, SELL_EDGE_W, TOTAL_ROUNDS, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
+import { BANNER_PRIORITY, BannerTag, BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, DOCK_CENTER_Y, DOCK_H, DOCK_Y, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, NEST_SLOT_1_X, PREVIEW_CARD_H, PREVIEW_CARD_W, PREVIEW_CARD_X, PREVIEW_CARD_Y, ROUND_CLEAR_GOLD, SELL_EDGE_W, TOTAL_ROUNDS, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
 import { computeEffectiveSpeedMult } from '../game/ftue';
 import { GameState, Phase } from '../game/GameState';
+import { MutationGrade } from '../game/types';
 import { W1_5_CUTIN_LINE } from '../game/lore';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y, CHARACTER_ASSETS, unitTextureKey } from './constants';
@@ -13,6 +14,7 @@ import { NotificationRenderer } from './render/NotificationRenderer';
 import { PopupRenderer } from './render/PopupRenderer';
 import { UnitRenderer } from './render/UnitRenderer';
 import { SoundManager } from './SoundManager';
+import { UI } from './ui/tokens';
 
 export class GameScene extends Phaser.Scene {
   private state!: GameState;
@@ -68,7 +70,7 @@ export class GameScene extends Phaser.Scene {
     this.sfx = new SoundManager();
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
-    this.unitRenderer = new UnitRenderer(this, this.state, this.sfx);
+    this.unitRenderer = new UnitRenderer(this, this.state, this.sfx, (mutation) => this.onHatchRevealed(mutation));
     // M2: 2배속 W1 무료 기본화 (기구매자는 MetaProgress 마이그레이션에서 3💎 환불)
     this.speed2xUnlocked = this.world === 1 || this.metaProgress.getLevel('gameSpeed2x') > 0;
     this.hudRenderer = new HudRenderer(
@@ -196,7 +198,10 @@ export class GameScene extends Phaser.Scene {
 
     // GD1: 페이즈 전환 컷인 동안 0.4s 시뮬레이션 프리즈 (입력 핸들러는 영향 X)
     // M2: FTUE 강제 스텝 활성 중엔 2배속 설정을 무시하고 1배속 고정
-    const effectiveSpeedMult = computeEffectiveSpeedMult(this.speedMult, this.ftue.isForcingNormalSpeed);
+    // M4: 예상 혈통 카드 표시 중엔 절대값 0.3배속이 최우선(E10) — Phaser 타이머/트윈도 동일 스케일 동기화
+    const effectiveSpeedMult = computeEffectiveSpeedMult(this.speedMult, this.ftue.isForcingNormalSpeed, this.dragController.isPreviewActive);
+    this.time.timeScale = effectiveSpeedMult;
+    this.tweens.timeScale = effectiveSpeedMult;
     const scaledDelta = _time < this.phaseFreezeUntilMs ? 0 : deltaMs * effectiveSpeedMult;
     this.state.tick(scaledDelta);
 
@@ -328,13 +333,32 @@ export class GameScene extends Phaser.Scene {
       this.state.pendingPitySave = false;
     }
     if (this.state.pendingMutationRecord) {
-      this.metaProgress.recordMutation(this.state.pendingMutationRecord);
+      const grade = this.state.pendingMutationRecord;
+      this.metaProgress.recordMutation(grade);
       this.state.pendingMutationRecord = null;
+      // M4 R6: 일반 변이 즉시 소보상 연출(골드 지급은 GameState.completeBreeding에서 이미 처리됨)
+      if (grade === 'common') {
+        this.tryShowBanner(
+          'mutationStamp',
+          () => this.showMutationStampBanner(),
+          () => this.notificationRenderer.add('🧬 변이 +10G', '#8ab8ff'),
+          800,
+        );
+      }
     }
 
     // M2 F3: W1-1 적 카운트 60% 최초 도달
     if (this.world === 1 && this.stage === 1 && !this.ftue.isDone('F3') && this.state.enemyCount / MAX_ENEMIES >= 0.6) {
       this.ftue.enqueue('F3', this.hudRenderer.getCountRingBounds(), '적이 40마리 차면 패배!', { durationMs: 3000 });
+    }
+
+    // M4 F5: W1-2, 유닛 2마리 이상 최초 보유 → 둥지로 드래그 강제
+    if (this.world === 1 && this.stage === 2 && !this.ftue.isDone('F5') && this.state.units.length >= 2) {
+      const unit = this.state.units[0];
+      this.ftue.enqueue('F5', { x: unit.x - 20, y: unit.y - 20, w: 40, h: 40 }, '유닛을 둥지로 끌어오자', {
+        forced: true,
+        ghost: { type: 'drag', from: { x: unit.x, y: unit.y }, to: { x: NEST_SLOT_1_X, y: DOCK_CENTER_Y } },
+      });
     }
 
     // M2 F9: 유닛 캡 최초 도달 (판매존 사용 가능한 스테이지에서만)
@@ -552,12 +576,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   // G2: 잭팟 소환 — ULTIMATE 축소 연출 (플래시 + 셰이크 80ms)
+  // M4: 금색=혈통 전용 (헌법 제4조) — T2 잭팟은 백금으로 색 분리
   private showJackpotEffect(): void {
     this.cameras.main.shake(80, 0.008);
-    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0xffcc00, 0.35).setDepth(20);
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, UI.platinum, 0.35).setDepth(20);
     this.tweens.add({ targets: flash, alpha: 0, duration: 250, onComplete: () => flash.destroy() });
     const text = this.add.text(CENTER_X, CENTER_Y - 40, '🎰 JACKPOT!', {
-      fontFamily: 'monospace', fontSize: '26px', color: '#ffcc00',
+      fontFamily: 'monospace', fontSize: '26px', color: '#d8dde3',
       stroke: '#000000', strokeThickness: 4,
     }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: text, y: CENTER_Y - 80, alpha: 0, duration: 1000, onComplete: () => text.destroy() });
@@ -565,9 +590,7 @@ export class GameScene extends Phaser.Scene {
 
   private toggleSpeedMult(): void {
     this.speedMult = this.speedMult === 2 ? 1 : 2;
-    // Also scale Phaser timers/tweens for consistent feel
-    this.time.timeScale = this.speedMult;
-    this.tweens.timeScale = this.speedMult;
+    // Phaser 타이머/트윈 배속은 update()가 매 프레임 effectiveSpeedMult로 동기화한다(M4).
   }
 
   private onPause(): void {
@@ -640,6 +663,46 @@ export class GameScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(19).setAlpha(0);
     this.tweens.add({ targets: t, alpha: 1, duration: 100 });
     this.tweens.add({ targets: t, alpha: 0, delay: 400, duration: 200, onComplete: () => t.destroy() });
+  }
+
+  // M4: 알 부화 리빌 콜백(UnitRenderer) — rare/legend 등급 배너(E14 hatchGrade) + W1-2 확정 희귀 F7
+  private onHatchRevealed(mutation: MutationGrade | undefined): void {
+    if (mutation === 'rare' || mutation === 'legend') {
+      this.tryShowBanner(
+        'hatchGrade',
+        () => this.showHatchGradeBanner(mutation),
+        () => this.notificationRenderer.add(mutation === 'legend' ? '🌟 전설 부화!' : '✨ 희귀 부화!', '#ffd700'),
+        mutation === 'legend' ? 2000 : 1200,
+      );
+    }
+    if (mutation === 'rare' && this.world === 1 && this.stage === 2 && !this.ftue.isDone('F7')) {
+      this.ftue.enqueue(
+        'F7',
+        { x: PREVIEW_CARD_X, y: PREVIEW_CARD_Y, w: PREVIEW_CARD_W, h: PREVIEW_CARD_H },
+        '방금은 희귀! 보통은 한 계단씩',
+        { durationMs: 4000 },
+      );
+    }
+  }
+
+  private showHatchGradeBanner(grade: MutationGrade): void {
+    const label = grade === 'legend' ? '🌟 전설 부화!' : '✨ 희귀 부화!';
+    const color = grade === 'legend' ? '#ffd700' : '#c8d4e0';
+    const t = this.add.text(CENTER_X, CENTER_Y - 20, label, {
+      fontFamily: 'monospace', fontSize: '22px', color, align: 'center',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(19).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, duration: 100 });
+    this.tweens.add({ targets: t, alpha: 0, delay: grade === 'legend' ? 1200 : 700, duration: 300, onComplete: () => t.destroy() });
+  }
+
+  private showMutationStampBanner(): void {
+    const t = this.add.text(CENTER_X, CENTER_Y - 20, '🧬 변이! +10G', {
+      fontFamily: 'monospace', fontSize: '16px', color: '#8ab8ff', align: 'center',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(19).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, duration: 100 });
+    this.tweens.add({ targets: t, alpha: 0, delay: 300, duration: 200, onComplete: () => t.destroy() });
   }
 
   private showW1Hint(stage: WorldStageId): void {

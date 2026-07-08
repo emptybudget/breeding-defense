@@ -1,10 +1,18 @@
 import Phaser from 'phaser';
 import {
+  BREED_BUTTON_H,
+  BREED_BUTTON_W,
+  BREED_BUTTON_X,
+  BREED_BUTTON_Y,
   DOCK_Y,
   DRAG_LIFT_OFFSET_Y,
   DRAG_SNAP_DIST,
   GAME_HEIGHT,
   GAME_WIDTH,
+  PREVIEW_CARD_H,
+  PREVIEW_CARD_W,
+  PREVIEW_CARD_X,
+  PREVIEW_CARD_Y,
   SELL_GOLD_TIER1,
   SELL_GOLD_TIER2,
   SELL_GOLD_TIER3,
@@ -14,7 +22,7 @@ import {
 } from '../../game/config';
 import { distToNestSlot, getNestSlotRect, isInSellZone, NestSlot } from '../../game/dockGeometry';
 import { GameState } from '../../game/GameState';
-import { canBreed } from '../../game/breeding';
+import { canBreed, previewBreedOutcome } from '../../game/breeding';
 import { ASTRAL_GOD_RECIPE, getCategory, getTier3Recipes } from '../../game/unitHelpers';
 import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../game/types';
 import { FtueController } from '../FtueController';
@@ -42,6 +50,12 @@ export class DragController {
 
   // M1b: 둥지 슬롯 점유 유닛 id (null = 비어있음)
   private nestOccupants: [number | null, number | null] = [null, null];
+  // M4: 2슬롯 충족 → 예상 혈통 카드 표시 중인 페어 (확정/취소 전까지 startBreeding 보류)
+  private previewPair: [number, number] | null = null;
+
+  get isPreviewActive(): boolean {
+    return this.previewPair !== null;
+  }
 
   constructor(
     scene: Phaser.Scene,
@@ -72,6 +86,11 @@ export class DragController {
       const unitId = label.getData('unitId') as number;
       this.unitRenderer.setDragging(unitId, true);
       this.unitRenderer.getRangeCircle(unitId)?.setVisible(true);
+
+      // M4: 예상 혈통 카드 표시 중 페어 중 하나를 다시 드래그 → 미리보기 취소(비용 없음)
+      if (this.previewPair && (this.previewPair[0] === unitId || this.previewPair[1] === unitId)) {
+        this.cancelBreedingPreview();
+      }
 
       const draggedUnit = this.state.units.find(u => u.id === unitId);
       if (draggedUnit) {
@@ -209,9 +228,16 @@ export class DragController {
   private vacateNestSlot(slot: NestSlot | -1): void {
     if (slot === -1) return;
     const occupant = this.nestOccupants[slot];
-    if (occupant !== null) this.unitRenderer.setNestWaiting(occupant, false);
+    if (occupant !== null) {
+      this.unitRenderer.setNestWaiting(occupant, false);
+      // M4: 예상 혈통 카드가 참조 중인 유닛이 다른 경로(판매 등)로 슬롯을 떠나면 미리보기도 취소.
+      if (this.previewPair && (this.previewPair[0] === occupant || this.previewPair[1] === occupant)) {
+        this.cancelBreedingPreview();
+      }
+    }
     this.nestOccupants[slot] = null;
     this.hudRenderer.setNestSlotOccupied(slot, false);
+    this.hudRenderer.setFoldedTabVisible(this.nestOccupants.some(o => o !== null));
   }
 
   private bounceLocked(go: Phaser.GameObjects.Text, unit: UnitData): void {
@@ -224,7 +250,8 @@ export class DragController {
   }
 
   // 코어 판정: 드래그 드롭과 탭 바텀시트 '둥지로' 둘 다 이걸 공유한다.
-  private tryNestPlace(slot: NestSlot, id: number, unit: UnitData): 'placed' | 'bred' | 'incompatible' | 'cap-full' {
+  // M4: 2슬롯 충족 시 즉시 교배하지 않고 '예상 혈통 카드'를 띄운다 — 확정은 confirmBreeding()에서.
+  private tryNestPlace(slot: NestSlot, id: number, unit: UnitData): 'placed' | 'preview' | 'incompatible' | 'cap-full' {
     const otherSlot: NestSlot = slot === 0 ? 1 : 0;
     const otherId = this.nestOccupants[otherSlot];
 
@@ -241,6 +268,8 @@ export class DragController {
 
     if (otherId === null || otherId === id) {
       place();
+      this.hudRenderer.setFoldedTabVisible(true);
+      this.ftue?.complete('F5');
       return 'placed';
     }
 
@@ -249,19 +278,41 @@ export class DragController {
 
     // M3: 부모 2 소모 → 자식 1 = 순감이라 정원 체크 불필요 (E13). 예산 초과는 canBreed가 이미 차단.
     place();
-    const started = this.state.startBreeding(otherId, id);
-    if (started) {
-      // 둘 다 교배 시작 → 대기 마커 제거(교배 하트로 대체), 슬롯 비우기
-      this.unitRenderer.setNestWaiting(id, false);
-      this.unitRenderer.setNestWaiting(otherId, false);
-      this.nestOccupants = [null, null];
-      this.hudRenderer.setNestSlotOccupied(0, false);
-      this.hudRenderer.setNestSlotOccupied(1, false);
-      this.unitRenderer.startBreedingEffect(otherId, id);
-      this.sfx?.playSFX('breed');
-      return 'bred';
+    this.hudRenderer.setFoldedTabVisible(false);
+    this.previewPair = [otherId, id];
+    const info = previewBreedOutcome(otherUnit, unit, this.state.pity);
+    this.popupRenderer.showBreedingPreview(otherUnit, unit, info, () => this.confirmBreeding(otherId, id));
+    if (this.ftue && !this.ftue.isDone('F6')) {
+      this.ftue.enqueue('F6', { x: PREVIEW_CARD_X, y: PREVIEW_CARD_Y, w: PREVIEW_CARD_W, h: PREVIEW_CARD_H }, '교배하면 세대(Gen)가 오른다', {
+        forced: true,
+        ghost: { type: 'tap', at: { x: BREED_BUTTON_X + BREED_BUTTON_W / 2, y: BREED_BUTTON_Y + BREED_BUTTON_H / 2 } },
+      });
     }
-    return 'placed';
+    return 'preview';
+  }
+
+  /** 예상 혈통 카드의 '교배' 버튼 — 여기서 비로소 예산 소모+부모 소모가 확정된다. */
+  private confirmBreeding(idA: number, idB: number): void {
+    this.popupRenderer.hideBreedingPreview();
+    this.previewPair = null;
+    this.unitRenderer.setNestWaiting(idA, false);
+    this.unitRenderer.setNestWaiting(idB, false);
+    this.nestOccupants = [null, null];
+    this.hudRenderer.setNestSlotOccupied(0, false);
+    this.hudRenderer.setNestSlotOccupied(1, false);
+    const started = this.state.startBreeding(idA, idB);
+    if (started) {
+      this.unitRenderer.startBreedingEffect(idA, idB);
+      this.sfx?.playSFX('breed');
+      this.ftue?.complete('F6');
+    }
+  }
+
+  /** 예상 혈통 카드 취소 — UI만 닫는다, 슬롯/유닛/예산은 그대로(비용 없음). */
+  private cancelBreedingPreview(): void {
+    if (!this.previewPair) return;
+    this.popupRenderer.hideBreedingPreview();
+    this.previewPair = null;
   }
 
   private handleNestDrop(slot: NestSlot, id: number, go: Phaser.GameObjects.Text, unit: UnitData): void {
@@ -270,7 +321,7 @@ export class DragController {
     // 두 경우 모두 unit.x/y를 그대로 따라가면 성공=스냅, 실패=원위치가 된다.
     go.setPosition(unit.x, unit.y);
     this.unitRenderer.getRangeCircle(id)?.setPosition(unit.x, unit.y);
-    if (outcome === 'placed' || outcome === 'bred') return;
+    if (outcome === 'placed' || outcome === 'preview') return;
     if (outcome === 'incompatible') {
       this.notificationRenderer.add('⚠️ 같은 카테고리 유닛만 교배 가능', '#ff8844');
     } else {

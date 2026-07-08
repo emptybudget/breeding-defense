@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GameState } from '../../game/GameState';
 import { Reward, UnitData } from '../../game/types';
 import { SoundManager } from '../SoundManager';
+import { BreedingPreviewCard, BreedPreviewInfo } from './popups/BreedingPreviewCard';
 import { GameOverPopup } from './popups/GameOverPopup';
 import { PausePopup } from './popups/PausePopup';
 import { RecipePopup } from './popups/RecipePopup';
@@ -23,6 +24,7 @@ export class PopupRenderer {
   private rewardPopup: RewardPopup;
   private soulShopPopup: SoulShopPopup;
   private unitActionSheet: UnitActionSheet;
+  private breedingPreviewCard: BreedingPreviewCard;
 
   constructor(
     scene: Phaser.Scene,
@@ -43,6 +45,7 @@ export class PopupRenderer {
     this.rewardPopup = new RewardPopup(scene, state, onGemChange, sfx);
     this.soulShopPopup = new SoulShopPopup(scene, state, sfx);
     this.unitActionSheet = new UnitActionSheet(scene, sfx);
+    this.breedingPreviewCard = new BreedingPreviewCard(scene, sfx);
   }
 
   get hasGameOverPopup(): boolean {
@@ -83,6 +86,14 @@ export class PopupRenderer {
 
   showRecipeBook(onClose: () => void, discovered: ReadonlySet<string>): void {
     this.recipePopup.showRecipeBook(onClose, discovered);
+  }
+
+  showBreedingPreview(a: UnitData, b: UnitData, preview: BreedPreviewInfo, onConfirm: () => void): void {
+    this.breedingPreviewCard.show(a, b, preview, onConfirm);
+  }
+
+  hideBreedingPreview(): void {
+    this.breedingPreviewCard.hide();
   }
 
   showGameOver(isNewRecord = false): void {

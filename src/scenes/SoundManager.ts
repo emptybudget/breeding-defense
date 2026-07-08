@@ -1,4 +1,5 @@
-export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory' | 'button' | 'roundClear' | 'cardFlip';
+export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory' | 'button' | 'roundClear' | 'cardFlip'
+  | 'eggTick' | 'hatchCommon' | 'hatchRare' | 'hatchLegend' | 'strike';
 
 // BGM: C major, 120 BPM, 8-bar melodic loop (16s)
 //   Bass  : C-C-G-G-F-F-G-G (one per bar)
@@ -34,6 +35,7 @@ export class SoundManager {
   private bgmMaster: GainNode | null = null;
   private bgmLoopTimeout: ReturnType<typeof setTimeout> | null = null;
   private _muted = false;
+  private _lastStrikeSfxMs = 0; // M4: 다타겟 동시 발동 80ms 스로틀 (10-sound-spec.md)
 
   get muted(): boolean { return this._muted; }
 
@@ -142,6 +144,11 @@ export class SoundManager {
         case 'button':    this.sfxButton(ctx);    break;
         case 'roundClear': this.sfxRoundClear(ctx); break;
         case 'cardFlip':  this.sfxCardFlip(ctx);  break;
+        case 'eggTick':     this.sfxEggTick(ctx);     break;
+        case 'hatchCommon': this.sfxHatchCommon(ctx); break;
+        case 'hatchRare':   this.sfxHatchRare(ctx);   break;
+        case 'hatchLegend': this.sfxHatchLegend(ctx); break;
+        case 'strike':      this.sfxStrike(ctx);      break;
       }
     } catch {}
   }
@@ -206,5 +213,40 @@ export class SoundManager {
 
   private sfxCardFlip(ctx: AudioContext): void {
     this.tone(ctx, 'triangle', 1200, 1600, 0.1, ctx.currentTime, 0.05);
+  }
+
+  // M4: 알 게이지 1초마다 ×3 — 호출마다 상승 음정(880→990→1100), 3회 주기로 자연 랩어라운드
+  private _eggTickIndex = 0;
+  private sfxEggTick(ctx: AudioContext): void {
+    const f = 880 + (this._eggTickIndex % 3) * 110;
+    this._eggTickIndex++;
+    this.tone(ctx, 'triangle', f, f, 0.08, ctx.currentTime, 0.05);
+  }
+
+  private sfxHatchCommon(ctx: AudioContext): void {
+    this.tone(ctx, 'sine', 523, 523, 0.2, ctx.currentTime, 0.15);
+    this.tone(ctx, 'sine', 659, 659, 0.18, ctx.currentTime + 0.08, 0.12);
+  }
+
+  private sfxHatchRare(ctx: AudioContext): void {
+    this.sfxHatchCommon(ctx);
+    [523, 659, 784, 1047].forEach((f, i) =>
+      this.tone(ctx, 'sine', f, f, 0.22, ctx.currentTime + i * 0.07, 0.13));
+  }
+
+  private sfxHatchLegend(ctx: AudioContext): void {
+    this.sfxHatchCommon(ctx);
+    [523, 659, 784, 1047, 1319, 1568].forEach((f, i) =>
+      this.tone(ctx, 'sine', f, f, 0.26, ctx.currentTime + i * 0.06, 0.13));
+    this.tone(ctx, 'sine', 1568, 1568, 0.2, ctx.currentTime + 0.36, 0.5);
+    this.tone(ctx, 'triangle', 3136, 3136, 0.06, ctx.currentTime + 0.36, 0.5);
+  }
+
+  // M4: 혈통 일격 — 다타겟 동시 발동 시 80ms 자체 스로틀 (귀 피로 방지)
+  private sfxStrike(ctx: AudioContext): void {
+    const nowMs = ctx.currentTime * 1000;
+    if (nowMs - this._lastStrikeSfxMs < 80) return;
+    this._lastStrikeSfxMs = nowMs;
+    this.tone(ctx, 'sawtooth', 220, 880, 0.14, ctx.currentTime, 0.08);
   }
 }

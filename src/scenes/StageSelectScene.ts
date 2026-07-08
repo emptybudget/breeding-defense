@@ -199,6 +199,9 @@ export class StageSelectScene extends Phaser.Scene {
   }
 
   private launchStage(stage: WorldStageId): void {
+    // Phaser는 씬 재진입 시 인스턴스를 재사용 — briefingPanel 참조를 안 지우면
+    // 다음 방문 때 showStageBriefing()의 "이미 열림" 가드가 죽은 참조 때문에 계속 막힌다.
+    this.briefingPanel = undefined;
     this.cameras.main.fadeOut(300, 0, 0, 0);
     this.cameras.main.once('camerafadeoutcomplete', () => {
       this.scene.start('GameScene', { world: this.selectedWorld, stage });

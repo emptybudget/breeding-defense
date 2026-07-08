@@ -21,6 +21,7 @@ import {
 import { GameState } from '../../game/GameState';
 import { EnemyType, UnitRace } from '../../game/types';
 import { SoundManager } from '../SoundManager';
+import { UI } from '../ui/tokens';
 
 const ENEMY_EMOJI: Record<EnemyType, string> = {
   NORMAL: '👾',
@@ -433,6 +434,16 @@ export class EnemyRenderer {
               this.flashGraphics.strokePath();
             }
           }
+        }
+
+        // M4 R4: 혈통 일격 추가타 — 금색 스트릭 오버레이 스텁(fx_bloodline_strike.png 미확보, AM7 교체 예정)
+        if (atk.isStrike) {
+          this.flashGraphics.lineStyle(3, UI.gold, 1);
+          this.flashGraphics.beginPath();
+          this.flashGraphics.moveTo(atk.unitX, atk.unitY);
+          this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
+          this.flashGraphics.strokePath();
+          this.sfx?.playSFX('strike');
         }
 
         if (atk.damage > 0) {

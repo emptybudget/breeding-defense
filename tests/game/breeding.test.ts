@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canBreed, resolveBreeding, resolveLineage, inheritOnSynthesis,
-  bloodlineStrike, findApexUnit, PityState,
+  bloodlineStrike, findApexUnit, previewBreedOutcome, PityState,
 } from '../../src/game/breeding';
 import { makeUnit } from '../../src/game/unitHelpers';
 import { FAMILY_OF_RACE } from '../../src/game/naming';
@@ -180,14 +180,55 @@ describe('승계 우선순위 (14 §2 ③⑤⑦, E5·E22)', () => {
   });
 });
 
+describe('M4 forceRare — W1-2 확정 희귀 (R3)', () => {
+  it('forceRare=true면 rng 무관 mutation=rare, Gen+1 추가', () => {
+    const rng = scripted([0, 0.99, 0.99, 0.99]); // childRace/rollMutation 자리 모두 "낮은 확률 없음" 값
+    const out = resolveBreeding(t1(1, 'Warrior', 0), t1(2, 'Archer', 0), NO_PITY, rng, true);
+    expect(out.mutation).toBe('rare');
+    expect(out.childGen).toBe(2); // 0 +1(동계열) +1(희귀)
+  });
+  it('forceRare=true면 피티가 실제 희귀 획득처럼 리셋된다', () => {
+    const out = resolveBreeding(t1(1, 'Warrior'), t1(2, 'Archer'), { rareMiss: 5, legendMiss: 10 }, scripted([0, 0.99]), true);
+    expect(out.pityAfter.rareMiss).toBe(0);
+    expect(out.pityAfter.legendMiss).toBe(11); // 희귀는 legend-plus가 아니므로 legendMiss는 그대로 +1
+  });
+  it('forceRare=false(기본)면 일반 롤 그대로', () => {
+    const out = resolveBreeding(t1(1, 'Warrior'), t1(2, 'Archer'), NO_PITY, scripted([0, 0.99]));
+    expect(out.mutation).toBeUndefined();
+  });
+});
+
+describe('previewBreedOutcome (M4 예상 혈통 카드)', () => {
+  it('rng를 소비하지 않고 결정론적 Gen·계열 일치 여부를 반환', () => {
+    const p1 = previewBreedOutcome(t1(1, 'Warrior', 1), t1(2, 'Archer', 0), NO_PITY);
+    expect(p1.cross).toBe(false);
+    expect(p1.expectedGen).toBe(2); // 동계열: max(1,0)+1
+    const p2 = previewBreedOutcome(t1(1, 'Warrior', 1), t1(2, 'Dog', 2), NO_PITY);
+    expect(p2.cross).toBe(true);
+    expect(p2.expectedGen).toBe(2); // 이계열: max(1,2) 유지
+  });
+  it('전설 피티 임계 도달 시 변이 확률 100%', () => {
+    const p = previewBreedOutcome(t1(1, 'Warrior'), t1(2, 'Archer'), { rareMiss: 0, legendMiss: LEGEND_PITY });
+    expect(p.mutationChancePct).toBe(100);
+  });
+  it('희귀 피티 임계 도달 시 확률이 상승', () => {
+    const base = previewBreedOutcome(t1(1, 'Warrior'), t1(2, 'Archer'), NO_PITY);
+    const boosted = previewBreedOutcome(t1(1, 'Warrior'), t1(2, 'Archer'), { rareMiss: RARE_PITY, legendMiss: 0 });
+    expect(boosted.mutationChancePct).toBeGreaterThan(base.mutationChancePct);
+  });
+});
+
 describe('혈통 일격 (14 §2 ⑥, E17)', () => {
   function gen(g: number, counter: number): UnitData {
     const u = makeUnit(1, 'Warrior', 1, 0, 0);
     u.gen = g as UnitData['gen']; u.strikeCounter = counter;
     return u;
   }
-  it('플래그 off(기본)면 항상 false', () => {
-    expect(bloodlineStrike(gen(3, 3))).toBe(false);
+  it('M4: 플래그 on(기본)이면 Gen 조건 충족 시 발동', () => {
+    expect(bloodlineStrike(gen(3, 3))).toBe(true);
+  });
+  it('명시적 enabled=false면 항상 false', () => {
+    expect(bloodlineStrike(gen(3, 3), false)).toBe(false);
   });
   it('Gen<2면 false', () => {
     expect(bloodlineStrike(gen(1, 4), true)).toBe(false);

@@ -37,8 +37,9 @@ export interface BreedOutcome {
 const clampGen = (g: number): Gen => Math.max(0, Math.min(GEN_MAX, g)) as Gen;
 
 // ② 교배 결과 판정 (핵심 — 부작용 없음)
+// forceRare: W1-2 최초 1회 교배 확정 희귀 (R3) — 호출부(GameState)가 스테이지·교배 횟수로 판단, 여기선 그대로 수용만.
 export function resolveBreeding(
-  a: UnitData, b: UnitData, pity: PityState, rng: () => number,
+  a: UnitData, b: UnitData, pity: PityState, rng: () => number, forceRare = false,
 ): BreedOutcome {
   const raceA = a.race as Tier1Race;
   const raceB = b.race as Tier1Race;
@@ -48,7 +49,7 @@ export function resolveBreeding(
   const childRace: Tier1Race = rng() < 0.5 ? raceA : raceB;
 
   // 변이 등급 롤 (피티 반영 — 12-F3)
-  const mutation = rollMutation(cross, pity, rng);
+  const mutation = forceRare ? 'rare' : rollMutation(cross, pity, rng);
   const gotRarePlus = mutation === 'rare' || mutation === 'legend';
   const pityAfter: PityState = {
     rareMiss: gotRarePlus ? 0 : pity.rareMiss + 1,
@@ -76,6 +77,21 @@ export function resolveBreeding(
   const epithet = mutation ? rollEpithet(mutation, rng) : undefined;
 
   return { childRace, childGen: finalGen, cross, mutation, inheritedTrait, secondTrait, epithet, pityAfter };
+}
+
+// M4: 예상 혈통 카드용 — rng 소비·pity 변경 없이 결정론적 절반(Gen·변이 확률%)만 미리 계산.
+export function previewBreedOutcome(
+  a: UnitData, b: UnitData, pity: PityState,
+): { expectedGen: Gen; mutationChancePct: number; cross: boolean } {
+  const raceA = a.race as Tier1Race;
+  const raceB = b.race as Tier1Race;
+  const cross = FAMILY_OF_RACE[raceA] !== FAMILY_OF_RACE[raceB];
+  const parentMaxGen = Math.max(a.gen ?? 0, b.gen ?? 0);
+  const expectedGen = clampGen(cross ? parentMaxGen : parentMaxGen + 1);
+  if (pity.legendMiss >= LEGEND_PITY) return { expectedGen, mutationChancePct: 100, cross };
+  const t = cross ? MUTATION_TABLE.cross : MUTATION_TABLE.same;
+  const rareP = pity.rareMiss >= RARE_PITY ? RARE_PITY_BOOST : t.rare;
+  return { expectedGen, mutationChancePct: t.legend + rareP + t.common, cross };
 }
 
 // 변이 등급 롤 (피티 발동: 희귀 피티 → 희귀 %상승, 전설 피티 → 전설 확정)

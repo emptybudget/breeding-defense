@@ -20,6 +20,7 @@ import {
   MINIBOSS_GOLD_AMOUNT,
   MINIBOSS_WAVE_GUARD_MS,
   MINIBOSS_WAVE_DELAY_MS,
+  MUTATION_COMMON_GOLD,
   MINUTE_HP_MULT,
   MINUTE_SPEED_MULT,
   OVERCLOCK_HP_GROWTH,
@@ -579,7 +580,9 @@ export class GameState {
     const ox = (a.x + b.x) / 2 + (Math.random() - 0.5) * 20;
     const oy = (a.y + b.y) / 2 + (Math.random() - 0.5) * 20;
 
-    const outcome = resolveBreeding(a, b, this.pity, Math.random);
+    // R3: W1-2 최초 1회 확정 교배 = 확정 희귀 (breedsUsedThisGame은 startBreeding에서 이미 +1된 상태이므로 1이면 "이번 판 첫 확정 교배")
+    const forceRare = this.stageConfig.name === 'W1-2' && this.breedsUsedThisGame === 1;
+    const outcome = resolveBreeding(a, b, this.pity, Math.random, forceRare);
     const { lineage, isNew } = resolveLineage(
       a, b, outcome, this.lineages, this._usedNames, this._nextLineageId, Math.random,
     );
@@ -618,6 +621,7 @@ export class GameState {
       mutation: outcome.mutation, bloodlineName: lineage.name, epithet: outcome.epithet, isNewLineage: isNew,
     };
     if (outcome.mutation) this.pendingMutationRecord = outcome.mutation;
+    if (outcome.mutation === 'common') this.gold += MUTATION_COMMON_GOLD;
 
     const born: UnitData[] = [child];
 
