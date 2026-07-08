@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
-import { BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
+import { BANNER_PRIORITY, BannerTag, BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, DOCK_H, DOCK_Y, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, ROUND_CLEAR_GOLD, SELL_EDGE_W, TOTAL_ROUNDS, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
+import { computeEffectiveSpeedMult } from '../game/ftue';
 import { GameState, Phase } from '../game/GameState';
+import { W1_5_CUTIN_LINE } from '../game/lore';
 import { MetaProgress } from '../game/MetaProgress';
 import { CENTER_X, CENTER_Y, CHARACTER_ASSETS, unitTextureKey } from './constants';
+import { FtueController } from './FtueController';
 import { DragController } from './input/DragController';
 import { EnemyRenderer } from './render/EnemyRenderer';
 import { HudRenderer } from './render/HudRenderer';
@@ -22,6 +25,7 @@ export class GameScene extends Phaser.Scene {
   private notificationRenderer!: NotificationRenderer;
   private unitRenderer!: UnitRenderer;
   private dragController!: DragController;
+  private ftue!: FtueController;
   private mineGraphics!: Phaser.GameObjects.Graphics;
   private dangerBorder!: Phaser.GameObjects.Graphics;
   private dangerTween?: Phaser.Tweens.Tween;
@@ -34,6 +38,7 @@ export class GameScene extends Phaser.Scene {
   private stage: WorldStageId = 1;
   private _lastCritHapticMs = 0;
   private phaseFreezeUntilMs = 0;
+  private activeBannerTag: BannerTag | null = null;
 
   constructor() {
     super('GameScene');
@@ -50,6 +55,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.metaProgress = new MetaProgress();
+    this.ftue = new FtueController(this, this.metaProgress);
     this.starsAwarded = false;
     this.overclockSfxPlayed = false;
     const data = (this.scene.settings.data as Record<string, unknown>) ?? {};
@@ -62,8 +68,9 @@ export class GameScene extends Phaser.Scene {
     this.sfx = new SoundManager();
     this.sfx.startBGM();
     this.notificationRenderer = new NotificationRenderer(this);
-    this.unitRenderer = new UnitRenderer(this, this.state);
-    this.speed2xUnlocked = this.metaProgress.getLevel('gameSpeed2x') > 0;
+    this.unitRenderer = new UnitRenderer(this, this.state, this.sfx);
+    // M2: 2배속 W1 무료 기본화 (기구매자는 MetaProgress 마이그레이션에서 3💎 환불)
+    this.speed2xUnlocked = this.world === 1 || this.metaProgress.getLevel('gameSpeed2x') > 0;
     this.hudRenderer = new HudRenderer(
       this,
       () => {
@@ -72,6 +79,11 @@ export class GameScene extends Phaser.Scene {
         if (this.state.pendingJackpot) {
           this.state.pendingJackpot = false;
           this.showJackpotEffect();
+        }
+        // M2 F1→F2: W1-1 최초 소환 강제 스텝 완료 → 후속 카피 즉시 연결
+        if (unit && this.world === 1 && this.stage === 1 && !this.ftue.isDone('F1')) {
+          this.ftue.complete('F1');
+          this.ftue.enqueue('F2', { x: unit.x - 20, y: unit.y - 20, w: 40, h: 40 }, '유닛은 알아서 싸운다', { durationMs: 3000 });
         }
       },
       () => { this.state.upgradePopulation(); },
@@ -125,7 +137,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.create();
     this.hudRenderer.create(this.state);
 
-    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.hudRenderer, this.sfx);
+    this.dragController = new DragController(this, this.state, this.unitRenderer, this.notificationRenderer, this.popupRenderer, this.hudRenderer, this.sfx, this.ftue);
     this.dragController.register();
 
     // Blur / visibility → auto-pause to prevent game-over during interruptions
@@ -140,6 +152,21 @@ export class GameScene extends Phaser.Scene {
       this.showStageIntro(() => {
         if (this.world === 1) this.showW1Hint(this.stage);
         this.state.isPaused = false;
+
+        // M2 F1: W1-1 씬 시작 0.5s 후 소환 강제
+        if (this.world === 1 && this.stage === 1 && !this.ftue.isDone('F1')) {
+          this.time.delayedCall(500, () => {
+            const b = this.hudRenderer.getSummonButtonBounds();
+            this.ftue.enqueue('F1', b, '탭해서 첫 유닛을 소환!', {
+              forced: true,
+              ghost: { type: 'tap', at: { x: b.x + b.w / 2, y: b.y + b.h / 2 } },
+            });
+          });
+        }
+        // M2 F11: W1-5 씬 시작 — 레시피북 버튼이 M1a에서 일시정지 팝업으로 이전되어 스포트라이트 없이 카피만
+        if (this.world === 1 && this.stage === 5 && !this.ftue.isDone('F11')) {
+          this.ftue.enqueue('F11', null, '조합법은 여기서 확인', { durationMs: 3000 });
+        }
       });
     });
   }
@@ -168,7 +195,9 @@ export class GameScene extends Phaser.Scene {
     if (this.isPhase('gameover')) return;
 
     // GD1: 페이즈 전환 컷인 동안 0.4s 시뮬레이션 프리즈 (입력 핸들러는 영향 X)
-    const scaledDelta = _time < this.phaseFreezeUntilMs ? 0 : deltaMs * this.speedMult;
+    // M2: FTUE 강제 스텝 활성 중엔 2배속 설정을 무시하고 1배속 고정
+    const effectiveSpeedMult = computeEffectiveSpeedMult(this.speedMult, this.ftue.isForcingNormalSpeed);
+    const scaledDelta = _time < this.phaseFreezeUntilMs ? 0 : deltaMs * effectiveSpeedMult;
     this.state.tick(scaledDelta);
 
     // HUD always updates
@@ -230,11 +259,36 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // GD1: 보스 페이즈 전환 컷인
+    // GD1: 보스 페이즈 전환 컷인 (E14 최우선 배너)
     if (this.state.pendingPhaseTransition) {
       const phase = this.state.pendingPhaseTransition;
       this.state.pendingPhaseTransition = null;
-      this.showPhaseTransition(phase, _time);
+      this.tryShowBanner(
+        'bossPhaseCutin',
+        () => this.showPhaseTransition(phase, _time),
+        () => this.notificationRenderer.add(phase === 3 ? 'PHASE 3' : 'PHASE 2', '#aa44ff'),
+        1200,
+      );
+    }
+
+    // M2: 라운드 클리어 배너 (E7 OVERTIME 라벨 전환, E14 우선순위 하위)
+    if (this.state.pendingRoundBanner !== null) {
+      const roundNumber = this.state.pendingRoundBanner;
+      this.state.pendingRoundBanner = null;
+      const label = roundNumber <= TOTAL_ROUNDS
+        ? `ROUND ${roundNumber} CLEAR +${ROUND_CLEAR_GOLD}G`
+        : `OVERTIME ${roundNumber - TOTAL_ROUNDS} +${ROUND_CLEAR_GOLD}G`;
+      this.sfx.playSFX('roundClear');
+      this.tryShowBanner(
+        'roundClear',
+        () => this.showRoundClearBanner(label, '#ffd24a'),
+        () => this.notificationRenderer.add(label, '#ffd24a'),
+        600,
+      );
+      // M2 F4: W1-1 라운드 1 클리어 스탬프
+      if (roundNumber === 1 && this.world === 1 && this.stage === 1 && !this.ftue.isDone('F4')) {
+        this.ftue.enqueue('F4', this.hudRenderer.getSegmentBarBounds(), '30초 = 1라운드, 클리어 +5G', { durationMs: 3000 });
+      }
     }
 
     // Boss fast-kill countdown update
@@ -268,6 +322,32 @@ export class GameScene extends Phaser.Scene {
       this.state.pendingDiscoveries.length = 0;
     }
 
+    // M3: 피티 영속(12-F3) + 변이 등급 누적(E19) — 교배 완료 시 GameState가 세팅한 것을 드레인
+    if (this.state.pendingPitySave) {
+      this.metaProgress.setPity(this.state.pity);
+      this.state.pendingPitySave = false;
+    }
+    if (this.state.pendingMutationRecord) {
+      this.metaProgress.recordMutation(this.state.pendingMutationRecord);
+      this.state.pendingMutationRecord = null;
+    }
+
+    // M2 F3: W1-1 적 카운트 60% 최초 도달
+    if (this.world === 1 && this.stage === 1 && !this.ftue.isDone('F3') && this.state.enemyCount / MAX_ENEMIES >= 0.6) {
+      this.ftue.enqueue('F3', this.hudRenderer.getCountRingBounds(), '적이 40마리 차면 패배!', { durationMs: 3000 });
+    }
+
+    // M2 F9: 유닛 캡 최초 도달 (판매존 사용 가능한 스테이지에서만)
+    if (this.state.features.sell && !this.ftue.isDone('F9') && this.state.units.length >= this.state.maxUnits) {
+      this.ftue.enqueue('F9', { x: 0, y: DOCK_Y, w: SELL_EDGE_W, h: DOCK_H }, '꽉 차면 팔거나 교배로 정리', { durationMs: 4000 });
+    }
+
+    // M2 F10: 💀 5 이상 최초 보유 (영혼상점 사용 가능한 스테이지에서만)
+    if (this.state.features.soulShop && !this.ftue.isDone('F10') && this.state.enhancePoints >= 5) {
+      const b = this.hudRenderer.getSoulShopButtonBounds();
+      if (b) this.ftue.enqueue('F10', b, '보스의 영혼으로 강화하자', { durationMs: 3000 });
+    }
+
     // 5-minute surge
     if (this.state.pendingSurge) {
       this.state.pendingSurge = false;
@@ -283,10 +363,17 @@ export class GameScene extends Phaser.Scene {
           this.metaProgress.addGems(1);
           this.starsAwarded = true;
         }
+        // M2: W1-5 최초 클리어 시 T4 컷인 — setStageRecord로 기록이 갱신되기 전에 판정
+        const isFirstW15Clear = this.world === 1 && this.stage === 5 &&
+          this.metaProgress.getStageRecord(this.world * 10 + this.stage) === null;
         const isNewRecord = this.metaProgress.setStageRecord(this.world * 10 + this.stage, this.state.elapsedMs);
         if (isNewRecord) this.notificationRenderer.add('🏆 최고 기록 갱신!', '#ffd700');
         this.sfx.playSFX('victory');
-        this.popupRenderer.showVictory(isNewRecord);
+        if (isFirstW15Clear) {
+          this.showT4Cutin(() => this.popupRenderer.showVictory(isNewRecord));
+        } else {
+          this.popupRenderer.showVictory(isNewRecord);
+        }
       }
       return;
     }
@@ -317,6 +404,8 @@ export class GameScene extends Phaser.Scene {
     this.enemyRenderer.update(scaledDelta);
 
     if (this.isPhase('gameover')) {
+      // M2 F13: 최초 GameOver 기록 — 시각 변화 없음(원인 문구는 GameOverPopup이 항상 표시)
+      if (!this.ftue.isDone('F13')) this.metaProgress.markFtueDone('F13');
       this.sfx.playSFX('gameover');
       const isNewRecord = this.metaProgress.setStageRecord(this.world * 10 + this.stage, this.state.elapsedMs);
       this.popupRenderer.showGameOver(isNewRecord);
@@ -441,6 +530,27 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: text, y: CENTER_Y - 70, alpha: 0, duration: 1200, onComplete: () => text.destroy() });
   }
 
+  // M2: W1-5 최초 클리어 T4 컷인 (아트 없음 — 텍스트 스텁, AM4 생성 후 교체 예정)
+  private showT4Cutin(onDone: () => void): void {
+    this.cameras.main.shake(300, 0.01);
+    const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.8).setDepth(22);
+    this.tweens.add({ targets: flash, alpha: 0.5, duration: 500 });
+    const title = this.add.text(CENTER_X, CENTER_Y - 30, '🌟 Astral_God', {
+      fontFamily: 'monospace', fontSize: '26px', color: '#ffe066',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(23);
+    const line = this.add.text(CENTER_X, CENTER_Y + 16, W1_5_CUTIN_LINE, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', align: 'center',
+      stroke: '#000000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(23);
+    this.time.delayedCall(1800, () => {
+      this.tweens.add({
+        targets: [flash, title, line], alpha: 0, duration: 400,
+        onComplete: () => { flash.destroy(); title.destroy(); line.destroy(); onDone(); },
+      });
+    });
+  }
+
   // G2: 잭팟 소환 — ULTIMATE 축소 연출 (플래시 + 셰이크 80ms)
   private showJackpotEffect(): void {
     this.cameras.main.shake(80, 0.008);
@@ -473,7 +583,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private onRecipeBook(): void {
-    if (this.state.isPaused || this.state.phase === 'gameover' || this.state.phase === 'victory') return;
+    // 일시정지 메뉴에서만 호출되므로 진입 시점엔 isPaused가 항상 true — 여기서 걸러내면 안 됨
+    if (this.state.phase === 'gameover' || this.state.phase === 'victory') return;
     this.state.isPaused = true;
     this.popupRenderer.showRecipeBook(() => { this.state.isPaused = false; }, new Set(this.metaProgress.discovered));
   }
@@ -507,6 +618,28 @@ export class GameScene extends Phaser.Scene {
     this.banner = this.add.text(CENTER_X, CENTER_Y, text, {
       fontFamily: 'monospace', fontSize: '24px', color, align: 'center',
     }).setOrigin(0.5);
+  }
+
+  // M2: E14 배너 우선순위 — 상위 태그가 활성 중이면 강등(stamp), 아니면 표시 후 durationMs 뒤 슬롯 해제
+  private tryShowBanner(tag: BannerTag, show: () => void, stamp: () => void, durationMs: number): void {
+    const tagPriority = BANNER_PRIORITY.indexOf(tag);
+    const activePriority = this.activeBannerTag ? BANNER_PRIORITY.indexOf(this.activeBannerTag) : Infinity;
+    if (tagPriority > activePriority) { stamp(); return; }
+    show();
+    this.activeBannerTag = tag;
+    this.time.delayedCall(durationMs, () => {
+      if (this.activeBannerTag === tag) this.activeBannerTag = null;
+    });
+  }
+
+  // M2: 라운드 클리어 배너 (0.6s, this.banner 싱글슬롯과 독립 — Game Clear 배너와 동시 표시 가능)
+  private showRoundClearBanner(text: string, color: string): void {
+    const t = this.add.text(CENTER_X, CENTER_Y - 20, text, {
+      fontFamily: 'monospace', fontSize: '20px', color, align: 'center',
+      stroke: '#000000', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(19).setAlpha(0);
+    this.tweens.add({ targets: t, alpha: 1, duration: 100 });
+    this.tweens.add({ targets: t, alpha: 0, delay: 400, duration: 200, onComplete: () => t.destroy() });
   }
 
   private showW1Hint(stage: WorldStageId): void {

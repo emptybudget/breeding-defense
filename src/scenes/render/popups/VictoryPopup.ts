@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GameState } from '../../../game/GameState';
+import { CHRONICLE } from '../../../game/lore';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y } from '../../constants';
 import { SoundManager } from '../../SoundManager';
@@ -39,10 +40,12 @@ export class VictoryPopup {
   show(isNewRecord = false): void {
     if (this.container) return;
 
+    // M2: 연대기(CHRONICLE) 1줄 삽입으로 패널 24px 확장, 버튼·DPS미터 하단 시프트
+    const CHRONICLE_SHIFT = 24;
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
 
     const bgGfx = this.scene.add.graphics();
-    drawPanelAt(bgGfx, 310, 350);
+    drawPanelAt(bgGfx, 310, 350 + CHRONICLE_SHIFT);
 
     const divGfx = this.scene.add.graphics();
     drawDivider(divGfx, -130, -118, 260);
@@ -64,14 +67,22 @@ export class VictoryPopup {
       fontFamily: 'monospace', fontSize: '13px', color: ANS.PARCH, align: 'center',
     }).setOrigin(0.5);
 
+    // M2: 연대기 1줄 — 승리 시에만 노출(패배 경로는 GameOverPopup이라 자동 미표시)
+    const chronicleLine = CHRONICLE[this.state.stageConfig.name];
+    const chronicleText = chronicleLine
+      ? this.scene.add.text(0, -40, chronicleLine, {
+          fontFamily: 'monospace', fontSize: '11px', color: ANS.TEAL, align: 'center',
+        }).setOrigin(0.5)
+      : undefined;
+
     const restartBtn = new JuicyButton({
-      scene: this.scene, x: -95, y: -22, width: 84, height: 48,
+      scene: this.scene, x: -95, y: -22 + CHRONICLE_SHIFT, width: 84, height: 48,
       label: '다시하기', variant: 'primary', fontSize: 12, sfx: this.sfx,
       onClick: () => { this.onRestart(); },
     });
 
     const infiniteBtn = new JuicyButton({
-      scene: this.scene, x: 0, y: -22, width: 84, height: 48,
+      scene: this.scene, x: 0, y: -22 + CHRONICLE_SHIFT, width: 84, height: 48,
       label: '무한 모드', variant: 'ghost', fontSize: 12, sfx: this.sfx,
       onClick: () => {
         container.destroy();
@@ -81,7 +92,7 @@ export class VictoryPopup {
     });
 
     const menuBtn = new JuicyButton({
-      scene: this.scene, x: 95, y: -22, width: 84, height: 48,
+      scene: this.scene, x: 95, y: -22 + CHRONICLE_SHIFT, width: 84, height: 48,
       label: '스테이지선택', variant: 'ghost', fontSize: 11, sfx: this.sfx,
       onClick: () => { this.onStageSelect(); },
     });
@@ -90,9 +101,10 @@ export class VictoryPopup {
       bgGfx, divGfx, title, gemReward, timeText, gemInfo,
       restartBtn.container, infiniteBtn.container, menuBtn.container,
     ];
+    if (chronicleText) items.push(chronicleText);
 
     // DPS meter below buttons
-    appendDpsMeter(this.scene, this.state, items, 18);
+    appendDpsMeter(this.scene, this.state, items, 18 + CHRONICLE_SHIFT);
 
     container.add(items);
     this.container = container;

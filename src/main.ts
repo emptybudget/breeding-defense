@@ -25,7 +25,38 @@ window.addEventListener('unhandledrejection', (e) => {
   showFatalError(`[PROMISE] ${r?.message ?? String(e.reason)}\n${r?.stack ?? ''}`);
 });
 
-new Phaser.Game({
+// M2: 프리징 계측 (경량, 소킹 10판 무재현 확정 시 이 블록+#fatal-error 오버레이 함께 제거)
+// 링버퍼 — 최근 console.error/warn 20개 보관, 워치독 발동 시 함께 덤프
+const consoleRing: string[] = [];
+function pushRing(prefix: string, args: unknown[]): void {
+  consoleRing.push(`[${prefix}] ${args.map(a => String(a)).join(' ')}`);
+  if (consoleRing.length > 20) consoleRing.shift();
+}
+const origError = console.error.bind(console);
+const origWarn = console.warn.bind(console);
+console.error = (...args: unknown[]) => { pushRing('error', args); origError(...args); };
+console.warn = (...args: unknown[]) => { pushRing('warn', args); origWarn(...args); };
+
+// RAF 워치독 — Phaser의 poststep 이벤트가 3초 이상 안 오면 RAF 체인 사망으로 간주, 재시작 버튼 노출
+let lastTickAt = Date.now();
+let restartShown = false;
+function showFreezeRestartButton(): void {
+  if (restartShown) return;
+  restartShown = true;
+  showFatalError(`[WATCHDOG] RAF 3초 이상 정지 감지\n최근 로그:\n${consoleRing.join('\n')}`);
+  const btn = document.createElement('button');
+  btn.textContent = '재시작';
+  btn.style.cssText =
+    'position:fixed;top:8px;right:8px;z-index:10000;padding:8px 16px;' +
+    'background:#c44;color:#fff;border:none;border-radius:4px;font:14px monospace;';
+  btn.onclick = () => location.reload();
+  document.body.appendChild(btn);
+}
+setInterval(() => {
+  if (Date.now() - lastTickAt > 3000) showFreezeRestartButton();
+}, 1000);
+
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   width: GAME_WIDTH,
@@ -41,3 +72,4 @@ new Phaser.Game({
   },
   scene: [TitleScene, StageSelectScene, GameScene],
 });
+game.events.on('poststep', () => { lastTickAt = Date.now(); });

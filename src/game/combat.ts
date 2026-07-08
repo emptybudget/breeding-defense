@@ -5,9 +5,11 @@ import {
   ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_RANGE,
   CANNON_SHOOTER_KB_DIST, GATLING_DOG_SPLASH_RADIUS, GATLING_DOG_SPLASH_MULT,
   ELECTRIC_COON_CHAIN_RANGE, ELECTRIC_COON_MAX_CHAINS, ELECTRIC_COON_CHAIN_MULT,
+  BLOODLINE_STRIKE_ENABLED,
 } from './config';
 import { AttackEvent, CombatResult, EnemySnapshot, Mine, UnitData, UnitRace } from './types';
 import { getUnitCombatStats } from './unitHelpers';
+import { bloodlineStrike } from './breeding';
 
 /** Chain-lightning helper: bounces damage from src through up to maxChains nearby enemies. */
 function applyChainLightning(
@@ -164,7 +166,8 @@ export function runCombat(
         const isCrit = unit.race === 'Astral_God' ||
           (criticalProbability > 0 && Math.random() < criticalProbability);
         if (isCrit) finalDmg = Math.ceil(finalDmg * CRIT_DAMAGE_MULT);
-        if (Math.random() < doubleAttackProbability) finalDmg *= 2;
+        const isDouble = Math.random() < doubleAttackProbability;
+        if (isDouble) finalDmg *= 2;
         const newHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
         liveHp.set(target.id, newHp);
         attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit, damage: finalDmg, srcRace: unit.race, srcId: unit.id });
@@ -211,6 +214,25 @@ export function runCombat(
         // Gimmick: Astral_God — chain lightning (4 chains, 90% each, crit)
         if (unit.race === 'Astral_God' && !killedSet.has(target.id)) {
           applyChainLightning(target, finalDmg, ASTRAL_GOD_CHAIN_MULT, ASTRAL_GOD_CHAIN_COUNT, ASTRAL_GOD_CHAIN_RANGE, true, snapshots, killedSet, killRewards, liveHp, attacks, tierKillCounts, unit.tier, unit.race, unit.id);
+        }
+
+        // M3: 혈통 일격 (E17) — Gen2+ 유닛이 주기마다 원 공격 결과를 복제. 더블어택=카운터 2 증가.
+        // BLOODLINE_STRIKE_ENABLED=false 동안 완전 무동작 (M4에서 on).
+        if (BLOODLINE_STRIKE_ENABLED && (unit.gen ?? 0) >= 2) {
+          const hits = isDouble ? 2 : 1;
+          for (let h = 0; h < hits; h++) {
+            unit.strikeCounter = (unit.strikeCounter ?? 0) + 1;
+            if (bloodlineStrike(unit) && !killedSet.has(target.id)) {
+              const strikeHp = (liveHp.get(target.id) ?? target.hp) - finalDmg;
+              liveHp.set(target.id, strikeHp);
+              attacks.push({ unitX: unit.x, unitY: unit.y, enemyX: target.x, enemyY: target.y, isCrit, damage: finalDmg, srcRace: unit.race, srcId: unit.id, isStrike: true });
+              if (strikeHp <= 0) {
+                killedSet.add(target.id);
+                killRewards.push(target.killReward);
+                tierKillCounts.set(unit.tier, (tierKillCounts.get(unit.tier) ?? 0) + 1);
+              }
+            }
+          }
         }
       }
     }

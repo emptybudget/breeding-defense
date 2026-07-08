@@ -1,4 +1,4 @@
-export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory' | 'button';
+export type SFXType = 'kill' | 'synth' | 'breed' | 'boss' | 'overclock' | 'gameover' | 'victory' | 'button' | 'roundClear' | 'cardFlip';
 
 // BGM: C major, 120 BPM, 8-bar melodic loop (16s)
 //   Bass  : C-C-G-G-F-F-G-G (one per bar)
@@ -44,7 +44,7 @@ export class SoundManager {
 
   private getCtx(): AudioContext {
     if (!this.ctx) this.ctx = new AudioContext();
-    if (this.ctx.state === 'suspended') this.ctx.resume();
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
     return this.ctx;
   }
 
@@ -140,6 +140,8 @@ export class SoundManager {
         case 'gameover':  this.sfxGameover(ctx);  break;
         case 'victory':   this.sfxVictory(ctx);   break;
         case 'button':    this.sfxButton(ctx);    break;
+        case 'roundClear': this.sfxRoundClear(ctx); break;
+        case 'cardFlip':  this.sfxCardFlip(ctx);  break;
       }
     } catch {}
   }
@@ -196,5 +198,13 @@ export class SoundManager {
 
   private sfxButton(ctx: AudioContext): void {
     this.tone(ctx, 'square', 660, 660, 0.06, ctx.currentTime, 0.03);
+  }
+
+  private sfxRoundClear(ctx: AudioContext): void {
+    this.tone(ctx, 'square', 784, 988, 0.12, ctx.currentTime, 0.07);
+  }
+
+  private sfxCardFlip(ctx: AudioContext): void {
+    this.tone(ctx, 'triangle', 1200, 1600, 0.1, ctx.currentTime, 0.05);
   }
 }

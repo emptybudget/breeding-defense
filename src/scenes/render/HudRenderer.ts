@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import {
   DOCK_CENTER_Y, DOCK_H, DOCK_Y, GAME_WIDTH, HUD_BAR_H, HUD_BAR_Y, MAX_ENEMIES,
-  NEST_SLOT_1_X, NEST_SLOT_2_X, NEST_SLOT_SIZE, SELL_EDGE_W, SUMMON_MAX_COST,
+  NEST_SLOT_1_X, NEST_SLOT_2_X, NEST_SLOT_SIZE, ROUND_MS, SELL_EDGE_W, SUMMON_MAX_COST, TOTAL_ROUNDS,
 } from '../../game/config';
 import { NestSlot } from '../../game/dockGeometry';
 import { GameState } from '../../game/GameState';
@@ -10,9 +10,6 @@ import { CENTER_X } from '../constants';
 import { SoundManager } from '../SoundManager';
 import { JuicyButton } from '../ui/JuicyButton';
 import { UI } from '../ui/tokens';
-
-// 라운드 세그먼트 바 — 시각 스캐폴드(경과시간/제한시간 비례). 실제 "ROUND n" 판정·배너는 M2.
-const ROUND_TOTAL = 14;
 
 type FadeableGO = Phaser.GameObjects.Graphics | Phaser.GameObjects.Text | Phaser.GameObjects.Container;
 
@@ -153,6 +150,10 @@ export class HudRenderer {
   private nestOccupiedState: [boolean, boolean] = [false, false];
   private sellLabelTexts: Phaser.GameObjects.Text[] = [];
 
+  // M2: FTUE 스포트라이트 대상 bounds — 좌표 하드코딩 금지, 렌더러가 게터로 제공
+  private segmentBarBounds = { x: 0, y: 0, w: 0, h: 0 };
+  private countRingBounds = { x: 0, y: 0, w: 0, h: 0 };
+
   constructor(
     scene: Phaser.Scene,
     onSummon: () => void,
@@ -179,9 +180,10 @@ export class HudRenderer {
     let x = 8;
     this.segmentGfx = this.scene.add.graphics().setDepth(6);
     this.segmentGfx.setPosition(x + 30, barCenterY);
+    this.segmentBarBounds = { x: x + 30 - 32, y: barCenterY - 10, w: 64, h: 20 };
     x += 60 + 8;
 
-    this.roundText = this.scene.add.text(x + 14, barCenterY, `R1/${ROUND_TOTAL}`, {
+    this.roundText = this.scene.add.text(x + 14, barCenterY, `R1/${TOTAL_ROUNDS}`, {
       fontFamily: 'monospace', fontSize: '11px', color: ANS.GOLD,
     }).setOrigin(0.5).setDepth(6);
     x += 28 + 8;
@@ -193,6 +195,7 @@ export class HudRenderer {
 
     this.ringGfx = this.scene.add.graphics().setDepth(6);
     this.ringGfx.setPosition(x + 16, barCenterY);
+    this.countRingBounds = { x: x + 16 - 20, y: barCenterY - 20, w: 40, h: 40 };
     this.ringCountText = this.scene.add.text(x + 16, barCenterY, '0', {
       fontFamily: 'monospace', fontSize: '10px', color: ANS.CREAM,
     }).setOrigin(0.5).setDepth(6);
@@ -307,6 +310,23 @@ export class HudRenderer {
     });
   }
 
+  // M2: FTUE 스포트라이트 대상 bounds 게터 (16-ftue-script.md: 좌표는 렌더러가 제공, 하드코딩 금지)
+  getSummonButtonBounds(): { x: number; y: number; w: number; h: number } {
+    return { x: CENTER_X - 48, y: DOCK_CENTER_Y - 32, w: 96, h: 64 };
+  }
+
+  getCountRingBounds(): { x: number; y: number; w: number; h: number } {
+    return { ...this.countRingBounds };
+  }
+
+  getSegmentBarBounds(): { x: number; y: number; w: number; h: number } {
+    return { ...this.segmentBarBounds };
+  }
+
+  getSoulShopButtonBounds(): { x: number; y: number; w: number; h: number } | null {
+    return this.soulBtn ? { x: 296 - 28, y: DOCK_CENTER_Y - 24, w: 56, h: 48 } : null;
+  }
+
   /** 드래그 중 근접 하이라이트(스냅 프리뷰) — 점유 상태는 유지한 채 hover만 갱신. */
   highlightNestSlot(slot: NestSlot | null): void {
     this.nestSlots.forEach((view, i) => view?.setState(this.nestOccupiedState[i], i === slot));
@@ -328,13 +348,16 @@ export class HudRenderer {
       this.timerText.setColor(ANS.CREAM);
     }
 
-    // 세그먼트 바 (시각 스캐폴드 — 경과/제한시간 비례)
-    const roundRatio = state.stageConfig.victoryTimeMs > 0
-      ? Phaser.Math.Clamp(state.elapsedMs / state.stageConfig.victoryTimeMs, 0, 1) : 0;
-    const filled = Math.min(ROUND_TOTAL, Math.floor(roundRatio * ROUND_TOTAL));
+    // M2: 라운드 세그먼트 바 (30초 박동 실배선, E7 OVERTIME)
+    const roundsCompleted = Math.floor(state.elapsedMs / ROUND_MS);
+    const filled = Math.min(TOTAL_ROUNDS, roundsCompleted);
     const pulse = 0.55 + 0.45 * Math.sin(this.scene.time.now / 250);
     this.drawSegments(filled, pulse);
-    this.roundText.setText(`R${Math.min(filled + 1, ROUND_TOTAL)}/${ROUND_TOTAL}`);
+    this.roundText.setText(
+      roundsCompleted < TOTAL_ROUNDS
+        ? `R${roundsCompleted + 1}/${TOTAL_ROUNDS}`
+        : `OVERTIME ${roundsCompleted - TOTAL_ROUNDS + 1}`
+    );
 
     // 카운트 링 (적수/MAX_ENEMIES)
     const enemyRatio = Math.min(state.enemyCount / MAX_ENEMIES, 1);
@@ -372,10 +395,10 @@ export class HudRenderer {
     const g = this.segmentGfx;
     const segW = 3;
     const gap = 1;
-    const totalW = ROUND_TOTAL * segW + (ROUND_TOTAL - 1) * gap;
+    const totalW = TOTAL_ROUNDS * segW + (TOTAL_ROUNDS - 1) * gap;
     const startX = -totalW / 2;
     g.clear();
-    for (let i = 0; i < ROUND_TOTAL; i++) {
+    for (let i = 0; i < TOTAL_ROUNDS; i++) {
       const sx = startX + i * (segW + gap);
       let color: number = UI.goldDim;
       let alpha = 0.4;

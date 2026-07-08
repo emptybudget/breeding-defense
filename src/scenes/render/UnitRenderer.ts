@@ -4,6 +4,7 @@ import { GameState } from '../../game/GameState';
 import { UnitData, UnitRace } from '../../game/types';
 import { getUnitCombatStats } from '../../game/unitHelpers';
 import { RACE_COLORS, RACE_EMOJI, UNIT_SPRITE_SIZE, unitTextureKey } from '../constants';
+import { SoundManager } from '../SoundManager';
 import { AttackKind } from './EnemyRenderer';
 
 type UnitGameObject = Phaser.GameObjects.Text | Phaser.GameObjects.Image;
@@ -11,6 +12,7 @@ type UnitGameObject = Phaser.GameObjects.Text | Phaser.GameObjects.Image;
 export class UnitRenderer {
   private scene: Phaser.Scene;
   private state: GameState;
+  private sfx?: SoundManager;
 
   private unitObjects = new Map<number, UnitGameObject>();
   private rangeCircles = new Map<number, Phaser.GameObjects.Graphics>();
@@ -21,9 +23,10 @@ export class UnitRenderer {
   private motionTweens = new Map<number, Phaser.Tweens.Tween>();
   private draggingId: number | null = null;
 
-  constructor(scene: Phaser.Scene, state: GameState) {
+  constructor(scene: Phaser.Scene, state: GameState, sfx?: SoundManager) {
     this.scene = scene;
     this.state = state;
+    this.sfx = sfx;
   }
 
   addUnit(unit: UnitData): void {
@@ -53,6 +56,12 @@ export class UnitRenderer {
     label.setInteractive({ useHandCursor: true });
     this.scene.input.setDraggable(label);
     label.setData('unitId', unit.id);
+
+    // M2: 카드 뒤집기 연출(0.35s) — scaleX 0→최종값
+    const targetScaleX = label.scaleX;
+    label.scaleX = 0;
+    this.scene.tweens.add({ targets: label, scaleX: targetScaleX, duration: 350, ease: 'Back.easeOut' });
+    this.sfx?.playSFX('cardFlip');
 
     this.unitObjects.set(unit.id, label);
   }
@@ -133,6 +142,8 @@ export class UnitRenderer {
       this.heartTexts.delete(idA); this.heartTexts.delete(idB);
       const born = this.state.completeBreeding(idA, idB);
       for (const u of born) this.addUnit(u);
+      // M3: 부모 2 소모 — 상태에서 사라진 부모 스프라이트 정리
+      this.removeStaleUnits(this.state.units.map(u => u.id));
     });
   }
 

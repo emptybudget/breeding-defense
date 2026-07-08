@@ -83,7 +83,7 @@ for (let f = 0; f < (3 * 60 * 1000) / FRAME; f++) {
   // 매 10초 합성 시도: 서로 다른 tier1 두 개를 강제로 같은 위치에서 합성
   if (state.elapsedMs - lastLog >= 10000) {
     lastLog = state.elapsedMs;
-    const t1 = state.units.filter(u => u.tier === 1 && !u.isBreeding && !u.isExhausted);
+    const t1 = state.units.filter(u => u.tier === 1 && !u.isBreeding);
     let synthDone = '';
     outer: for (let i = 0; i < t1.length; i++) {
       for (let j = i + 1; j < t1.length; j++) {

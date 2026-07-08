@@ -139,6 +139,31 @@ export const CRIT_PROB_INC = 0.07;
 export const SPAWN_ACCEL_INTERVAL_MS = 30000;
 export const SPAWN_ACCEL_DECAY = 0.85; // -15% per 30s
 
+// M2: 라운드 시스템 (30초 박동 명명) — E7 OVERTIME(15라운드+)은 GameState.pendingRoundBanner 번호로 판정
+export const ROUND_MS = 30000;
+export const TOTAL_ROUNDS = 14;
+export const ROUND_CLEAR_GOLD = 5;
+
+// M2: 배너 연출 충돌 우선순위 (E14) — 높을수록(앞쪽 인덱스) 우선, 하위는 중앙 배너 대신 토스트로 강등
+export const BANNER_PRIORITY = ['bossPhaseCutin', 'hatchGrade', 'roundClear', 'waveWarning', 'mutationStamp'] as const;
+export type BannerTag = typeof BANNER_PRIORITY[number];
+
+// --- M3: 혈통 데이터층 (docs/redesign/14-breeding-api.md §3, 12-balance-verification 검증값) ---
+export const BREED_BUDGET = 6;                       // 판당 교배 예산
+export const EGG_HATCH_MS = 3000;                    // 알 부화 시간 (M4 연출)
+export const MUTATION_TABLE = {                       // [common, rare, legend] %
+  same:  { common: 12, rare: 2.5, legend: 0.5 },
+  cross: { common: 24, rare: 5,   legend: 1   },
+} as const;
+export const RARE_PITY = 8;                           // 희귀 피티 임계 (영속, 12-F3)
+export const LEGEND_PITY = 60;                        // 전설 피티 임계 (영속)
+export const RARE_PITY_BOOST = 10;                    // 피티 발동 시 희귀 확률(%)
+export const STRIKE_PERIOD: Record<2 | 3 | 4, number> = { 2: 4, 3: 3, 4: 2 };
+export const BLOODLINE_STRIKE_ENABLED = false;        // M4에서 true
+export const TRAIT_INHERIT = { fromA: 50, fromB: 40, third: 20, synthesis: 60 } as const;
+export const GEN_MAX = 4;
+export const SAVE_SCHEMA_VERSION = 2;                 // v2 = gen/lineage/특성 + exhaust 제거
+
 // Boss reward economy
 export const REWARD_GOLD_AMOUNT = 150;
 

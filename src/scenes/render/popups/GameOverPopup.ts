@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../../../game/config';
+import { computeDefeatCause } from '../../../game/defeatCause';
 import { GameState } from '../../../game/GameState';
 import { ANS, drawDivider, drawPanelAt } from '../../artnouveau';
 import { CENTER_X, CENTER_Y } from '../../constants';
@@ -44,7 +45,9 @@ export class GameOverPopup {
     if (this.container) return;
 
     const hasAd = !this.state.adReviveUsed;
-    const panelH = hasAd ? 400 : 360;
+    // M2: 패배 원인+팁 2줄 추가로 패널 높이 확장
+    const CAUSE_SHIFT = 44;
+    const panelH = (hasAd ? 400 : 360) + CAUSE_SHIFT;
     const container = this.scene.add.container(CENTER_X, CENTER_Y).setDepth(20);
 
     const bgGfx = this.scene.add.graphics();
@@ -62,24 +65,33 @@ export class GameOverPopup {
       fontFamily: 'monospace', fontSize: '13px', color: isNewRecord ? ANS.GOLD_TEXT : ANS.PARCH,
     }).setOrigin(0.5);
 
+    // M2: 패배 원인 1행 + 팁 1행
+    const diagnosis = computeDefeatCause(this.state);
+    const causeText = this.scene.add.text(0, -panelH / 2 + 88, diagnosis.text, {
+      fontFamily: 'monospace', fontSize: '13px', color: '#ffaa55',
+    }).setOrigin(0.5);
+    const tipText = this.scene.add.text(0, -panelH / 2 + 106, diagnosis.tip, {
+      fontFamily: 'monospace', fontSize: '11px', color: ANS.PARCH,
+    }).setOrigin(0.5);
+
     const restartBtn = new JuicyButton({
-      scene: this.scene, x: 0, y: -panelH / 2 + 100, width: 160, height: 48,
+      scene: this.scene, x: 0, y: -panelH / 2 + 100 + CAUSE_SHIFT, width: 160, height: 48,
       label: '다시하기', variant: 'primary', fontSize: 15, sfx: this.sfx,
       onClick: () => { this.onRestart(); },
     });
 
     const hasGems = this.state.gems > 0;
     const gemBtn = new JuicyButton({
-      scene: this.scene, x: 0, y: -panelH / 2 + 152, width: 220, height: 48,
+      scene: this.scene, x: 0, y: -panelH / 2 + 152 + CAUSE_SHIFT, width: 220, height: 48,
       label: `💎 보석(${this.state.gems})로 이어하기`, variant: 'primary', fontSize: 13, sfx: this.sfx,
       onClick: () => { this.onGemContinue(); },
     }).setDisabled(!hasGems);
 
-    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, timeText, restartBtn.container, gemBtn.container];
+    const items: Phaser.GameObjects.GameObject[] = [bgGfx, divGfx, title, timeText, causeText, tipText, restartBtn.container, gemBtn.container];
 
     if (hasAd) {
       const adBtn = new JuicyButton({
-        scene: this.scene, x: 0, y: -panelH / 2 + 204, width: 220, height: 48,
+        scene: this.scene, x: 0, y: -panelH / 2 + 204 + CAUSE_SHIFT, width: 220, height: 48,
         label: '📺 광고 보고 부활 (1회)', variant: 'ghost', fontSize: 13, sfx: this.sfx,
         onClick: () => {
           adBtn.setDisabled(true);
@@ -97,7 +109,7 @@ export class GameOverPopup {
       items.push(adBtn.container);
     }
 
-    const stageBtnY = hasAd ? -panelH / 2 + 254 : -panelH / 2 + 204;
+    const stageBtnY = (hasAd ? -panelH / 2 + 254 : -panelH / 2 + 204) + CAUSE_SHIFT;
     const stageBtn = new JuicyButton({
       scene: this.scene, x: 0, y: stageBtnY, width: 220, height: 48,
       label: '스테이지 선택으로 돌아가기', variant: 'ghost', fontSize: 12, sfx: this.sfx,

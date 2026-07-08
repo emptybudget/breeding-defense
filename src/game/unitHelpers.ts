@@ -103,5 +103,5 @@ export function getUnitCombatStats(race: UnitRace): { range: number; damage: num
 }
 
 export function makeUnit(id: number, race: UnitRace, tier: 1 | 2 | 3 | 4, x: number, y: number): UnitData {
-  return { id, race, tier, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isExhausted: false, exhaustEndMs: 0, isLocked: false };
+  return { id, race, tier, x, y, lastAttackedAtMs: 0, isBreeding: false, breedingEndMs: 0, isLocked: false };
 }

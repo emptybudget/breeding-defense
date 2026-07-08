@@ -10,11 +10,14 @@ import {
   SELL_GOLD_TIER3,
   SELL_GOLD_TIER4,
   UNIT_MAX_HALF_H,
+  BREED_BUDGET,
 } from '../../game/config';
 import { distToNestSlot, getNestSlotRect, isInSellZone, NestSlot } from '../../game/dockGeometry';
 import { GameState } from '../../game/GameState';
+import { canBreed } from '../../game/breeding';
 import { ASTRAL_GOD_RECIPE, getCategory, getTier3Recipes } from '../../game/unitHelpers';
 import { HybridRace, Tier1Race, Tier3Race, UnitData } from '../../game/types';
+import { FtueController } from '../FtueController';
 import { HudRenderer } from '../render/HudRenderer';
 import { NotificationRenderer } from '../render/NotificationRenderer';
 import { PopupRenderer } from '../render/PopupRenderer';
@@ -30,6 +33,7 @@ export class DragController {
   private popupRenderer: PopupRenderer;
   private hudRenderer: HudRenderer;
   private sfx?: SoundManager;
+  private ftue?: FtueController;
 
   private dragStartX = 0;
   private dragStartY = 0;
@@ -47,6 +51,7 @@ export class DragController {
     popupRenderer: PopupRenderer,
     hudRenderer: HudRenderer,
     sfx?: SoundManager,
+    ftue?: FtueController,
   ) {
     this.scene = scene;
     this.state = state;
@@ -55,6 +60,7 @@ export class DragController {
     this.popupRenderer = popupRenderer;
     this.hudRenderer = hudRenderer;
     this.sfx = sfx;
+    this.ftue = ftue;
   }
 
   register(): void {
@@ -70,8 +76,22 @@ export class DragController {
       const draggedUnit = this.state.units.find(u => u.id === unitId);
       if (draggedUnit) {
         this.hudRenderer.enterDragMode(this.sellLabelFor(draggedUnit));
-        if (draggedUnit.tier !== 1) {
-          this.unitRenderer.setHighlights(this.getValidPartners(draggedUnit));
+        const partners = this.getValidPartners(draggedUnit);
+        this.unitRenderer.setHighlights(partners);
+
+        // M2 F8: 합성 가능(청록 펄싱) 최초 발생 — 티어1 교차 카테고리 페어
+        if (draggedUnit.tier === 1 && partners.length > 0 && this.state.features.synthesize && this.ftue && !this.ftue.isDone('F8')) {
+          const partner = this.state.units.find(u => u.id === partners[0]);
+          if (partner) {
+            const x = Math.min(draggedUnit.x, partner.x) - 20;
+            const y = Math.min(draggedUnit.y, partner.y) - 20;
+            const w = Math.abs(draggedUnit.x - partner.x) + 40;
+            const h = Math.abs(draggedUnit.y - partner.y) + 40;
+            this.ftue.enqueue('F8', { x, y, w, h }, '빛나는 유닛끼리 합체!', {
+              forced: true,
+              ghost: { type: 'drag', from: { x: draggedUnit.x, y: draggedUnit.y }, to: { x: partner.x, y: partner.y } },
+            });
+          }
         }
       }
     });
@@ -118,10 +138,11 @@ export class DragController {
             if (unit && !unit.isLocked && !unit.isBreeding) {
               const canNest = unit.tier === 1 && this.state.features.breed;
               const canSell = this.state.features.sell;
-              if (canNest || canSell) {
+              const showRecipes = this.state.features.synthesize;
+              if (canNest || canSell || showRecipes) {
                 this.state.isPaused = true;
                 this.popupRenderer.showUnitActions(
-                  unit, { canNest, canSell },
+                  unit, { canNest, canSell, showRecipes },
                   () => { this.sendToNest(unitId); },
                   () => { this.sellUnitById(unitId); },
                   () => { this.state.isPaused = false; },
@@ -148,7 +169,14 @@ export class DragController {
   }
 
   private getValidPartners(dragged: UnitData): number[] {
-    if (dragged.tier === 4 || dragged.tier === 1) return [];
+    if (dragged.tier === 4) return [];
+    if (dragged.tier === 1) {
+      // 교차 카테고리 티어1 페어 = 합성 가능(청록 펄싱). 6종 모두 15쌍 중 12쌍이 정확히 교차 카테고리.
+      const cat = getCategory(dragged.race as Tier1Race);
+      return this.state.units
+        .filter(u => u.id !== dragged.id && u.tier === 1 && getCategory(u.race as Tier1Race) !== cat && !u.isLocked)
+        .map(u => u.id);
+    }
     if (dragged.tier === 2) {
       const partnerRaces = new Set(getTier3Recipes(dragged.race as HybridRace).map(r => r.partner));
       return this.state.units
@@ -163,12 +191,9 @@ export class DragController {
     return [];
   }
 
-  // M1b: 둥지 슬롯 교배 페어링 판정 — 같은 카테고리 tier1, 잠금·교배중 아님
+  // M3: 둥지 교배 페어링 판정 = canBreed (T1·잠금·예산·진행중). 이계열 교배 허용(도박 루프).
   private canPairInNest(a: UnitData, b: UnitData): boolean {
-    if (a.tier !== 1 || b.tier !== 1) return false;
-    if (a.isLocked || b.isLocked) return false;
-    if (a.isBreeding || b.isBreeding) return false;
-    return getCategory(a.race as Tier1Race) === getCategory(b.race as Tier1Race);
+    return canBreed(a, b, this.state.breedsUsedThisGame) === null;
   }
 
   private findNearestOpenSlot(x: number, y: number, unitId: number): NestSlot | null {
@@ -222,10 +247,7 @@ export class DragController {
     const otherUnit = this.state.units.find(u => u.id === otherId);
     if (!otherUnit || !this.canPairInNest(otherUnit, unit)) return 'incompatible';
 
-    // GameState.startBreeding과 동일한 정원 체크 — 실패가 예상되면 슬롯에 넣지 않고 되돌린다
-    const pendingOffspring = this.state.units.filter(u => u.isBreeding).length / 2;
-    if (this.state.units.length + pendingOffspring >= this.state.maxUnits) return 'cap-full';
-
+    // M3: 부모 2 소모 → 자식 1 = 순감이라 정원 체크 불필요 (E13). 예산 초과는 canBreed가 이미 차단.
     place();
     const started = this.state.startBreeding(otherId, id);
     if (started) {
@@ -271,7 +293,10 @@ export class DragController {
     }
     const outcome = this.tryNestPlace(openSlot, unitId, unit);
     if (outcome === 'incompatible') {
-      this.notificationRenderer.add('⚠️ 같은 카테고리 유닛만 교배 가능', '#ff8844');
+      const msg = this.state.breedsUsedThisGame >= BREED_BUDGET
+        ? `⚠️ 이번 판 교배 예산 소진 (${BREED_BUDGET}회)`
+        : '⚠️ 교배 불가 (잠금/교배중 유닛)';
+      this.notificationRenderer.add(msg, '#ff8844');
     } else if (outcome === 'cap-full') {
       this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
     }
@@ -453,6 +478,8 @@ export class DragController {
       this.unitRenderer.addUnit(result);
       if (showEffect) this.showSynthesisEffect(result.tier);
       this.sfx?.playSFX('synth');
+      // M2 F8: 티어1+티어1 합성 성공(산출물은 항상 티어2) → 강제 스텝 완료
+      if (result.tier === 2) this.ftue?.complete('F8');
     } else if (this.state.pendingNotification) {
       this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
       this.state.pendingNotification = null;
