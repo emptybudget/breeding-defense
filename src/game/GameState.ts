@@ -228,13 +228,15 @@ export class GameState {
     return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
   }
 
-  // True if (x,y) is too close to any track segment (track width=36px, margin=22px)
+  // True if (x,y) is too close to any track segment.
+  // 반폭 18 = 렌더 본체(34px)+테두리(42px) 안쪽 — 판정 폭(36)이 비주얼(42)보다 항상 좁아서,
+  // 거절은 반드시 눈에 보이는 트랙 위에서만 일어난다 (31-track-drag-fix.md F2).
   isOnTrack(x: number, y: number): boolean { return this._onTrack(x, y); }
   private _onTrack(x: number, y: number): boolean {
     const wps = this.trackWaypoints;
     for (let i = 0; i < wps.length; i++) {
       const a = wps[i], b = wps[(i + 1) % wps.length];
-      if (GameState._distToSeg(x, y, a.x, a.y, b.x, b.y) < 22) return true;
+      if (GameState._distToSeg(x, y, a.x, a.y, b.x, b.y) < 18) return true;
     }
     return false;
   }

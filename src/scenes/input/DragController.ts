@@ -399,13 +399,21 @@ export class DragController {
     }
   }
 
-  private findClearPos(x: number, y: number): { x: number; y: number } | null {
+  // F3: selfId 제외 28px 이내에 다른 유닛이 없어야 '빈 자리' — 35px 타겟 탐지보다 좁아
+  // 기존 '빈 공간' 드롭은 항상 통과(회귀 없음), 유닛 겹쳐 쌓임만 방지한다.
+  private isClearPos(x: number, y: number, selfId: number): boolean {
+    if (!this.isValidUnitPosition(x, y)) return false;
+    if (this.state.isOnTrack(x, y)) return false;
+    return this.unitRenderer.getNearestUnitId(x, y, selfId, 28) === null;
+  }
+
+  private findClearPos(x: number, y: number, selfId: number): { x: number; y: number } | null {
     const dirs = [[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]] as const;
     for (let step = 1; step <= 4; step++) {
       for (const [dx, dy] of dirs) {
         const nx = x + dx * step * 30;
         const ny = y + dy * step * 30;
-        if (this.isValidUnitPosition(nx, ny) && !this.state.isOnTrack(nx, ny)) return { x: nx, y: ny };
+        if (this.isClearPos(nx, ny, selfId)) return { x: nx, y: ny };
       }
     }
     return null;
@@ -417,6 +425,34 @@ export class DragController {
       x >= z.x1 && x <= z.x2 &&
       y >= z.y1 && y <= Math.min(z.y2, DOCK_Y)
     );
+  }
+
+  // F3: 동티어 유닛 위 드롭 시 합성 성립 여부만 판정. 실패해도 여기선 원위치시키지 않고
+  // 호출부(handleDrop)가 필드 이동으로 폴스루한다 — "말없는 원위치" 제거가 이 함수의 존재 이유.
+  private tryUnitInteraction(droppedId: number, droppedUnit: UnitData, targetId: number): boolean {
+    if (!this.state.features.synthesize) return false;
+    const targetUnit = this.state.units.find(u => u.id === targetId);
+    if (!targetUnit || targetUnit.isBreeding) return false;
+    if (droppedUnit.tier === 4 || targetUnit.tier === 4) return false;
+    if (droppedUnit.isLocked || targetUnit.isLocked) return false;
+
+    // Tier-3 + Tier-3 → Astral_God (3-way synthesis)
+    if (droppedUnit.tier === 3 && targetUnit.tier === 3) {
+      return this.trySynthesize(droppedId, targetId, /* cleanupStale */ true);
+    }
+    // Mixed-tier interactions involving tier-3 → block
+    if (droppedUnit.tier === 3 || targetUnit.tier === 3) return false;
+
+    // Tier-2 + Tier-2 → tier-3 synthesis
+    if (droppedUnit.tier === 2 && targetUnit.tier === 2) {
+      return this.trySynthesize(droppedId, targetId, /* cleanupStale */ false);
+    }
+    // Mismatched tiers → no interaction
+    if (droppedUnit.tier !== 1 || targetUnit.tier !== 1) return false;
+
+    // Tier-1 + Tier-1: 겹치기 교배는 M1b에서 폐기(둥지 슬롯으로 대체) — 남는 경로는 카테고리
+    // 조합 합성뿐(예: Warrior+Dog → Bio_Wolf). 같은 카테고리는 synthesize()가 레시피 없음으로 처리.
+    return this.trySynthesize(droppedId, targetId, /* cleanupStale */ false, /* showEffect */ false);
   }
 
   private handleDrop(droppedId: number, go: Phaser.GameObjects.Text): void {
@@ -463,64 +499,34 @@ export class DragController {
     const rawTargetId = this.unitRenderer.getNearestUnitId(go.x, go.y, droppedId, 35);
     const targetId = rawTargetId !== null && this.nestOccupants.includes(rawTargetId) ? null : rawTargetId;
 
-    if (targetId === null) {
-      // Empty space — all tiers can move
-      if (this.isValidUnitPosition(go.x, go.y)) {
-        let dropX = go.x, dropY = go.y;
-        if (this.state.isOnTrack(dropX, dropY)) {
-          const cleared = this.findClearPos(dropX, dropY);
-          if (cleared) { dropX = cleared.x; dropY = cleared.y; }
-          else { go.setPosition(droppedUnit.x, droppedUnit.y); return; }
-        }
-        this.state.moveUnit(droppedId, dropX, dropY);
-        go.setPosition(dropX, dropY);
-        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(dropX, dropY);
+    // ① 유닛 위 드롭 — 합성 성립 시에만 소비. 실패하면 ②로 폴스루(무조건 원위치 아님).
+    if (targetId !== null && this.tryUnitInteraction(droppedId, droppedUnit, targetId)) {
+      return;
+    }
+
+    // ② 필드 이동 — 존 클램프 + 가까운 빈 자리 구제 (F3: 말없는 원위치 제거)
+    const fieldDrop = go.y < DOCK_Y;
+    if (fieldDrop) {
+      const z = this.state.unitZone;
+      const clampedX = Math.max(z.x1, Math.min(z.x2, go.x));
+      const clampedY = Math.max(z.y1, Math.min(Math.min(z.y2, DOCK_Y), go.y));
+      const dropPos = this.isClearPos(clampedX, clampedY, droppedId)
+        ? { x: clampedX, y: clampedY }
+        : this.findClearPos(clampedX, clampedY, droppedId);
+      if (dropPos) {
+        this.state.moveUnit(droppedId, dropPos.x, dropPos.y);
+        go.setPosition(dropPos.x, dropPos.y);
+        this.unitRenderer.getRangeCircle(droppedId)?.setPosition(dropPos.x, dropPos.y);
         return;
       }
-      go.setPosition(droppedUnit.x, droppedUnit.y);
-      return;
+      this.notificationRenderer.add('⚠️ 놓을 빈 자리가 없음', '#ff8844');
     }
 
-    // Interaction
-    go.setPosition(droppedUnit.x, droppedUnit.y); // snap back as default
-
-    const targetUnit = this.state.units.find(u => u.id === targetId);
-    if (!targetUnit || targetUnit.isBreeding) return;
-
-    // Tier-4 units cannot interact
-    if (droppedUnit.tier === 4 || targetUnit.tier === 4) return;
-
-    // Tier-3 + Tier-3 → Astral_God (3-way synthesis)
-    if (droppedUnit.tier === 3 && targetUnit.tier === 3) {
-      if (!this.state.features.synthesize) return;
-      if (droppedUnit.isLocked || targetUnit.isLocked) return;
-      this.trySynthesize(droppedId, targetId, /* cleanupStale */ true);
-      return;
-    }
-
-    // Mixed-tier interactions involving tier-3 → block
-    if (droppedUnit.tier === 3 || targetUnit.tier === 3) return;
-
-    // Tier-2 + Tier-2 → tier-3 synthesis
-    if (droppedUnit.tier === 2 && targetUnit.tier === 2) {
-      if (!this.state.features.synthesize) return;
-      if (droppedUnit.isLocked || targetUnit.isLocked) return;
-      this.trySynthesize(droppedId, targetId, /* cleanupStale */ false);
-      return;
-    }
-
-    // Mismatched tiers → snap back already done
-    if (droppedUnit.tier !== 1 || targetUnit.tier !== 1) return;
-
-    // Tier-1 + Tier-1: 겹치기 교배는 M1b에서 폐기(둥지 슬롯으로 대체) — 남는 경로는 카테고리
-    // 조합 합성뿐(예: Warrior+Dog → Bio_Wolf). 같은 카테고리는 synthesize()가 레시피 없음으로 처리.
-    if (droppedUnit.isLocked || targetUnit.isLocked) return;
-    if (this.state.features.synthesize) {
-      this.trySynthesize(droppedId, targetId, /* cleanupStale */ false, /* showEffect */ false);
-    }
+    // ③ 최후 폴백: 원위치 (독 영역 미스는 토스트 없이 조용히 취소 — M1b 스펙 보존)
+    go.setPosition(droppedUnit.x, droppedUnit.y);
   }
 
-  private trySynthesize(idA: number, idB: number, cleanupStale: boolean, showEffect = true): void {
+  private trySynthesize(idA: number, idB: number, cleanupStale: boolean, showEffect = true): boolean {
     const result = this.state.synthesize(idA, idB);
     if (result) {
       this.unitRenderer.removeUnit(idA);
@@ -531,9 +537,11 @@ export class DragController {
       this.sfx?.playSFX('synth');
       // M2 F8: 티어1+티어1 합성 성공(산출물은 항상 티어2) → 강제 스텝 완료
       if (result.tier === 2) this.ftue?.complete('F8');
+      return true;
     } else if (this.state.pendingNotification) {
       this.notificationRenderer.add(this.state.pendingNotification, '#ffaa44');
       this.state.pendingNotification = null;
     }
+    return false;
   }
 }

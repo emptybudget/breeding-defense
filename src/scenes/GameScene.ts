@@ -116,15 +116,36 @@ export class GameScene extends Phaser.Scene {
       (srcId, kind, dirX, dirY) => { this.unitRenderer.playAttackMotion(srcId, kind, dirX, dirY); },
     );
 
-    // Track (dynamic polygon each game)
+    // Track (dynamic polygon each game) — 3층: 테두리(경계 가독)+본체+중앙 진행 점선. 전부 1회 드로우.
     const g = this.add.graphics();
-    g.lineStyle(36, 0x2a2818, 1);
     const wp = this.state.trackWaypoints;
-    g.beginPath();
-    g.moveTo(wp[0].x, wp[0].y);
-    for (let i = 1; i < wp.length; i++) g.lineTo(wp[i].x, wp[i].y);
-    g.closePath();
-    g.strokePath();
+    const strokeLoop = (width: number, color: number, alpha = 1) => {
+      g.lineStyle(width, color, alpha);
+      g.beginPath();
+      g.moveTo(wp[0].x, wp[0].y);
+      for (let i = 1; i < wp.length; i++) g.lineTo(wp[i].x, wp[i].y);
+      g.closePath();
+      g.strokePath();
+      g.fillStyle(color, alpha);
+      for (const p of wp) g.fillCircle(p.x, p.y, width / 2);
+    };
+    strokeLoop(42, 0x1a1810);
+    strokeLoop(34, 0x2a2818);
+    // 중앙 진행 점선 (금색 금지 — 헌법 4조, 가독용 회갈색)
+    g.lineStyle(2, 0x554d2a, 0.55);
+    for (let i = 0; i < wp.length; i++) {
+      const a = wp[i], b = wp[(i + 1) % wp.length];
+      const segLen = Math.hypot(b.x - a.x, b.y - a.y);
+      const dashLen = 8, gapLen = 20, step = dashLen + gapLen;
+      const dirX = (b.x - a.x) / segLen, dirY = (b.y - a.y) / segLen;
+      for (let d = 0; d < segLen; d += step) {
+        const dashEnd = Math.min(d + dashLen, segLen);
+        g.beginPath();
+        g.moveTo(a.x + dirX * d, a.y + dirY * d);
+        g.lineTo(a.x + dirX * dashEnd, a.y + dirY * dashEnd);
+        g.strokePath();
+      }
+    }
 
     // Mine rendering layer (above track, below enemies)
     this.mineGraphics = this.add.graphics();
