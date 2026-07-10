@@ -605,8 +605,11 @@ export class GameState {
     child.gen = outcome.childGen;
     child.lineageId = lineage.id;
     child.bloodlineName = lineage.name;
-    if (outcome.inheritedTrait) child.trait = outcome.inheritedTrait;
-    if (outcome.secondTrait) child.trait2 = outcome.secondTrait;
+    // 특성(T2 기믹)은 W2-1 해금 전엔 상속·표기 안 함 (28-schools). 칭호(epithet)는 M3 변이 표기라 별개로 유지.
+    if (this.features.traits) {
+      if (outcome.inheritedTrait) child.trait = outcome.inheritedTrait;
+      if (outcome.secondTrait) child.trait2 = outcome.secondTrait;
+    }
     if (outcome.epithet) child.epithet = outcome.epithet;
     this.units.push(child);
     this.pendingDiscoveries.push(outcome.childRace);

@@ -249,7 +249,7 @@ export const ASTRAL_GOD_CHAIN_RANGE = 160;
 export const BOSS_PHASE_B_START_MS = 150_000; // 2:30
 export const BOSS_PHASE_C_START_MS = 270_000; // 4:30
 export const BOSS_HP_PHASE_B_SCALAR = 25 / 15;
-export const BOSS_HP_PHASE_C_SCALAR = 50 / 15;
+export const BOSS_HP_PHASE_C_SCALAR = 65 / 15; // 12-F1(M5): Gen3 T4 처치 2.6s→3.3s 복원 (혈통 없는 Gen0 T4는 4.5s "벅참" 의도)
 export const BOSS_SPEED_PHASE_A = 0.8;
 export const BOSS_SPEED_PHASE_B = 0.7;
 export const BOSS_SPEED_PHASE_C = 0.55;
@@ -310,10 +310,11 @@ export interface StageFeatures {
   lock: boolean;       // 더블탭 잠금
   soulShop: boolean;   // 영혼상점
   recipe: boolean;     // 레시피북
+  traits: boolean;     // 특성(T2 기믹 12종) 상속·표기 — W2-1 해금 (28-schools, 표기만/효과는 L1)
 }
 
 export const ALL_FEATURES: StageFeatures = {
-  breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: true,
+  breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: true, traits: true,
 };
 
 export interface ScriptedWave {
@@ -341,7 +342,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
     1: {
       name: 'W1-1',
       victoryTimeMs: 2 * 60_000,
-      features: { breed: false, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false },
+      features: { breed: false, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false, traits: false },
       fiveMinSurge: false, maxBossPhase: 0,
       fastRatio: 0.3,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
       bossHpMult: 15,  spawnIntervalBase: 6000, bossTimeLimitMs: 10000, eliteIntervalMs: null,
@@ -349,7 +350,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
     2: {
       name: 'W1-2',
       victoryTimeMs: 2 * 60_000,
-      features: { breed: true, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false },
+      features: { breed: true, synthesize: false, sell: false, lock: false, soulShop: false, recipe: false, traits: false },
       fiveMinSurge: false, maxBossPhase: 0,
       fastRatio: 0.3,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
       bossHpMult: 15,  spawnIntervalBase: 6000, bossTimeLimitMs: 10000, eliteIntervalMs: null,
@@ -357,7 +358,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
     3: {
       name: 'W1-3',
       victoryTimeMs: 3 * 60_000,
-      features: { breed: true, synthesize: true, sell: true, lock: false, soulShop: false, recipe: false },
+      features: { breed: true, synthesize: true, sell: true, lock: false, soulShop: false, recipe: false, traits: false },
       fiveMinSurge: false, maxBossPhase: 0,
       fastRatio: 0.4,  tankStartMs: Number.MAX_SAFE_INTEGER, tankRatio: 0,
       bossHpMult: 15,  spawnIntervalBase: 5800, bossTimeLimitMs: 10000, eliteIntervalMs: null,
@@ -365,7 +366,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
     4: {
       name: 'W1-4',
       victoryTimeMs: 3 * 60_000,
-      features: { breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: false },
+      features: { breed: true, synthesize: true, sell: true, lock: true, soulShop: true, recipe: false, traits: false },
       fiveMinSurge: false, maxBossPhase: 1,
       fastRatio: 0.4,  tankStartMs: 2 * 60_000, tankRatio: 0.15,
       bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,
@@ -373,7 +374,7 @@ export const WORLD_CONFIGS: Record<WorldId, Record<WorldStageId, WorldStageConfi
     5: {
       name: 'W1-5',
       victoryTimeMs: 4 * 60_000,
-      features: ALL_FEATURES,
+      features: { ...ALL_FEATURES, traits: false }, // 특성은 W2-1 해금 (28-schools)
       fiveMinSurge: false, maxBossPhase: 2,
       fastRatio: 0.45, tankStartMs: 2 * 60_000, tankRatio: 0.15,
       bossHpMult: 15,  spawnIntervalBase: 5500, bossTimeLimitMs: 10000, eliteIntervalMs: null,

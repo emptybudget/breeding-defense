@@ -1,10 +1,23 @@
 # breeding-defense — AI 핸드오프 컨텍스트
 
 > 다른 AI와 협업 시 이 문서를 컨텍스트로 전달.
-> 마지막 갱신: 2026-07-10 (🔎 **유닛 탭 바텀시트에 혈통 정보 섹션 추가(사용자 요청)** — `UnitActionSheet.ts`에 "혈통 정보" 블록 신설: Gen+형태 라벨(오라 링/뿔/왕관/맥동)·혈통 일격 발동 주기(공격 N회마다 데미지 복제)·혈통명·칭호·특성. Gen 미보유 유닛(교배 이력 없음)은 섹션 자체가 숨음. **중요: 현재 능력치에 실질 영향을 주는 건 혈통 일격(Gen2+)뿐 — 특성은 아직 전투에 미배선이라 이름만 표시하고 "효과는 추후 업데이트" 문구를 별도로 붙임**(28-schools.md 예정, 사용자가 능력치 상승을 오해하지 않도록 명시). `npx tsc --noEmit` 통과, dev server 200 확인. 커밋 안 함.)
+> 마지막 갱신: 2026-07-10 (🏛️ **M5 착수 — 아트 비의존 1차분: F1 밸런스 + 특성 W2-1 게이팅** (Opus 4.8). ①F1: `BOSS_HP_PHASE_C_SCALAR` 50/15→**65/15**(12-F1, Gen3 T4 처치 2.6s→3.3s 복원). ②특성 W2-1 해금: `StageFeatures`에 `traits` 플래그 신설(W1-1~1-5 전부 false, W2+ ALL_FEATURES=true), `completeBreeding`이 `!features.traits`면 자식 `trait/trait2` 미부여(칭호 epithet은 M3 변이 표기라 게이팅 제외). 신규 테스트 `traitGating.test.ts`(esbuild→node 실증 통과). tsc·dev200 통과. **⚠️ 잠재버그 발견(미수정, M3 선존재): `breeding.ts:72` 전설 2번째 특성 롤 `do/while`에 반복 상한이 없어 rng가 degenerate(상수)면 무한루프 — 실제 Math.random에선 사실상 무발생이나 테스트에서 rng=0 고정 시 hang 확인. 다음에 iteration cap 추가 권장.** **가문 계보 등록(스키마 v3+마이그레이션+체인 빌더)은 이번에 제외 — 사용자가 곧 혈통서/스테이지맵 아트 제작 예정이라 UI와 함께 다음 세션에 묶어서 처리(half-built 마이그레이션 push 회피). 설계 조사분은 아래 M5 착수 메모 참조.** 커밋+push 완료.)
 > 2026-07-10 (⚡ **31번(트랙 비주얼+드래그 원위치) F1~F4 전부 완료** — F4: 둥지 드래그 실패 문구를 `sendToNest`와 동일한 예산소진/잠금 분기로 교체(`DragController.ts:326`, 고정 오정보 문구 제거). `npx tsc --noEmit` 통과. `_onTrack` 반폭 18 경계 테스트(17.9/18.1) 신규 추가(`tests/game/track.test.ts`) — 이 환경 vitest 미기동이라 esbuild→node 실증으로 통과 확인(Math.random 모킹으로 지터 0 고정 레이아웃 사용). **다음 = 사용자 플레이 게이트만 남음(`31-track-drag-fix.md` §2-3,4): 필드 재배치 10회 연속 '이유 모를 원위치' 0회 + 트랙 경계 눈으로 구분 + 새 판 5회로 레이아웃 5종 전부 확인.** 통과하면 31번 완료 처리, 이어 M5(Opus 4.8) 착수. 아직 커밋 안 함 — 사용자 확인 후 커밋 예정. 직전 상태는 아래 M4 항목 참조)
 > 2026-07-09 (🎯 **목표 재정의: 모바일 게임이되 Steam 즉시 출시 가능 완성도** — `docs/redesign/29-steam-quality.md` 신설[디벨롭 1회차]: Steam 최저선 8축 감사, **판형 확정 = 세로 360×640 코어 불변 + 데스크톱 좌우 정보 패널(C안, 좌=계보 라이브 뷰/우=라운드 타임라인)**, BM 플랫폼 분기(모바일 F2P 유지/Steam 프리미엄), i18n 키 구조만 M5 전 선결정, G3·G5 시급도 승격. 이어 2회차 `30-steam-volume.md`(볼륨 6h 예산·별점 기준 확정·Steam 1.0 경계). 기획 디벨롭은 1회차마다 사용자 확인 후 저장하는 반복 방식 — 다음 회차: ③데스크톱 UX ④BM Steam 절 ⑤기술 스파이크 ⑥도전과제. **협업 규칙: Fable은 진단·스펙만, 구현은 하위 모델**(선례: `31-track-drag-fix.md`))
 > 2026-07-08 (✅ **M4 혈통의 무대 구현 완료** — 둥지 채우기→예상 혈통 카드(0.3배속)→교배 버튼 확정 3단계 재구성, 알 부화(Graphics 스텁, 3틱 SFX)→등급 리빌+birthCry, Gen 형태 표기(링/뿔/왕관)+정점 유닛 문장 오버레이(E22), 혈통 일격 플래그 on+이펙트+SFX, W1-2 확정 희귀(forceRare)+일반 변이 +10G, FTUE F5~F7, 금색 전수감사(T2 잭팟→백금). AM1/AM7 아트 미확보로 전부 Graphics 프로시저럴 스텁(사용자 승인, 추후 아트 교체 예정). **다음 = 사용자 M4 플레이테스트 게이트("설명 없이 둥지 발견" + "전투 최고조 스샷에서 Gen 단계 오답 없이 지목") + 상위 모델 /code-review 1회 권장. 결과 카드(GameOver/Victory 원인·별점·계보 체인)는 사용자 확인 하에 이번 범위에서 제외 — 별점 기준 미정, 다음 세션 과제로 이연. M5는 Opus 4.8.** 상세 기획: `docs/redesign/05-design-v3.md`)
+
+### 🏛️ M5 착수 메모 (2026-07-10, Opus 4.8) — 다음 세션이 이어받을 설계 조사·결정
+
+이번 세션은 M5 중 **아트 비의존·완결 가능한 것만** 처리(사용자가 곧 아트 제작 예정 → 나머지는 UI와 묶음). 이번에 넣은 것: F1 밸런스 + 특성 W2-1 게이팅(위 갱신 줄). 아래는 **다음 세션이 바로 쓸 수 있게** 정리한 조사 결과.
+
+- **가문 계보 등록(다음 세션 헤드라인)**: 판 종료 시 `state.pedigree`(이벤트 로그, E2로 유닛 생존 무관) + `state.lineages`(id→name/family/epithet)를 `MetaProgress`에 자동 등록. 필요 작업:
+  - 타입: `FamilyChainNode { race, gen, name, epithet?, mutation? }` + `FamilyRecord { name, family(FamilyKey), chain: FamilyChainNode[], apexRace, apexGen }`. **주의: `types.ts`의 기존 `PedigreeNode`는 이벤트 로그용(다른 shape)이라 이름 충돌 — 새 이름 `FamilyChainNode` 쓸 것.**
+  - 상수: `CHAIN_NODES_MAX=8`, `FAMILY_SLOT_MAX`(PROGRESS M5 행). 체인 >8이면 시조(Gen1)+상위 Gen 7개 유지.
+  - `MetaProgress`: `families: FamilyRecord[]` + `registerFamily(rec)`(슬롯 캡, FIFO 드롭 권장) + **스키마 v2→v3 bump**(`SAVE_SCHEMA_VERSION` 2→3, 마이그레이션 `families: p.families ?? []`, v1 픽스처 왕복 테스트 필수).
+  - **체인 빌더 = 데이터 플러밍 필요(이게 이번에 미룬 핵심 이유)**: 현재 `pedigree.push`(GameState:615)는 `lineageId/name/epithet`을 **안 담음** → 어느 노드가 어느 혈통인지 못 엮음. `pedigree.push`에 이 3필드 추가 + **융합(synthesize T2/T3/T4) 결과도 pedigree에 로깅**(현재 breeding만 로깅, 융합 결과 "은빛칼날의 Astral God" 노드가 빠짐)해야 "시조→교배→융합" 체인 완성. `applyInheritance`가 융합물에 lineageId를 이미 세팅하므로 로깅만 추가하면 됨.
+  - apex 선택: pedigree에서 childGen 최대(동률 시 최신 id) 노드의 lineageId → 그 혈통 노드만 필터·gen 오름차순·매핑.
+- **가문 시드(💀3)·2차 트리(상속+5%/희귀+0.5%)는 별도 큰 의존성**: 둘 다 **영구 💀(영혼) 이월 화폐**를 전제하는데 현재 💀는 판내 화폐(`enhancePoints`)로만 존재, 영구 이월 화폐가 없음. "영구 💀를 어디서 버는가"는 어느 M5 문서에도 미확정(03/04번의 "보석→영혼 환전" 아이디어 수준). + 시드 출전은 3탭 스테이지맵·출전 가문 스트립(아트) 필요. → **착수 전 사용자와 ①영구 💀 수익/획득 경로 확정 필요.** 사용자 스코프 답변에도 시드/트리는 미포함이었음.
+- **특성 W2-1 게이팅 결정 근거**: 28-schools "해금은 W2-1과 동시 — 표기만, 효과는 L1." 특성=trait(T2 기믹 12종), 칭호=epithet(M3 변이 표기, 별개). 그래서 `traits` 플래그는 trait/trait2만 게이팅, epithet은 W1에서도 유지(W1-2 forceRare 잭팟 연출 보존).
 
 ### ✅ 31번(트랙·드래그 원위치 수정) 완료 메모 (2026-07-10, Sonnet 5) — 다음 세션이 참고할 설계 이탈점
 
