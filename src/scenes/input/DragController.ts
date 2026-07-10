@@ -323,7 +323,10 @@ export class DragController {
     this.unitRenderer.getRangeCircle(id)?.setPosition(unit.x, unit.y);
     if (outcome === 'placed' || outcome === 'preview') return;
     if (outcome === 'incompatible') {
-      this.notificationRenderer.add('⚠️ 같은 카테고리 유닛만 교배 가능', '#ff8844');
+      const msg = this.state.breedsUsedThisGame >= BREED_BUDGET
+        ? `⚠️ 이번 판 교배 예산 소진 (${BREED_BUDGET}회)`
+        : '⚠️ 교배 불가 (잠금/교배중 유닛)';
+      this.notificationRenderer.add(msg, '#ff8844');
     } else {
       this.notificationRenderer.add('⚠️ 유닛 한도 가득 참! 한도+1 필요', '#ff8844');
       if (typeof navigator.vibrate === 'function') navigator.vibrate(30);
