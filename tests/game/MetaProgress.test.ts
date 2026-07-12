@@ -52,3 +52,35 @@ describe('M2 FTUE 완료 기록', () => {
     expect(reloaded.ftueDone).toEqual(['F1']);
   });
 });
+
+describe('M5 가문 계보 — v3 마이그레이션 + 등록', () => {
+  beforeEach(() => { installFakeLocalStorage(); });
+
+  const fam = (name: string) => ({
+    name, family: 'sword' as const, chain: [{ race: 'Warrior' as const, gen: 1 as const, name }],
+    apexRace: 'Warrior' as const, apexGen: 1 as const, registeredAt: 1,
+  });
+
+  it('families 부재 구세이브(v1/v2)는 빈 배열로 마이그레이션', () => {
+    localStorage.setItem('bd_meta', JSON.stringify({ schemaVersion: 2, gems: 5 }));
+    const mp = new MetaProgress();
+    expect(mp.families).toEqual([]);
+    expect(mp.gems).toBe(5);
+  });
+
+  it('registerFamily는 누적·영속되고 재로드해도 유지', () => {
+    const mp = new MetaProgress();
+    mp.registerFamily(fam('은빛칼날'));
+    expect(mp.families.map(f => f.name)).toEqual(['은빛칼날']);
+    const reloaded = new MetaProgress();
+    expect(reloaded.families.map(f => f.name)).toEqual(['은빛칼날']);
+  });
+
+  it('슬롯 상한 초과 시 오래된 것부터 FIFO 드롭', () => {
+    const mp = new MetaProgress();
+    for (let i = 0; i < 25; i++) mp.registerFamily(fam('가문' + i));
+    expect(mp.families.length).toBe(20);        // FAMILY_SLOT_MAX
+    expect(mp.families[0].name).toBe('가문5');    // 앞 5개(0~4) 드롭
+    expect(mp.families[19].name).toBe('가문24');
+  });
+});

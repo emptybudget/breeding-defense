@@ -162,7 +162,11 @@ export const STRIKE_PERIOD: Record<2 | 3 | 4, number> = { 2: 4, 3: 3, 4: 2 };
 export const BLOODLINE_STRIKE_ENABLED = true;         // M4: 연출과 함께 활성화
 export const TRAIT_INHERIT = { fromA: 50, fromB: 40, third: 20, synthesis: 60 } as const;
 export const GEN_MAX = 4;
-export const SAVE_SCHEMA_VERSION = 2;                 // v2 = gen/lineage/특성 + exhaust 제거
+export const SAVE_SCHEMA_VERSION = 3;                 // v3 = 가문 계보(families) / v2 = gen/lineage/특성 + exhaust 제거
+
+// M5: 가문 계보 등록 (docs/redesign M5 착수 메모)
+export const CHAIN_NODES_MAX = 8;                     // 체인 노드 상한 — 초과 시 시조(Gen1)+상위 Gen 7개 유지
+export const FAMILY_SLOT_MAX = 20;                    // 가문 슬롯 상한 — 초과 시 오래된 것부터 FIFO 드롭
 
 // --- M4: 혈통의 무대 (docs/redesign/05-design-v3.md R4·R6·R7, 13-edge-case-matrix E10) ---
 export const MUTATION_COMMON_GOLD = 10;               // 일반 변이 즉시 골드 (R6)

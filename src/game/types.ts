@@ -43,6 +43,27 @@ export interface PedigreeNode {                        // 13-E2: 이벤트 로�
   childGen: Gen;
   mutation?: MutationGrade;
   cross: boolean;             // 이계열 여부
+  // M5: 가문 계보 체인 빌더용 (교배·융합 결과의 혈통 귀속). 옵셔널 = 구세이브/무혈통 노드 호환.
+  lineageId?: number;
+  name?: string;              // 혈통명 (bloodlineName)
+  epithet?: string;           // 개체 칭호
+}
+
+// M5: 가문 계보 — 판 종료 시 apex 혈통 체인을 MetaProgress에 영구 등록 (가문 전당/혈통서 원천)
+export interface FamilyChainNode {
+  race: UnitRace;
+  gen: Gen;
+  name: string;               // 노드 시점 혈통명
+  epithet?: string;
+  mutation?: MutationGrade;
+}
+export interface FamilyRecord {
+  name: string;               // 대표 혈통명 (apex)
+  family: FamilyKey;
+  chain: FamilyChainNode[];   // 시조→apex, gen 오름차순 (≤ CHAIN_NODES_MAX)
+  apexRace: UnitRace;
+  apexGen: Gen;
+  registeredAt: number;       // 등록 시각(ms epoch) — 슬롯 정렬·표시용
 }
 
 export interface UnitData {

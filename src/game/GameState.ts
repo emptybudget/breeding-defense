@@ -614,10 +614,11 @@ export class GameState {
     this.units.push(child);
     this.pendingDiscoveries.push(outcome.childRace);
 
-    // 계보 노드 (이벤트 로그, 불변 — E2)
+    // 계보 노드 (이벤트 로그, 불변 — E2). M5: 혈통 귀속 3필드 포함(가문 체인 빌더용)
     this.pedigree.push({
       parentIds: [idA, idB], childId: child.id, childRace: outcome.childRace,
       childGen: outcome.childGen, mutation: outcome.mutation, cross: outcome.cross,
+      lineageId: lineage.id, name: lineage.name, epithet: outcome.epithet,
     });
 
     // 부화 연출/영속 큐
@@ -804,6 +805,14 @@ export class GameState {
     if (inh.bloodlineName) result.bloodlineName = inh.bloodlineName;
     if (inh.trait) result.trait = inh.trait;
     if (inh.epithet) result.epithet = inh.epithet;
+
+    // M5: 융합 결과도 계보에 로깅 — "시조→교배→융합" 체인 완성 (혈통 승계된 경우만 귀속)
+    this.pedigree.push({
+      parentIds: [materials[0].id, materials[1].id],
+      childId: result.id, childRace: result.race, childGen: result.gen ?? 0,
+      cross: false,
+      lineageId: result.lineageId, name: result.bloodlineName, epithet: result.epithet,
+    });
   }
 
   private applySynthesisCombo(): void {

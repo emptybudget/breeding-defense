@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BANNER_PRIORITY, BannerTag, BOSS_KILL_ENHANCE_POINT, BOSS_PHASE_C_START_MS, BOSS_PHASE_B_START_MS, DOCK_CENTER_Y, DOCK_H, DOCK_Y, FIVE_MIN_SURGE_MULT, GAME_HEIGHT, GAME_WIDTH, MAX_ENEMIES, NEST_SLOT_1_X, PREVIEW_CARD_H, PREVIEW_CARD_W, PREVIEW_CARD_X, PREVIEW_CARD_Y, ROUND_CLEAR_GOLD, SELL_EDGE_W, TOTAL_ROUNDS, WORLD_CONFIGS, WorldId, WorldStageId } from '../game/config';
 import { computeEffectiveSpeedMult } from '../game/ftue';
+import { buildFamilyRecord } from '../game/family';
 import { GameState, Phase } from '../game/GameState';
 import { MutationGrade } from '../game/types';
 import { W1_5_CUTIN_LINE } from '../game/lore';
@@ -20,6 +21,7 @@ export class GameScene extends Phaser.Scene {
   private state!: GameState;
   private metaProgress!: MetaProgress;
   private starsAwarded = false;
+  private familyRegistered = false;
   private enemyRenderer!: EnemyRenderer;
   private hudRenderer!: HudRenderer;
   private popupRenderer!: PopupRenderer;
@@ -65,6 +67,7 @@ export class GameScene extends Phaser.Scene {
     this.metaProgress = new MetaProgress();
     this.ftue = new FtueController(this, this.metaProgress);
     this.starsAwarded = false;
+    this.familyRegistered = false;
     this.overclockSfxPlayed = false;
     const data = (this.scene.settings.data as Record<string, unknown>) ?? {};
     this.world = ((data.world as WorldId) ?? 2);
@@ -414,6 +417,7 @@ export class GameScene extends Phaser.Scene {
           this.metaProgress.addGems(1);
           this.starsAwarded = true;
         }
+        this.registerFamilyOnce();
         // M2: W1-5 최초 클리어 시 T4 컷인 — setStageRecord로 기록이 갱신되기 전에 판정
         const isFirstW15Clear = this.world === 1 && this.stage === 5 &&
           this.metaProgress.getStageRecord(this.world * 10 + this.stage) === null;
@@ -458,6 +462,7 @@ export class GameScene extends Phaser.Scene {
       // M2 F13: 최초 GameOver 기록 — 시각 변화 없음(원인 문구는 GameOverPopup이 항상 표시)
       if (!this.ftue.isDone('F13')) this.metaProgress.markFtueDone('F13');
       this.sfx.playSFX('gameover');
+      this.registerFamilyOnce();
       const isNewRecord = this.metaProgress.setStageRecord(this.world * 10 + this.stage, this.state.elapsedMs);
       this.popupRenderer.showGameOver(isNewRecord);
       return;
@@ -579,6 +584,14 @@ export class GameScene extends Phaser.Scene {
       stroke: '#000000', strokeThickness: 5,
     }).setOrigin(0.5).setDepth(21);
     this.tweens.add({ targets: text, y: CENTER_Y - 70, alpha: 0, duration: 1200, onComplete: () => text.destroy() });
+  }
+
+  // M5: 판 종료 시 apex 혈통을 가문으로 1회 등록 (승/패 공통)
+  private registerFamilyOnce(): void {
+    if (this.familyRegistered) return;
+    this.familyRegistered = true;
+    const rec = buildFamilyRecord(this.state.pedigree, this.state.lineages);
+    if (rec) this.metaProgress.registerFamily(rec);
   }
 
   // M2/M5: W1-5 최초 클리어 T4 컷인 — cutin_astral_god 일러스트(없으면 텍스트 폴백)

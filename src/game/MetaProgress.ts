@@ -1,5 +1,5 @@
-import { DISCOVERY_MILESTONES, SAVE_SCHEMA_VERSION, type UpgradeKey } from './config';
-import { FtueStepId, MutationGrade } from './types';
+import { DISCOVERY_MILESTONES, FAMILY_SLOT_MAX, SAVE_SCHEMA_VERSION, type UpgradeKey } from './config';
+import { FamilyRecord, FtueStepId, MutationGrade } from './types';
 import { PityState } from './breeding';
 
 const STORAGE_KEY = 'bd_meta';
@@ -17,6 +17,7 @@ export interface MetaData {
   speed2xRefunded: boolean;             // M2: 2배속 W1 무료화 환불 마이그레이션 1회 완료 플래그
   pity: PityState;                      // M3: 희귀/전설 피티 영속 (12-F3)
   mutationsSeen: Record<MutationGrade, number>; // M3: 변이 등급별 누적 (E19)
+  families: FamilyRecord[];             // M5: 판 종료 시 등록된 가문 계보 (v3, FIFO 캡)
 }
 
 const DEFAULT_LEVELS: Record<UpgradeKey, number> = {
@@ -35,6 +36,7 @@ export function emptyMeta(): MetaData {
     discovered: [], claimedMilestones: [], ftueDone: [], speed2xRefunded: true,
     pity: { rareMiss: 0, legendMiss: 0 },
     mutationsSeen: { common: 0, rare: 0, legend: 0 },
+    families: [],
   };
 }
 
@@ -73,6 +75,8 @@ export function migrateSave(p: any): { data: MetaData; migrated: boolean } {
       rare: p.mutationsSeen?.rare ?? 0,
       legend: p.mutationsSeen?.legend ?? 0,
     },
+    // v2→v3: 가문 계보 (부재 시 빈 배열)
+    families: Array.isArray(p.families) ? p.families : [],
   };
   const migrated = !alreadyRefunded || version < SAVE_SCHEMA_VERSION;
   return { data, migrated };
@@ -150,6 +154,16 @@ export class MetaProgress {
     this.save();
   }
   get mutationsSeen(): Readonly<Record<MutationGrade, number>> { return this.data.mutationsSeen; }
+
+  /** M5: 판 종료 시 가문 계보 등록. 슬롯 초과 시 오래된 것부터 FIFO 드롭. */
+  registerFamily(rec: FamilyRecord): void {
+    this.data.families.push(rec);
+    if (this.data.families.length > FAMILY_SLOT_MAX) {
+      this.data.families.splice(0, this.data.families.length - FAMILY_SLOT_MAX);
+    }
+    this.save();
+  }
+  get families(): readonly FamilyRecord[] { return this.data.families; }
 
   isStageUnlocked(stageId: number): boolean {
     if (stageId <= 2) return true;
