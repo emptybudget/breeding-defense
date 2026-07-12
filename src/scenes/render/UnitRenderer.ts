@@ -3,6 +3,7 @@ import { findApexUnit } from '../../game/breeding';
 import { EGG_HATCH_MS, GEN_VISUALS } from '../../game/config';
 import { GameState } from '../../game/GameState';
 import { UNIT_LORE } from '../../game/lore';
+import { FAMILY_OF_RACE } from '../../game/naming';
 import { FamilyKey, MutationGrade, UnitData, UnitRace } from '../../game/types';
 import { getUnitCombatStats } from '../../game/unitHelpers';
 import { ANS } from '../artnouveau';
@@ -12,6 +13,11 @@ import { UI } from '../ui/tokens';
 import { AttackKind } from './EnemyRenderer';
 
 type UnitGameObject = Phaser.GameObjects.Text | Phaser.GameObjects.Image;
+
+// 명가 아트: 계열 알 텍스처 (Human=검문/Beast=야수문/Robot=강철문)
+const EGG_TEXTURE_OF_FAMILY: Record<FamilyKey, string> = {
+  sword: 'egg_human', fang: 'egg_beast', steel: 'egg_robot',
+};
 
 export class UnitRenderer {
   private scene: Phaser.Scene;
@@ -175,7 +181,16 @@ export class UnitRenderer {
   }
 
   // M4: 하트 대신 알(Graphics 스텁) + 게이지 + 3회 심장박동 SFX → EGG_HATCH_MS 후 등급 리빌.
-  // 아트(AM1) 미확보 상태의 프로시저럴 스텁 — 추후 egg_<family>.png 교체 예정.
+  // 부모의 계열 → 알 색. lineage 우선, 없으면 race(T1) 매핑, 최종 폴백 sword.
+  private eggFamily(id: number): FamilyKey {
+    const u = this.state.units.find(x => x.id === id);
+    if (u?.lineageId != null) {
+      const fam = this.state.lineages.get(u.lineageId)?.family;
+      if (fam) return fam;
+    }
+    return (FAMILY_OF_RACE as Record<string, FamilyKey | undefined>)[u?.race ?? ''] ?? 'sword';
+  }
+
   startBreedingEffect(idA: number, idB: number): void {
     const goA = this.unitObjects.get(idA);
     const goB = this.unitObjects.get(idB);
@@ -184,11 +199,17 @@ export class UnitRenderer {
     const ex = (goA.x + goB.x) / 2;
     const ey = (goA.y + goB.y) / 2 - 10;
 
-    const eggGfx = this.scene.add.graphics().setPosition(ex, ey).setDepth(2);
-    eggGfx.fillStyle(UI.cream, 1);
-    eggGfx.fillEllipse(0, 0, 18, 24);
-    eggGfx.lineStyle(2, UI.gold, 1);
-    eggGfx.strokeEllipse(0, 0, 18, 24);
+    // 계열 알 스프라이트 (텍스처 없으면 프로시저럴 타원 폴백)
+    const eggKey = EGG_TEXTURE_OF_FAMILY[this.eggFamily(idA)];
+    let egg: Phaser.GameObjects.GameObject;
+    if (this.scene.textures.exists(eggKey)) {
+      egg = this.scene.add.image(ex, ey, eggKey).setDisplaySize(46, 54).setDepth(2);
+    } else {
+      const g = this.scene.add.graphics().setPosition(ex, ey).setDepth(2);
+      g.fillStyle(UI.cream, 1); g.fillEllipse(0, 0, 18, 24);
+      g.lineStyle(2, UI.gold, 1); g.strokeEllipse(0, 0, 18, 24);
+      egg = g;
+    }
 
     const gaugeGfx = this.scene.add.graphics().setPosition(ex, ey).setDepth(2);
     this.scene.tweens.addCounter({
@@ -198,7 +219,7 @@ export class UnitRenderer {
         gaugeGfx.clear();
         gaugeGfx.lineStyle(2, UI.goldMid, 1);
         gaugeGfx.beginPath();
-        gaugeGfx.arc(0, 0, 16, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * ratio), false);
+        gaugeGfx.arc(0, 0, 28, Phaser.Math.DegToRad(-90), Phaser.Math.DegToRad(-90 + 360 * ratio), false);
         gaugeGfx.strokePath();
       },
     });
@@ -209,7 +230,7 @@ export class UnitRenderer {
     });
 
     this.scene.time.delayedCall(EGG_HATCH_MS, () => {
-      eggGfx.destroy();
+      egg.destroy();
       gaugeGfx.destroy();
       this.eggTickEvent?.remove();
       this.eggTickEvent = undefined;
@@ -232,13 +253,13 @@ export class UnitRenderer {
   private playHatchFlourish(x: number, y: number, race: UnitRace, mutation?: MutationGrade): void {
     if (mutation === 'legend') {
       this.sfx?.playSFX('hatchLegend');
-      this.burstFlourish(x, y, UI.gold, '🌟', 1400);
+      this.hatchBurst(x, y, 0xffffff, 1.4, 620); // 순금 원본, 최대 폭발
     } else if (mutation === 'rare') {
       this.sfx?.playSFX('hatchRare');
-      this.burstFlourish(x, y, UI.silver, '✨', 900);
+      this.hatchBurst(x, y, UI.silver, 0.9, 540);  // 은색 tint + 축소
     } else {
       this.sfx?.playSFX('hatchCommon');
-      this.burstFlourish(x, y, UI.goldDim, '', 500);
+      this.burstFlourish(x, y, UI.goldDim, '', 500); // 일반: 버스트 미사용(낙차 위계)
     }
     // M4: 부화 배너 대사(등급 연출 아래, 0.8s) — 24-lore-units.md §2~§5
     const cry = UNIT_LORE[race]?.birthCry;
@@ -249,6 +270,19 @@ export class UnitRenderer {
       this.scene.tweens.add({ targets: t, alpha: 1, duration: 100 });
       this.scene.tweens.add({ targets: t, alpha: 0, delay: 500, duration: 200, onComplete: () => t.destroy() });
     }
+  }
+
+  // 전설/희귀 부화 버스트 — fx_hatch_burst 순금 텍스처(ADD). 희귀는 은tint+축소.
+  private hatchBurst(x: number, y: number, tint: number, maxScale: number, durationMs: number): void {
+    if (!this.scene.textures.exists('fx_hatch_burst')) {
+      this.burstFlourish(x, y, tint, '', durationMs); // 폴백
+      return;
+    }
+    const base = 110 / 256; // 텍스처 256² → 기준 표시 크기
+    const img = this.scene.add.image(x, y, 'fx_hatch_burst')
+      .setDepth(3).setBlendMode(Phaser.BlendModes.ADD).setTint(tint).setScale(0);
+    this.scene.tweens.add({ targets: img, scale: base * maxScale, duration: durationMs * 0.45, ease: 'Quad.easeOut' });
+    this.scene.tweens.add({ targets: img, alpha: 0, delay: durationMs * 0.3, duration: durationMs * 0.7, onComplete: () => img.destroy() });
   }
 
   private burstFlourish(x: number, y: number, color: number, emoji: string, durationMs: number): void {
@@ -333,6 +367,13 @@ export class UnitRenderer {
     const tier = unit.tier;
 
     if (kind === 'magic' || kind === 'divine' || kind === 'chain') {
+      // ⑥ T4 신: divine 공격 시 attack 프레임 0.15s 교차 표시
+      if (kind === 'divine' && go instanceof Phaser.GameObjects.Image
+          && this.scene.textures.exists('unit_astral_god_tier4_attack')) {
+        const idleTex = go.texture.key;
+        go.setTexture('unit_astral_god_tier4_attack');
+        this.scene.time.delayedCall(150, () => { if (go.active) go.setTexture(idleTex); });
+      }
       const baseScaleX = go.scaleX, baseScaleY = go.scaleY;
       const mult = kind === 'divine' ? 1.28 : tier >= 2 ? 1.22 : 1.15;
       const dur = kind === 'chain' ? 70 : 90;

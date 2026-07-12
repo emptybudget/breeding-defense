@@ -23,19 +23,16 @@ import { EnemyType, UnitRace } from '../../game/types';
 import { SoundManager } from '../SoundManager';
 import { UI } from '../ui/tokens';
 
-const ENEMY_EMOJI: Record<EnemyType, string> = {
-  NORMAL: '👾',
-  FAST:   '🐝',
-  TANK:   '🐢',
-};
-const ENEMY_FONT: Record<EnemyType, string> = {
-  NORMAL: '20px',
-  FAST:   '16px',
-  TANK:   '23px',
-};
-const BOSS_EMOJI = '👺';
-const ELITE_EMOJI = '💀';
-const ELITE_FONT  = '25px';
+// 명가 아트: 적 스프라이트 텍스처 + 표시 크기(px, 정사각). 유닛(40~62px) 대비 밸런스, 육안 확인 후 튜닝.
+const ENEMY_TEXTURE: Record<EnemyType, string> = { NORMAL: 'enemy_normal', FAST: 'enemy_fast', TANK: 'enemy_tank' };
+const ENEMY_PX: Record<EnemyType, number> = { NORMAL: 40, FAST: 38, TANK: 48 };
+const ELITE_TEXTURE = 'enemy_elite';
+const BOSS_TEXTURE = 'enemy_boss';
+const GREATBOSS_TEXTURE = 'enemy_greatboss';
+const ELITE_PX = 44;
+const MINIBOSS_PX = 54;
+const BOSS_PX = 60;
+const GREATBOSS_PX = 78;
 
 export type AttackKind = 'line' | 'slash' | 'beam' | 'shell' | 'chain' | 'magic' | 'divine';
 type AttackStyle = { color: number; width: number; kind: AttackKind };
@@ -71,7 +68,7 @@ const ATTACK_STYLE: Partial<Record<UnitRace, AttackStyle>> = {
 };
 const DEFAULT_ATTACK_STYLE: AttackStyle = { color: 0xffff00, width: 2, kind: 'line' };
 
-type Enemy = Phaser.GameObjects.Text & {
+type Enemy = Phaser.GameObjects.Image & {
   id: number;
   hp: number;
   maxHp: number;
@@ -141,11 +138,10 @@ export class EnemyRenderer {
                        ms >= BOSS_PHASE_B_START_MS ? BOSS_KILL_REWARD_PHASE_B : BOSS_KILL_REWARD_PHASE_A;
 
     const bossHp = Math.ceil(ENEMY_TYPES.NORMAL.hp * this.state.currentEnemyHp * this.state.stageConfig.bossHpMult * hpScalar);
-    const bossEmoji = isPhaseC ? '👑' : BOSS_EMOJI;
-    const bossFontSize = isPhaseC ? '48px' : '28px';
-    const boss = this.scene.add.text(wp.x, wp.y, bossEmoji, {
-      fontFamily: 'monospace', fontSize: bossFontSize,
-    }).setOrigin(0.5) as unknown as Enemy;
+    const bossTex = isPhaseC ? GREATBOSS_TEXTURE : BOSS_TEXTURE;
+    const bossPx = isPhaseC ? GREATBOSS_PX : BOSS_PX;
+    const boss = this.scene.add.image(wp.x, wp.y, bossTex)
+      .setOrigin(0.5).setDisplaySize(bossPx, bossPx) as unknown as Enemy;
     boss.id = this._nextEnemyId++;
     boss.hp = bossHp; boss.maxHp = bossHp;
     boss.speed = ENEMY_TYPES.NORMAL.speed * overclockSpeedMult * speedMult;
@@ -232,9 +228,8 @@ export class EnemyRenderer {
     const speed = def.speed * overclockSpeedMult;
     const killReward = type === 'TANK' ? TANK_KILL_REWARD : KILL_REWARD;
 
-    const enemy = this.scene.add.text(wp.x, wp.y, ENEMY_EMOJI[type], {
-      fontFamily: 'monospace', fontSize: ENEMY_FONT[type],
-    }).setOrigin(0.5) as unknown as Enemy;
+    const enemy = this.scene.add.image(wp.x, wp.y, ENEMY_TEXTURE[type])
+      .setOrigin(0.5).setDisplaySize(ENEMY_PX[type], ENEMY_PX[type]) as unknown as Enemy;
     enemy.id = this._nextEnemyId++;
     enemy.hp = hp; enemy.maxHp = hp; enemy.speed = speed;
     enemy.waypointIndex = (wpIdx + 1) % waypoints.length;
@@ -259,9 +254,9 @@ export class EnemyRenderer {
       this.state.stageConfig.bossHpMult * ELITE_HP_BOSS_RATIO
     );
 
-    const elite = this.scene.add.text(wp.x, wp.y, ELITE_EMOJI, {
-      fontFamily: 'monospace', fontSize: isMiniboss ? '32px' : ELITE_FONT,
-    }).setOrigin(0.5) as unknown as Enemy;
+    const elitePx = isMiniboss ? MINIBOSS_PX : ELITE_PX;
+    const elite = this.scene.add.image(wp.x, wp.y, ELITE_TEXTURE)
+      .setOrigin(0.5).setDisplaySize(elitePx, elitePx) as unknown as Enemy;
     elite.id = this._nextEnemyId++;
     elite.hp = eliteHp; elite.maxHp = eliteHp;
     elite.speed = ELITE_BASE_SPEED * overclockSpeedMult;
@@ -436,14 +431,26 @@ export class EnemyRenderer {
           }
         }
 
-        // M4 R4: 혈통 일격 추가타 — 금색 스트릭 오버레이 스텁(fx_bloodline_strike.png 미확보, AM7 교체 예정)
+        // M4 R4: 혈통 일격 추가타 — 순금 발사체 fx (scale 0.6→1 + 이동, 0.12s). ADD 블렌드.
         if (atk.isStrike) {
-          this.flashGraphics.lineStyle(3, UI.gold, 1);
-          this.flashGraphics.beginPath();
-          this.flashGraphics.moveTo(atk.unitX, atk.unitY);
-          this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
-          this.flashGraphics.strokePath();
           this.sfx?.playSFX('strike');
+          if (this.scene.textures.exists('fx_bloodline_strike')) {
+            const ang = Math.atan2(atk.enemyY - atk.unitY, atk.enemyX - atk.unitX);
+            const base = 48 / 256; // 텍스처 256² → 약 48px 스트릭
+            const proj = this.scene.add.image(atk.unitX, atk.unitY, 'fx_bloodline_strike')
+              .setDepth(4).setRotation(ang).setBlendMode(Phaser.BlendModes.ADD).setScale(base * 0.6);
+            this.scene.tweens.add({
+              targets: proj, x: atk.enemyX, y: atk.enemyY, scale: base,
+              duration: 120, ease: 'Quad.easeIn',
+              onComplete: () => proj.destroy(),
+            });
+          } else {
+            this.flashGraphics.lineStyle(3, UI.gold, 1);
+            this.flashGraphics.beginPath();
+            this.flashGraphics.moveTo(atk.unitX, atk.unitY);
+            this.flashGraphics.lineTo(atk.enemyX, atk.enemyY);
+            this.flashGraphics.strokePath();
+          }
         }
 
         if (atk.damage > 0) {

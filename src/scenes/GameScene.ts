@@ -53,6 +53,12 @@ export class GameScene extends Phaser.Scene {
         this.load.image(key, `assets/characters/${key}.png`);
       }
     }
+    // 명가 아트 반입: 적 스프라이트 / 계열 알 / 혈통 fx / 컷인 / T4 공격 프레임
+    const load = (k: string, path: string) => { if (!this.textures.exists(k)) this.load.image(k, path); };
+    for (const k of ['enemy_normal', 'enemy_fast', 'enemy_tank', 'enemy_elite', 'enemy_boss', 'enemy_greatboss']) load(k, `assets/enemies/${k}.png`);
+    for (const k of ['egg_human', 'egg_beast', 'egg_robot', 'unit_astral_god_tier4_attack']) load(k, `assets/characters/${k}.png`);
+    for (const k of ['fx_bloodline_strike', 'fx_hatch_burst']) load(k, `assets/fx/${k}.png`);
+    load('cutin_astral_god', 'assets/ui/cutin_astral_god.png');
   }
 
   create(): void {
@@ -575,23 +581,32 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: text, y: CENTER_Y - 70, alpha: 0, duration: 1200, onComplete: () => text.destroy() });
   }
 
-  // M2: W1-5 최초 클리어 T4 컷인 (아트 없음 — 텍스트 스텁, AM4 생성 후 교체 예정)
+  // M2/M5: W1-5 최초 클리어 T4 컷인 — cutin_astral_god 일러스트(없으면 텍스트 폴백)
   private showT4Cutin(onDone: () => void): void {
     this.cameras.main.shake(300, 0.01);
     const flash = this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0.8).setDepth(22);
     this.tweens.add({ targets: flash, alpha: 0.5, duration: 500 });
-    const title = this.add.text(CENTER_X, CENTER_Y - 30, '🌟 Astral_God', {
-      fontFamily: 'monospace', fontSize: '26px', color: '#ffe066',
-      stroke: '#000000', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(23);
-    const line = this.add.text(CENTER_X, CENTER_Y + 16, W1_5_CUTIN_LINE, {
+
+    let hero: Phaser.GameObjects.Image | Phaser.GameObjects.Text;
+    if (this.textures.exists('cutin_astral_god')) {
+      const img = this.add.image(CENTER_X, CENTER_Y - 24, 'cutin_astral_god').setDepth(23).setAlpha(0);
+      img.setScale(340 / img.width);
+      this.tweens.add({ targets: img, alpha: 1, duration: 300 });
+      hero = img;
+    } else {
+      hero = this.add.text(CENTER_X, CENTER_Y - 30, '🌟 Astral_God', {
+        fontFamily: 'monospace', fontSize: '26px', color: '#ffe066',
+        stroke: '#000000', strokeThickness: 4,
+      }).setOrigin(0.5).setDepth(23);
+    }
+    const line = this.add.text(CENTER_X, CENTER_Y + 172, W1_5_CUTIN_LINE, {
       fontFamily: 'monospace', fontSize: '13px', color: '#ffffff', align: 'center',
       stroke: '#000000', strokeThickness: 3,
     }).setOrigin(0.5).setDepth(23);
     this.time.delayedCall(1800, () => {
       this.tweens.add({
-        targets: [flash, title, line], alpha: 0, duration: 400,
-        onComplete: () => { flash.destroy(); title.destroy(); line.destroy(); onDone(); },
+        targets: [flash, hero, line], alpha: 0, duration: 400,
+        onComplete: () => { flash.destroy(); hero.destroy(); line.destroy(); onDone(); },
       });
     });
   }

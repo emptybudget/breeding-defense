@@ -8,9 +8,23 @@ export class TitleScene extends Phaser.Scene {
     super('TitleScene');
   }
 
+  preload(): void {
+    if (!this.textures.exists('title_keyvisual')) {
+      this.load.image('title_keyvisual', 'assets/ui/title_keyvisual.png');
+    }
+  }
+
   create(): void {
     // Background
     this.add.rectangle(CENTER_X, CENTER_Y, GAME_WIDTH, GAME_HEIGHT, AN.BG_DEEP);
+
+    // 타이틀 키비주얼 — 어두운 바탕 위 중앙, 세로 화면에 맞춰 커버 크롭
+    if (this.textures.exists('title_keyvisual')) {
+      const kv = this.add.image(CENTER_X, CENTER_Y, 'title_keyvisual').setDepth(0);
+      const src = kv.width, srcH = kv.height;
+      const scale = Math.max(GAME_WIDTH / src, GAME_HEIGHT / srcH); // cover
+      kv.setScale(scale).setAlpha(0.9);
+    }
 
     // Decorative AN panel behind title text
     const frameGfx = this.add.graphics();
