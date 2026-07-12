@@ -29,6 +29,15 @@ export const CHARACTER_ASSETS: Array<{ race: UnitRace; tier: 1 | 2 | 3 | 4 }> = 
   { race: 'Gatling_Dog',      tier: 2 },
   { race: 'Electric_Coon',    tier: 2 },
   { race: 'Menhera_Squirrel', tier: 2 },
+  // Tier 3
+  { race: 'Cyborg_Wizard',    tier: 3 },
+  { race: 'Dino_Mecha',       tier: 3 },
+  { race: 'Griffin',          tier: 3 },
+  { race: 'Thunder_Hawk',     tier: 3 },
+  { race: 'Berserk_Shaman',   tier: 3 },
+  { race: 'Chaos_Artillery',  tier: 3 },
+  // Tier 4
+  { race: 'Astral_God',       tier: 4 },
 ];
 
 export function unitTextureKey(race: UnitRace, tier: number): string {
