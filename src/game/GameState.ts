@@ -55,6 +55,7 @@ import {
   TIER1_ENHANCE_COST,
   TIER2_ENHANCE_MAX,
   TIER2_ENHANCE_COST,
+  TIER4_SYNTHESIS_SOUL_COST,
 } from './config';
 import {
   CombatResult,
@@ -702,8 +703,14 @@ export class GameState {
         this.pendingNotification = `⚠️ Astral_God: ${thirdRace} 필요 (100px 이내)`;
         return null;
       }
+      // 32: 神 탄생 = 영혼 촉매 필요 (T3 메인 운용화). 혈통 승계는 그대로 — 영혼은 승격 촉매지 T4 구매가 아님.
+      if (this.enhancePoints < TIER4_SYNTHESIS_SOUL_COST) {
+        this.pendingNotification = `⚠️ 神을 낳으려면 영혼 ${TIER4_SYNTHESIS_SOUL_COST} 필요 (보유 ${this.enhancePoints})`;
+        return null;
+      }
       const thirdIdx = this.units.findIndex(u => u.id === third.id);
       [aIdx, bIdx, thirdIdx].sort((x, y) => y - x).forEach(idx => this.units.splice(idx, 1));
+      this.enhancePoints -= TIER4_SYNTHESIS_SOUL_COST;
       const astral = makeUnit(this._nextUnitId++, 'Astral_God', 4, hx, hy);
       this.applyInheritance(astral, [a, b, third]);
       this.units.push(astral);

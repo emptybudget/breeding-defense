@@ -271,6 +271,9 @@ export const TIER2_ENHANCE_COST = 2;
 // Soul Shop: soul-summon cost starts at 1pt and increments by 1 per purchase
 export const SOUL_SUMMON_COST_START = 1;
 
+// 32: T4 영혼 촉매 — Astral_God 합성에 영혼 추가 요구(T3 메인 운용화). 판당 ~1기 강림 목표(영혼 수입 2~3/판). 플레이 게이트에서 조정.
+export const TIER4_SYNTHESIS_SOUL_COST = 3;
+
 // Stage system
 export type StageId = 1 | 2 | 3;
 export interface StageConfig {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { GameState } from '../../src/game/GameState';
 import { makeUnit } from '../../src/game/unitHelpers';
-import { BREED_BUDGET, MUTATION_COMMON_GOLD, WORLD_CONFIGS } from '../../src/game/config';
+import { BREED_BUDGET, MUTATION_COMMON_GOLD, TIER4_SYNTHESIS_SOUL_COST, WORLD_CONFIGS } from '../../src/game/config';
 
 describe('M3 GameState 교배 통합 (14 §4)', () => {
   it('부모 2 소모 + 자식 1 생성 + 혈통 창설 + pendingHatch', () => {
@@ -110,5 +110,36 @@ describe('M4 W1-2 확정 희귀 (R3) + 일반 변이 즉시 골드 (R6)', () => 
       }
     }
     expect(sawCommon).toBe(true);
+  });
+});
+
+describe('32 T4 영혼 촉매 — 神 탄생 게이트', () => {
+  function setupAstralReady(): GameState {
+    const st = new GameState();
+    // Astral 레시피 = Griffin + Thunder_Hawk + Cyborg_Wizard, 셋 다 100px 이내
+    st.units.push(
+      makeUnit(1, 'Griffin', 3, 100, 100),
+      makeUnit(2, 'Thunder_Hawk', 3, 110, 100),
+      makeUnit(3, 'Cyborg_Wizard', 3, 120, 100),
+    );
+    return st;
+  }
+  it('영혼 부족이면 T4 합성 실패 (유닛 불변)', () => {
+    const st = setupAstralReady();
+    st.enhancePoints = TIER4_SYNTHESIS_SOUL_COST - 1;
+    const out = st.synthesize(1, 2);
+    expect(out).toBeNull();
+    expect(st.units.some(u => u.race === 'Astral_God')).toBe(false);
+    expect(st.units.length).toBe(3);
+    expect(st.enhancePoints).toBe(TIER4_SYNTHESIS_SOUL_COST - 1); // 미차감
+  });
+  it('영혼 충분이면 神 탄생 + 영혼 차감 + 재료 3 소모', () => {
+    const st = setupAstralReady();
+    st.enhancePoints = TIER4_SYNTHESIS_SOUL_COST + 2;
+    const out = st.synthesize(1, 2);
+    expect(out?.race).toBe('Astral_God');
+    expect(st.enhancePoints).toBe(2);
+    expect(st.units.filter(u => u.race === 'Astral_God').length).toBe(1);
+    expect(st.units.some(u => u.tier === 3)).toBe(false); // 재료 3기 전부 소모
   });
 });
