@@ -804,6 +804,7 @@ export class GameState {
     if (inh.lineageId !== undefined) result.lineageId = inh.lineageId;
     if (inh.bloodlineName) result.bloodlineName = inh.bloodlineName;
     if (inh.trait) result.trait = inh.trait;
+    if (inh.trait2) result.trait2 = inh.trait2;
     if (inh.epithet) result.epithet = inh.epithet;
 
     // M5: 융합 결과도 계보에 로깅 — "시조→교배→융합" 체인 완성 (혈통 승계된 경우만 귀속)

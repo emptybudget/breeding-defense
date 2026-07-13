@@ -67,9 +67,14 @@ export function resolveBreeding(
   let secondTrait: TraitId | undefined;
   if (mutation === 'legend') {
     inheritedTrait = ALL_TRAITS[Math.floor(rng() * ALL_TRAITS.length)];
+    // 상한 12회 — degenerate rng(상수)에서도 무한루프 방지. 초과 시 인접 특성으로 결정론 폴백(중복 불가 보장, ALL_TRAITS≥2).
+    let tries = 0;
     do {
       secondTrait = ALL_TRAITS[Math.floor(rng() * ALL_TRAITS.length)];
-    } while (secondTrait === inheritedTrait);
+    } while (secondTrait === inheritedTrait && ++tries < 12);
+    if (secondTrait === inheritedTrait) {
+      secondTrait = ALL_TRAITS[(ALL_TRAITS.indexOf(inheritedTrait) + 1) % ALL_TRAITS.length];
+    }
   } else {
     inheritedTrait = resolveTraitInheritance(a, b, rng);
   }
@@ -150,20 +155,30 @@ function pickLineageId(units: UnitData[]): number | undefined {
 
 // ⑤ 융합(합성) 승계 — synthesize()가 결과 유닛 생성 직후 호출
 export function inheritOnSynthesis(materials: UnitData[], rng: () => number): {
-  gen: Gen; lineageId?: number; bloodlineName?: string; trait?: TraitId; epithet?: string;
+  gen: Gen; lineageId?: number; bloodlineName?: string; trait?: TraitId; trait2?: TraitId; epithet?: string;
 } {
   const gen = clampGen(materials.reduce((m, u) => Math.max(m, u.gen ?? 0), 0));
-  // 최대 Gen 재료 (동률이면 혈통 보유 → id 최소)
-  const apex = [...materials].sort((a, b) =>
+  // 최대 Gen 재료 (동률이면 혈통 보유 → id 최소) = 가문 정체성(계보·칭호)은 여기서 단일 계승.
+  const sorted = [...materials].sort((a, b) =>
     (b.gen ?? 0) - (a.gen ?? 0) ||
     (Number(b.lineageId !== undefined) - Number(a.lineageId !== undefined)) ||
-    a.id - b.id)[0];
-  const trait = apex?.trait && rng() < TRAIT_INHERIT.synthesis / 100 ? apex.trait : undefined;
+    a.id - b.id);
+  const apex = sorted[0];
+  // 특성 풀링: 재료들의 서로 다른 특성을 우선순위대로 각 60%(synthesis) 생존 롤 → 최대 2슬롯 (28-schools 2유파 상한).
+  // 단일 특성이면 기존과 동일(apex 특성 60% 승계). 여러 명가를 융합하면 양쪽 표식이 함께 남는다.
+  const pooled: TraitId[] = [];
+  for (const u of sorted) {
+    if (u.trait && !pooled.includes(u.trait) && rng() < TRAIT_INHERIT.synthesis / 100) {
+      pooled.push(u.trait);
+      if (pooled.length === 2) break;
+    }
+  }
   return {
     gen,
     lineageId: apex?.lineageId,
     bloodlineName: apex?.bloodlineName,
-    trait,
+    trait: pooled[0],
+    trait2: pooled[1],
     epithet: apex?.epithet,
   };
 }

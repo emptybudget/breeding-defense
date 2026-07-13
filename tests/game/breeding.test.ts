@@ -107,6 +107,13 @@ describe('피티 발동·리셋 (14 §4, 12-F3)', () => {
     expect(out.secondTrait).toBeDefined();   // 전설 = 특성 2슬롯
     expect(out.secondTrait).not.toBe(out.inheritedTrait);
   });
+  it('degenerate rng(상수)에서도 전설 2슬롯 롤이 무한루프 없이 종료 (breeding.ts:70 상한)', () => {
+    // scripted([0])은 소진 후 0을 무한 반복 → 상한이 없으면 do/while이 hang. 종료 자체가 검증 대상.
+    const out = resolveBreeding(t1(1, 'Warrior'), t1(2, 'Archer'), { rareMiss: 0, legendMiss: LEGEND_PITY }, scripted([0]));
+    expect(out.mutation).toBe('legend');
+    expect(out.secondTrait).toBeDefined();
+    expect(out.secondTrait).not.toBe(out.inheritedTrait); // 결정론 폴백이 중복을 회피
+  });
 });
 
 describe('특성 상속 분포 (14 §2 ⑥, R5 50/40/20 · 합성 60)', () => {
@@ -133,6 +140,20 @@ describe('특성 상속 분포 (14 §2 ⑥, R5 50/40/20 · 합성 60)', () => {
     }
     expect(kept / N).toBeGreaterThan(0.57);
     expect(kept / N).toBeLessThan(0.63);
+  });
+  it('합성 풀링: 서로 다른 특성 다수 → 우선순위대로 최대 2슬롯 (28-schools 2유파 상한)', () => {
+    const a = makeUnit(1, 'Bio_Wolf', 2, 0, 0); a.gen = 2; a.trait = 'Gatling_Dog';
+    const b = makeUnit(2, 'Falcon_Eye', 2, 0, 0); b.gen = 2; b.trait = 'Laser_Sniper';
+    const c = makeUnit(3, 'Blade_Hound', 2, 0, 0); c.gen = 2; c.trait = 'Electric_Coon';
+    const inh = inheritOnSynthesis([a, b, c], scripted([0])); // rng=0 → 60% 생존 롤 전부 통과
+    expect([inh.trait, inh.trait2]).toEqual(['Gatling_Dog', 'Laser_Sniper']); // 3번째는 상한 초과로 탈락
+  });
+  it('합성 풀링: 같은 특성 중복은 한 슬롯만 (풀=서로 다른 특성)', () => {
+    const a = makeUnit(1, 'Bio_Wolf', 2, 0, 0); a.gen = 2; a.trait = 'Gatling_Dog';
+    const b = makeUnit(2, 'Falcon_Eye', 2, 0, 0); b.gen = 2; b.trait = 'Gatling_Dog';
+    const inh = inheritOnSynthesis([a, b], scripted([0]));
+    expect(inh.trait).toBe('Gatling_Dog');
+    expect(inh.trait2).toBeUndefined();
   });
 });
 

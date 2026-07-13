@@ -83,6 +83,9 @@ const game = new Phaser.Game({
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   backgroundColor: '#0d0c08',
+  // 사운드는 전부 커스텀 SoundManager(자체 AudioContext)가 처리 — Phaser 내장 오디오는 미사용.
+  // Phaser가 오디오 디바이스를 잡으려다 실패해 내뱉는 unhandledrejection("failed to start the audio device") 차단.
+  audio: { noAudio: true },
   render: {
     // 256px 원본 → 32~58px 다운스케일 품질 개선 (POT 텍스처 밉맵)
     mipmapFilter: 'LINEAR_MIPMAP_LINEAR',
