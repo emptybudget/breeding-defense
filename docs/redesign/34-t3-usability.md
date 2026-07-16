@@ -41,7 +41,9 @@
 
 검증: `npx tsc --noEmit` + ko.ts 키 존재 테스트(`text.test.ts` 패턴). UI 확인은 사용자 플레이 게이트.
 
-## 4. D — T3-only 승리 시뮬 (P0-3, 코드 세션 선행)
+> ✅ **D 종결 (2026-07-16, Opus 4.8) — 게이트 PASS**: `scripts/sim-t3-ceiling.ts`(sim-freeze 하네스, 실제 GameState+runCombat, 7분 시계열 60시드/셀, 보스 HP 실제 공식). **T3 상비군(T4 0기)이 W2-1~W3-5 전부 승률 100%** — Phase C 보스를 랩 이탈 전(14~28s) 처치, 개체수 peak 6~13/40으로 오버플로 여유. T2-only 대조군은 67→37% 붕괴(판별력 실증). **∴ §5 A안·C안 보류 유지.** 단 FLOOR(무보상)에서 T3는 무너짐(W3-5 0%) → **T3 Phase C 생존은 보스 보상 피드백 루프에 의존**(의도된 설계, 별도 조치 불요). ⚠️ best-case 중앙 배치 천장 테스트라 실전 분산 배치는 마진이 더 얇음 — M5 게이트(W2-5 풀플레이)에서 체감 확인 권장.
+
+## 4. D — T3-only 승리 시뮬 (P0-3, 코드 세션 선행) — ✅ 완료
 
 - 스크립트: `scripts/sim-t3-ceiling.ts` (선례 `sim-bloodline.ts`/`sim-freeze.ts` — combat.ts 순수 레이어, esbuild→node).
 - **질문**: 영혼이 T4에 안 모인 판(T4 0기)에서 W2/W3 정규 7분 승리가 가능한가? 특히 Phase C 보스(4:30+, HP 65/15).
